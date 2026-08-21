@@ -1,4 +1,4 @@
-# PollenForge Desktop
+# PollenForge Desktop (Beta 1)
 
 **Matte black AI coding assistant — a Codex / Claude Code / Cursor clone with full computer access.**
 
