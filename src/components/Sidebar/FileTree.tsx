@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useStore, FileEntry } from '../../store/store'
 import { FileTypeIcon } from './fileIcons'
+import { addFileToChat, openWorkspaceFile } from '../../lib/workspaceFiles'
 
 function GitBadge({ status }: { status?: string }) {
   if (!status) return null
@@ -28,7 +29,9 @@ function GitBadge({ status }: { status?: string }) {
 
 function TreeNode({ entry, depth = 0 }: { entry: FileEntry; depth?: number }) {
   const [expanded, setExpanded] = useState(!!entry.expanded)
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const isExpanded = expanded && entry.isDirectory
+  const active = useStore((s) => s.activeFilePath === entry.path)
 
   const handleClick = async () => {
     if (entry.isDirectory) {
@@ -56,16 +59,13 @@ function TreeNode({ entry, depth = 0 }: { entry: FileEntry; depth?: number }) {
         }
       }
     } else {
-      // Insert @path into input instead of polluting chat
-      document.dispatchEvent(new CustomEvent('send-message', { detail: `@${entry.path} ` }))
-      // Also copy path
-      try { await navigator.clipboard.writeText(entry.path) } catch {}
+      void openWorkspaceFile(entry.path)
     }
   }
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
-    navigator.clipboard.writeText(entry.path)
+    setMenu({ x: e.clientX, y: e.clientY })
   }
 
   return (
@@ -73,7 +73,9 @@ function TreeNode({ entry, depth = 0 }: { entry: FileEntry; depth?: number }) {
       <button
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        className="w-full flex items-center gap-1.5 px-2 h-7 text-[13px] text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-smooth rounded group"
+        className={`w-full flex items-center gap-1.5 px-2 h-7 text-[13px] hover:bg-surface-2 hover:text-text-primary transition-smooth rounded group ${
+          active ? 'bg-surface-2 text-text-primary' : 'text-text-secondary'
+        }`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         title={entry.path}
       >
@@ -90,6 +92,43 @@ function TreeNode({ entry, depth = 0 }: { entry: FileEntry; depth?: number }) {
         <span className="truncate flex-1 text-left">{entry.name}</span>
         <GitBadge status={entry.git_status} />
       </button>
+      {menu && !entry.isDirectory && (
+        <>
+          <div className="fixed inset-0 z-50" onClick={() => setMenu(null)} />
+          <div
+            className="fixed z-50 bg-surface-3 border border-border rounded-lg shadow-xl py-1 min-w-[140px]"
+            style={{ left: menu.x, top: menu.y }}
+          >
+            <button
+              onClick={() => {
+                void openWorkspaceFile(entry.path)
+                setMenu(null)
+              }}
+              className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary"
+            >
+              Open
+            </button>
+            <button
+              onClick={() => {
+                addFileToChat(entry.path)
+                setMenu(null)
+              }}
+              className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary"
+            >
+              Add to chat
+            </button>
+            <button
+              onClick={() => {
+                void navigator.clipboard.writeText(entry.path)
+                setMenu(null)
+              }}
+              className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary"
+            >
+              Copy path
+            </button>
+          </div>
+        </>
+      )}
       {isExpanded && entry.children?.map((child) => (
         <TreeNode key={child.path} entry={child} depth={depth + 1} />
       ))}

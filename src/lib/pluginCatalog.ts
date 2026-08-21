@@ -46,6 +46,24 @@ Yes: "Bug in auth middleware. Token expiry use \`<\` not \`<=\`. Fix:"`,
 Each finding is one line: path:line: severity: problem. Fix.
 Severities: blocker, major, minor. Skip formatting nits unless they change meaning. No praise. No scope creep.`,
   },
+  {
+    id: 'planner',
+    name: 'Plan',
+    command: '/plan',
+    description: 'Write a plan first. Do not edit files until the user says to execute.',
+    prompt: `PLAN MODE is ON. You are a planner, not an implementer.
+
+Do not write, edit, or delete files. Do not run shell commands that change state. Read-only tools are OK if you need to inspect the repo.
+
+Produce a concrete plan:
+1. Goal in one line.
+2. Files you would touch.
+3. Numbered steps.
+4. Risks or unknowns.
+5. End with: "Plan ready. Say go to execute."
+
+If the user later says go / execute / implement, drop this constraint and do the work.`,
+  },
 ]
 
 export const PLUGIN_CATALOG_MAP: Record<string, PluginEntry> = Object.fromEntries(

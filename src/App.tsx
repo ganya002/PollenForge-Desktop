@@ -15,6 +15,7 @@ import UpdateBadge from './components/UpdateBadge'
 import { useAvailableUpdate } from './hooks/useAvailableUpdate'
 import { mergeFetchedConfig } from './lib/appConfig'
 import { refreshSessions } from './lib/sessions'
+import FilePanel from './components/Files/FilePanel'
 
 export default function App() {
   const sidebarOpen = useStore((s) => s.sidebarOpen)
@@ -26,6 +27,7 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false)
   const nativeFrame = window.api?.app?.nativeFrame === true
   const currentSession = useStore((s) => s.sessions.find((x) => x.id === s.currentSessionId))
+  const hasOpenFiles = useStore((s) => s.openFiles.length > 0)
   useAvailableUpdate()
 
   const handleNewChat = useCallback(() => {
@@ -160,10 +162,13 @@ export default function App() {
         </div>
 
         {/* Main content */}
-        <div className="flex flex-col flex-1 min-h-0">
-          <ChatArea messages={messages} scrollRef={scrollRef} onRetry={retryLastMessage} />
-          <ApprovalPrompt />
-          <InputBar onSend={sendMessage} isStreaming={isStreaming} />
+        <div className="flex flex-1 min-h-0">
+          <div className="flex flex-col flex-1 min-w-0">
+            <ChatArea messages={messages} scrollRef={scrollRef} onRetry={retryLastMessage} />
+            <ApprovalPrompt />
+            <InputBar onSend={sendMessage} isStreaming={isStreaming} />
+          </div>
+          {hasOpenFiles && <FilePanel />}
         </div>
 
         {/* Status bar */}

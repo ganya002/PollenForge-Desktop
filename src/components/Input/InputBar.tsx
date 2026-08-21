@@ -195,7 +195,7 @@ export default function InputBar({ onSend, isStreaming }: Props) {
       const s = useStore.getState()
       onSend(`Token usage: ${s.totalTokensUsed} total. Model ${s.currentModel} on ${s.currentProvider}.`)
     } else if (command === '/help') {
-      onSend('Show available commands: /clear, /compact, /cost, /help, /caveman, /goal, /review, @files, and tools.')
+      onSend('Show available commands: /clear, /compact, /cost, /help, /plan, /caveman, /goal, /review, @files, and tools.')
     } else if (command === '/new') {
       useStore.getState().clearMessages()
       useStore.getState().setCurrentSessionId(null)
@@ -312,6 +312,25 @@ export default function InputBar({ onSend, isStreaming }: Props) {
 
             <button onClick={toggleAutoApprove} className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 ${autoApprove ? 'bg-surface-3 text-success border-border' : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'}`} title="Auto-approve tool execution">
               Auto {autoApprove && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+            </button>
+
+            <button
+              onClick={() => {
+                const cfg = useStore.getState().config
+                const on = !activePluginIds(cfg).includes('planner')
+                const next = setPluginActive(cfg, 'planner', on)
+                setConfig(next)
+                persistConfig(next)
+                setPluginNotice(on ? 'Plan on. Next prompt writes a plan.' : 'Plan off')
+              }}
+              className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 ${
+                activePluginIds(config).includes('planner')
+                  ? 'bg-surface-3 text-text-primary border-border'
+                  : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'
+              }`}
+              title="Planning mode — /plan"
+            >
+              Plan {activePluginIds(config).includes('planner') && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </button>
 
             <button

@@ -34,3 +34,9 @@ test('/goal with text sends the remainder', () => {
   assert.deepEqual(result, { kind: 'send', text: 'ship 1.0.0' })
   assert.ok(config.active_plugins.includes('goal'))
 })
+
+test('/plan with text sends the remainder', () => {
+  const { result, config } = handlePluginSlash('/plan add file preview', base)
+  assert.deepEqual(result, { kind: 'send', text: 'add file preview' })
+  assert.ok(config.active_plugins.includes('planner'))
+})

@@ -65,6 +65,14 @@ export interface ModelInfo {
   context_length: number
 }
 
+export interface OpenFile {
+  path: string
+  name: string
+  content: string
+  error?: string
+  truncated?: boolean
+}
+
 export interface FileEntry {
   name: string
   path: string
@@ -126,6 +134,8 @@ interface AppState {
   tasks: BackgroundTask[]
   diffs: DiffEntry[]
   availableUpdate: string | null
+  openFiles: OpenFile[]
+  activeFilePath: string | null
   _wsSend: ((data: Record<string, unknown>) => boolean) | null
 
   addMessage: (msg: Message) => void
@@ -151,6 +161,9 @@ interface AppState {
   setTasks: (t: BackgroundTask[]) => void
   setDiffs: (d: DiffEntry[]) => void
   setAvailableUpdate: (version: string | null) => void
+  upsertOpenFile: (file: OpenFile) => void
+  closeFile: (path: string) => void
+  setActiveFile: (path: string | null) => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -183,6 +196,8 @@ export const useStore = create<AppState>((set, get) => ({
   tasks: [],
   diffs: [],
   availableUpdate: null,
+  openFiles: [],
+  activeFilePath: null,
   _wsSend: null,
 
   addMessage: (msg) => set((s) => {
@@ -250,4 +265,19 @@ export const useStore = create<AppState>((set, get) => ({
   setTasks: (tasks) => set({ tasks }),
   setDiffs: (diffs) => set({ diffs }),
   setAvailableUpdate: (availableUpdate) => set({ availableUpdate }),
+  upsertOpenFile: (file) => set((s) => {
+    const i = s.openFiles.findIndex((f) => f.path === file.path)
+    const openFiles = i >= 0
+      ? s.openFiles.map((f, idx) => (idx === i ? { ...f, ...file } : f))
+      : [...s.openFiles, file]
+    return { openFiles, activeFilePath: file.path }
+  }),
+  closeFile: (path) => set((s) => {
+    const openFiles = s.openFiles.filter((f) => f.path !== path)
+    const activeFilePath = s.activeFilePath === path
+      ? (openFiles[openFiles.length - 1]?.path || null)
+      : s.activeFilePath
+    return { openFiles, activeFilePath }
+  }),
+  setActiveFile: (activeFilePath) => set({ activeFilePath }),
 }))
