@@ -18,6 +18,9 @@ class MapPollinationsModelTests(unittest.TestCase):
         self.assertEqual(mapped["id"], "gpt-5.6-sol")
         self.assertFalse(mapped["free"])
         self.assertGreater(mapped["cost_per_1k"], 0)
+        self.assertEqual(mapped["cost_currency"], "pollen")
+        self.assertAlmostEqual(mapped["cost_in_per_1k"], 0.0004)
+        self.assertAlmostEqual(mapped["cost_out_per_1k"], 0.0015)
         self.assertEqual(mapped["context_length"], 128000)
 
     def test_free_suffix_and_zero_price(self):

@@ -21,14 +21,6 @@ def _is_free(model_id: str, pricing: dict | None) -> bool:
     return not nums or all(n == 0 for n in nums)
 
 
-def _cost_per_1k(pricing: dict | None) -> float:
-    if not pricing or not isinstance(pricing, dict):
-        return 0.0
-    prompt = _as_float(pricing.get("promptTextTokens"))
-    completion = _as_float(pricing.get("completionTextTokens"))
-    return (prompt + completion) * 1000
-
-
 def _display_name(model_id: str) -> str:
     slug = model_id.split("/")[-1]
     if slug.endswith(":free"):
@@ -45,10 +37,15 @@ def map_pollinations_model(row: dict) -> dict:
         ctx = int(ctx)
     except (TypeError, ValueError):
         ctx = 128000
+    prompt = _as_float(pricing.get("promptTextTokens"))
+    completion = _as_float(pricing.get("completionTextTokens"))
     return {
         "id": model_id,
         "name": _display_name(model_id),
-        "cost_per_1k": 0.0 if free else _cost_per_1k(pricing),
+        "cost_per_1k": 0.0 if free else (prompt + completion) * 1000,
+        "cost_in_per_1k": 0.0 if free else prompt * 1000,
+        "cost_out_per_1k": 0.0 if free else completion * 1000,
+        "cost_currency": "pollen",
         "context_length": ctx,
         "free": free,
     }

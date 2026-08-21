@@ -10,7 +10,7 @@ import {
   removeEnabledProvider,
 } from '../../lib/appConfig'
 import { marketplaceSearch, installPlugin, uninstallPlugin, installedPluginIds } from '../../lib/plugins'
-import { isFreeModel } from '../../lib/modelFilter'
+import { isFreeModel, resolveModelList, type ModelListMode } from '../../lib/modelFilter'
 
 export type SettingsTab = 'providers' | 'plugins' | 'general' | 'updates' | 'about'
 
@@ -304,23 +304,25 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                   <div className="bg-surface-2 rounded-lg p-4">
                     <div className="text-xs font-medium text-text-primary">Model list</div>
                     <div className="text-[10px] text-text-muted mt-0.5 mb-3">
-                      All models is the default. Free only hides paid Pollinations models.
+                      Popular is the default. All shows every live model. Only Free hides paid ones.
                     </div>
                     <div className="flex gap-1">
                       {([
-                        { id: 'all', label: 'All models', onlyFree: false },
-                        { id: 'free', label: 'Free only', onlyFree: true },
+                        { id: 'popular', label: 'Popular' },
+                        { id: 'all', label: 'All' },
+                        { id: 'free', label: 'Only Free' },
                       ] as const).map((opt) => {
-                        const on = !!config.free_models_only === opt.onlyFree
+                        const on = resolveModelList(config) === opt.id
                         return (
                           <button
                             key={opt.id}
                             onClick={() => {
                               const cfg = useStore.getState().config
-                              const next = { ...cfg, free_models_only: opt.onlyFree }
+                              const mode = opt.id as ModelListMode
+                              const next = { ...cfg, model_list: mode, free_models_only: mode === 'free' }
                               setConfig(next)
                               persistConfig(next)
-                              if (opt.onlyFree) {
+                              if (mode === 'free') {
                                 const models = next.providers[currentProvider]?.models || []
                                 const current = useStore.getState().currentModel
                                 const stillVisible = models.some((m) => m.id === current && isFreeModel(m))

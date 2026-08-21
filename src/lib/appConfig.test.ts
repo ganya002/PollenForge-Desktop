@@ -75,12 +75,20 @@ test('mergeFetchedConfig keeps default_directory', () => {
   assert.equal(merged.default_directory, 'C:\\Users\\me\\project')
 })
 
-test('mergeFetchedConfig stores free_models_only', () => {
-  const merged = mergeFetchedConfig(current, {
+test('mergeFetchedConfig stores model_list and migrates free_models_only', () => {
+  const fromFlag = mergeFetchedConfig(current, {
     providers: { pollinations: { enabled: true, api_key: '' } },
     free_models_only: true,
   })
-  assert.equal(merged.free_models_only, true)
+  assert.equal(fromFlag.free_models_only, true)
+  assert.equal(fromFlag.model_list, 'free')
+
+  const fromList = mergeFetchedConfig(current, {
+    providers: { pollinations: { enabled: true, api_key: '' } },
+    model_list: 'all',
+  })
+  assert.equal(fromList.model_list, 'all')
+  assert.equal(fromList.free_models_only, false)
 })
 
 test('mergeProviderModels replaces the live Pollinations catalog', () => {

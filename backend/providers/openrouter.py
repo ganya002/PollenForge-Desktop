@@ -3,6 +3,7 @@ import httpx
 from collections.abc import AsyncGenerator
 
 from openai_tools import attach_openai_tools, stream_openai_chat
+from openrouter_models import map_openrouter_models
 
 
 class OpenRouterProvider(Provider):
@@ -53,6 +54,27 @@ class OpenRouterProvider(Provider):
             yield item
 
     async def list_models(self) -> list[dict]:
+        try:
+            headers = {
+                "HTTP-Referer": "https://github.com/ganya002/PollenForge-Desktop",
+                "X-Title": "Nexum",
+            }
+            try:
+                from config import load_config
+                key = ((load_config().get("providers") or {}).get("openrouter") or {}).get("api_key") or ""
+                if key:
+                    headers["Authorization"] = f"Bearer {key}"
+            except Exception:
+                pass
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                r = await client.get("https://openrouter.ai/api/v1/models", headers=headers)
+                if r.status_code == 200:
+                    mapped = map_openrouter_models(r.json())
+                    if mapped:
+                        self.models = mapped
+                        return mapped
+        except Exception:
+            pass
         return self.models
 
     async def validate_key(self, api_key: str) -> bool:

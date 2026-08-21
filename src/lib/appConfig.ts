@@ -19,6 +19,9 @@ function asModels(value: unknown): ModelInfo[] | undefined {
       cost_per_1k: typeof model.cost_per_1k === 'number' ? model.cost_per_1k : 0,
       context_length: typeof model.context_length === 'number' ? model.context_length : 128000,
       ...(typeof model.free === 'boolean' ? { free: model.free } : {}),
+      ...(typeof model.cost_in_per_1k === 'number' ? { cost_in_per_1k: model.cost_in_per_1k } : {}),
+      ...(typeof model.cost_out_per_1k === 'number' ? { cost_out_per_1k: model.cost_out_per_1k } : {}),
+      ...(typeof model.cost_currency === 'string' ? { cost_currency: model.cost_currency } : {}),
     })
   }
   return models.length ? models : undefined
@@ -44,7 +47,13 @@ export function mergeFetchedConfig(current: Config, remote: unknown): Config {
   if (typeof data.temperature === 'number') next.temperature = data.temperature
   if (typeof data.max_tokens === 'number') next.max_tokens = data.max_tokens
   if (typeof data.auto_approve === 'boolean') next.auto_approve = data.auto_approve
-  if (typeof data.free_models_only === 'boolean') next.free_models_only = data.free_models_only
+  if (data.model_list === 'popular' || data.model_list === 'all' || data.model_list === 'free') {
+    next.model_list = data.model_list
+    next.free_models_only = data.model_list === 'free'
+  } else if (typeof data.free_models_only === 'boolean') {
+    next.free_models_only = data.free_models_only
+    next.model_list = data.free_models_only ? 'free' : 'popular'
+  }
   if (typeof data.model === 'string') next.model = data.model
   if (typeof data.provider === 'string') next.provider = data.provider
   if (typeof data.default_directory === 'string') next.default_directory = data.default_directory

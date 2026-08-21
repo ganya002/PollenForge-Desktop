@@ -53,6 +53,7 @@ export interface Config {
     auto_approve: boolean
   default_directory?: string
   free_models_only?: boolean
+  model_list?: 'popular' | 'all' | 'free'
 }
 
 export interface ProviderConfig {
@@ -67,6 +68,9 @@ export interface ModelInfo {
   cost_per_1k: number
   context_length: number
   free?: boolean
+  cost_in_per_1k?: number
+  cost_out_per_1k?: number
+  cost_currency?: 'usd' | 'pollen' | string
 }
 
 export interface OpenFile {
@@ -192,6 +196,7 @@ export const useStore = create<AppState>((set, get) => ({
     temperature: 0.4,
     max_tokens: 32768,
     auto_approve: true,
+    model_list: 'popular',
     free_models_only: false,
   },
   fileTree: [],

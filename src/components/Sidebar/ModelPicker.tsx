@@ -6,7 +6,7 @@ import {
   enabledProviderIds,
   persistConfig,
 } from '../../lib/appConfig'
-import { isFreeModel, visibleModels } from '../../lib/modelFilter'
+import { formatModelCost, resolveModelList, visibleModels } from '../../lib/modelFilter'
 
 function PollenBalance() {
   const [balance, setBalance] = useState<number | null>(null)
@@ -66,7 +66,7 @@ export default function ModelPicker() {
   const q = search.trim().toLowerCase()
 
   const allModels = enabled.flatMap((provider) =>
-    visibleModels(config.providers[provider]?.models || [], !!config.free_models_only).map((model) => ({
+    visibleModels(config.providers[provider]?.models || [], resolveModelList(config)).map((model) => ({
       provider,
       model,
     })),
@@ -126,6 +126,11 @@ export default function ModelPicker() {
             {currentModelObj?.model.name || currentModel}
           </div>
         </div>
+        {currentModelObj && (
+          <span className="text-[10px] text-text-muted shrink-0 tabular-nums" title="Model cost">
+            {formatModelCost(currentModelObj.model)}
+          </span>
+        )}
         <svg
           width="10"
           height="10"
@@ -194,9 +199,16 @@ export default function ModelPicker() {
                       >
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta?.color || '#888' }} />
                         <span className="flex-1 min-w-0 text-[13px] truncate">{model.name}</span>
-                        {isFreeModel(model) && (
-                          <span className="text-[10px] text-text-muted shrink-0">Free</span>
-                        )}
+                        <span
+                          className="text-[10px] text-text-muted shrink-0 tabular-nums"
+                          title={
+                            model.cost_currency === 'pollen'
+                              ? 'Pollen per million input/output tokens'
+                              : 'USD per million input/output tokens'
+                          }
+                        >
+                          {formatModelCost(model)}
+                        </span>
                         {active && (
                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="shrink-0">
                             <path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
