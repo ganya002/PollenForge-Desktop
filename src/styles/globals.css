@@ -155,6 +155,26 @@ code {
 .markdown-body h2 { font-size: 1.25em; }
 .markdown-body h3 { font-size: 1.1em; }
 
+.release-notes {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.release-notes h1,
+.release-notes h2,
+.release-notes h3,
+.release-notes .markdown-body h1,
+.release-notes .markdown-body h2,
+.release-notes .markdown-body h3 {
+  font-size: 12px !important;
+  font-weight: 600;
+  margin: 0.4em 0 0.2em;
+  color: var(--text-primary);
+}
+.release-notes p {
+  margin-bottom: 0.4em;
+}
+
 .markdown-body a {
   color: var(--accent);
   text-decoration: none;
