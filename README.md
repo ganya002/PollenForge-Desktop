@@ -10,6 +10,25 @@ Built on top of [Pollinations.ai](https://pollinations.ai) (free by default) wit
 
 <img width="800" alt="PollenForge Desktop" src="https://via.placeholder.com/800x450/0a0a0a/f0f0f0?text=PollenForge+Desktop+%E2%80%94+matte+black">
 
+## Download
+
+Installers are on **[Releases](https://github.com/ganya002/PollenForge-Desktop/releases/latest)** (not the Tags page).
+
+| | Download |
+|---|---|
+| **macOS (Apple Silicon)** | `PollenForge-*-Mac-arm64.dmg` |
+| **macOS (Intel)** | `PollenForge-*-Mac-x64.dmg` |
+| **Windows** | `PollenForge-*-Windows-Setup.exe` |
+
+### Setup after download
+
+1. Install [Python 3](https://www.python.org/downloads/) (Windows: tick **Add python.exe to PATH**).
+2. **Mac:** open the `.dmg`, drag PollenForge to Applications, then right-click → **Open**.
+3. **Windows:** run the Setup `.exe`. If SmartScreen appears, **More info** → **Run anyway**.
+4. Open the app → Settings → paste an API key. Pollinations works without a key.
+
+Later versions install from **Update** inside the app. You do not clone again.
+
 ## Features
 
 **Codex-parity core:**
@@ -40,7 +59,7 @@ Built on top of [Pollinations.ai](https://pollinations.ai) (free by default) wit
 - Input with ` @` file mentions, `/` commands, drag-and-drop attach, auto-approve (like `codex --yolo`), command palette (`Cmd+K`), keyboard help (`Cmd+/`)
 - Readable typography: Geist Sans + Inter + JetBrains Mono, 14.5px/1.75 for long texts
 
-## Quick start
+## Quick start (from source)
 
 ```bash
 # 1. Clone

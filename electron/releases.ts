@@ -37,14 +37,18 @@ export function matchReleaseAsset(
   const usable = assets.filter((a) => !a.name.includes('blockmap') && !a.name.endsWith('.yml'));
 
   if (platform === 'darwin') {
-    return usable.find((a) => a.name.endsWith('.dmg'))
-      || usable.find((a) => a.name.endsWith('.zip'))
-      || null;
+    const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+    const archDmg = usable.find((a) => a.name.includes(`Mac-${arch}`) && a.name.endsWith('.dmg'));
+    const anyDmg = usable.find((a) => a.name.endsWith('.dmg'));
+    const archZip = usable.find((a) => a.name.includes(`Mac-${arch}`) && a.name.endsWith('.zip'));
+    return archDmg || anyDmg || archZip || usable.find((a) => a.name.endsWith('.zip')) || null;
   }
 
   if (platform === 'win32') {
-    return usable.find((a) => /setup.*\.exe$/i.test(a.name))
+    return usable.find((a) => /windows-setup\.exe$/i.test(a.name))
+      || usable.find((a) => /setup.*\.exe$/i.test(a.name))
       || usable.find((a) => a.name.endsWith('.exe'))
+      || usable.find((a) => /windows\.zip$/i.test(a.name))
       || usable.find((a) => a.name.endsWith('.zip'))
       || null;
   }

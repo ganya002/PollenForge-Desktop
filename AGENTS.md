@@ -1,6 +1,6 @@
 # PollenForge Desktop — agent notes
 
-This is an Electron + React + Python desktop app. Packaged Mac/Windows builds update from **GitHub Releases**. Agents working on this repo must follow the release process below instead of telling users to re-clone.
+This is an Electron + React + Python desktop app. Users get Mac and Windows builds from **GitHub Releases** (the Releases tab). Tags without a Release look like source-only dumps and are not the product.
 
 ## Versioning
 
@@ -12,11 +12,14 @@ This is an Electron + React + Python desktop app. Packaged Mac/Windows builds up
 ## How updates work
 
 1. A push to `main` (or **Run workflow**) starts [`.github/workflows/release.yml`](.github/workflows/release.yml).
-2. CI tags a new version, then **must** build both Mac (`dmg` + `zip` for Intel and Apple Silicon) and Windows (`NSIS` + `zip`).
-3. A GitHub Release is created **only after both platforms succeed**. Partial Mac-only or Windows-only releases are not published.
+2. CI tags a new version, then **must** build both Mac and Windows.
+3. A GitHub **Release** is created **only after both platforms succeed**, with:
+   - Title `PollenForge X.Y.Z`
+   - Notes from [`.github/release-notes.md`](.github/release-notes.md) (separate Mac / Windows download + setup)
+   - `PollenForge-X.Y.Z-Mac-arm64.dmg`, `PollenForge-X.Y.Z-Mac-x64.dmg`, `PollenForge-X.Y.Z-Windows-Setup.exe`
 4. Installed apps:
    - **Latest:** `electron-updater` reads `latest-mac.yml` / `latest.yml` from that release.
-   - **Older versions:** Settings → Updates lists releases via the GitHub API, downloads the installer for this OS, launches it, then quits so the installer can replace files.
+   - **Older versions:** Settings → Updates lists releases, downloads the installer for this OS, launches it, then quits.
 5. `npm run dev` is unpackaged. The Updates UI still lists versions, but Check / Download / Install stay disabled.
 
 User data lives in Electron `userData` and survives updates/rollbacks.
@@ -25,7 +28,7 @@ Packaged builds still need **system Python** on PATH. Do not ship `.venv`.
 
 ## How to ship an update
 
-Push to `main`. That is the release. Do not create tags by hand unless you are recovering a failed run.
+Push to `main`. That is the release. Do not create tags by hand unless you are recovering a failed run. Do not send users to the Tags page.
 
 ```bash
 git push origin main
@@ -36,16 +39,17 @@ CI then:
 1. Bumps patch if `v{current version}` already exists (`1.0.0` → `1.0.1`).
 2. Pushes the version commit and `vX.Y.Z` tag.
 3. Builds Mac **and** Windows.
-4. Creates the GitHub Release with both installers.
+4. Publishes the GitHub Release with named Mac/Windows installers.
 
 To skip a release (docs-only, etc.), put `[skip release]` in the commit message.
 
 To force a minor/major instead of a patch, bump `"version"` in `package.json` yourself **before** pushing, and do not reuse an existing tag.
 
-Confirm:
+Confirm on https://github.com/ganya002/PollenForge-Desktop/releases (Releases, not Tags):
 
-- Release workflow is green for **mac** and **win**, then **publish**
-- GitHub Release has `.dmg` / mac `.zip`, Windows `Setup.exe` / `.zip`, plus `latest-mac.yml` and `latest.yml`
+- Title `PollenForge X.Y.Z`
+- Mac dmg + Windows Setup exe
+- `latest-mac.yml` and `latest.yml`
 
 Local packaging (does **not** publish):
 
@@ -58,11 +62,12 @@ Installers land in `release/`. Unsigned builds are expected until notarization/c
 
 ## What not to do
 
-- Do not tell users to `git clone` / `git pull` as the update path for installed builds.
+- Do not tell users to `git clone` / `git pull` / open **Tags** as the update path for installed builds.
 - Do not retag an existing version. Bump semver (or let CI patch-bump) and make a new tag.
 - Do not put secrets, `.venv`, `dist/`, `dist-electron/`, or `release/` in git.
 - Do not change `build.publish` owner/repo unless the GitHub remote moved. Current feed: `ganya002/PollenForge-Desktop`.
 - Do not enable prereleases in `electron-updater` unless you also mark the GitHub Release as prerelease **and** intend testers to get it.
+- Do not rename installer files away from `Mac-arm64` / `Mac-x64` / `Windows-Setup` without updating this file, the workflow notes, and `electron/releases.ts`.
 
 ## Code map
 
@@ -75,3 +80,4 @@ Installers land in `release/`. Unsigned builds are expected until notarization/c
 | Updates UI | `src/components/Settings/UpdatesPanel.tsx` |
 | Builder / publish config | `package.json` `"build"` |
 | CI | `.github/workflows/release.yml` |
+| Release notes template | `.github/release-notes.md` |
