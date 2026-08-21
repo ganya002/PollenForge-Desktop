@@ -34,7 +34,12 @@ PollenForge needs **Python 3** on your PATH (the UI is packaged; the local tools
 ### Windows install
 
 1. Run **Windows Setup**.
-2. If SmartScreen appears: **More info** → **Run anyway**.
-3. Open PollenForge from the Start menu.
+2. If **Windows protected your PC** (SmartScreen): **More info** → **Run anyway**.
+3. If **Smart App Control** blocks it with no Run anyway:
+   - Windows Security → App & browser control → Smart App Control → **Off**
+   - Or right-click the `.exe` → Properties → check **Unblock** → Apply
+4. Open PollenForge from the Start menu.
+
+Full unblock steps: https://github.com/ganya002/PollenForge-Desktop/blob/main/docs/INSTALL.md
 
 Later versions install from inside the app (**Update** in the status bar, or Settings → Updates). You do not need to clone the repo again.

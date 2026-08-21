@@ -1,6 +1,10 @@
 # PollenForge Desktop — agent notes
 
+**This file is for every coding agent**, not only Cursor: Claude Code, Gemini CLI, GitHub Copilot, Codex, Aider, and humans. `CLAUDE.md`, `GEMINI.md`, `CONTRIBUTING.md`, and `.github/copilot-instructions.md` all point here. Do not keep a Cursor-only copy of this process.
+
 This is an Electron + React + Python desktop app. Users get Mac and Windows builds from **GitHub Releases** (the Releases tab). Tags without a Release look like source-only dumps and are not the product.
+
+Blocked by Windows Smart App Control / SmartScreen or macOS Gatekeeper: send users to **[docs/INSTALL.md](docs/INSTALL.md)**. Do not tell them to `git clone` to run the app.
 
 ## Versioning
 
@@ -58,11 +62,12 @@ npm run dist:mac
 npm run dist:win
 ```
 
-Installers land in `release/`. Unsigned builds are expected until notarization/code signing is added.
+Installers land in `release/`. Builds are **unsigned**. Windows Smart App Control / SmartScreen and macOS Gatekeeper will block them until code signing exists. User steps: [docs/INSTALL.md](docs/INSTALL.md). Do not treat that warning as a failed build.
 
 ## What not to do
 
-- Do not tell users to `git clone` / `git pull` / open **Tags** as the update path for installed builds.
+- Do not tell users to `git clone` / `git pull` / open **Tags** as the install or update path.
+- Do not tell users the Smart App Control / Gatekeeper block means the installer is malware or a bad download. Point to [docs/INSTALL.md](docs/INSTALL.md).
 - Do not retag an existing version. Bump semver (or let CI patch-bump) and make a new tag.
 - Do not put secrets, `.venv`, `dist/`, `dist-electron/`, or `release/` in git.
 - Do not change `build.publish` owner/repo unless the GitHub remote moved. Current feed: `ganya002/PollenForge-Desktop`.
@@ -81,3 +86,4 @@ Installers land in `release/`. Unsigned builds are expected until notarization/c
 | Builder / publish config | `package.json` `"build"` |
 | CI | `.github/workflows/release.yml` |
 | Release notes template | `.github/release-notes.md` |
+| Install / unblock (Windows + Mac) | `docs/INSTALL.md` |

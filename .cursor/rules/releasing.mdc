@@ -1,18 +1,10 @@
 ---
-description: How PollenForge Desktop must be released so Mac and Windows installers show up as GitHub Releases
+description: Point every agent at AGENTS.md — do not keep release process only in Cursor rules
 alwaysApply: true
 ---
 
-# Releases
+Follow **AGENTS.md** (repo root). That is the shared spec for Cursor, Claude, Gemini, Copilot, and any other agent.
 
-Users download **GitHub Releases**, not git tags and not a repo clone.
+Installers: GitHub **Releases** tab, files `PollenForge-X.Y.Z-Mac-arm64.dmg`, `PollenForge-X.Y.Z-Mac-x64.dmg`, `PollenForge-X.Y.Z-Windows-Setup.exe`.
 
-- A push to `main` runs `.github/workflows/release.yml`. That workflow must create a GitHub **Release** (Releases tab), never only a tag.
-- Each release title is `PollenForge X.Y.Z`. Notes must have separate **macOS** and **Windows** download + install sections.
-- Asset names stay:
-  - `PollenForge-X.Y.Z-Mac-arm64.dmg` (Apple Silicon)
-  - `PollenForge-X.Y.Z-Mac-x64.dmg` (Intel)
-  - `PollenForge-X.Y.Z-Windows-Setup.exe`
-- Do not tell users to open the Tags page, `git clone`, or `git pull` to update an installed app.
-- Docs-only commits use `[skip release]` in the message.
-- Full process: `AGENTS.md`.
+If Windows Smart App Control / SmartScreen or macOS Gatekeeper blocks the app, use **docs/INSTALL.md**. Do not tell users to clone the repo to run it.

@@ -22,9 +22,11 @@ Installers are on **[Releases](https://github.com/ganya002/PollenForge-Desktop/r
 
 ### Setup after download
 
+Full steps (including Windows Smart App Control): **[docs/INSTALL.md](docs/INSTALL.md)**.
+
 1. Install [Python 3](https://www.python.org/downloads/) (Windows: tick **Add python.exe to PATH**).
 2. **Mac:** open the `.dmg`, drag PollenForge to Applications, then right-click → **Open**.
-3. **Windows:** run the Setup `.exe`. If SmartScreen appears, **More info** → **Run anyway**.
+3. **Windows:** run the Setup `.exe`. If Windows blocks it, see [docs/INSTALL.md](docs/INSTALL.md) (More info → Run anyway, or turn off Smart App Control, or Unblock the file).
 4. Open the app → Settings → paste an API key. Pollinations works without a key.
 
 Later versions install from **Update** inside the app. You do not clone again.
