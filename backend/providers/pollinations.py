@@ -1,7 +1,9 @@
 from .base import Provider
 import httpx
-import json
 from collections.abc import AsyncGenerator
+
+from openai_tools import attach_openai_tools, stream_openai_chat
+from pollinations_models import map_pollinations_models
 
 
 class PollinationsProvider(Provider):
@@ -28,41 +30,31 @@ class PollinationsProvider(Provider):
     ]
 
     async def chat_stream(self, messages: list[dict], model: str, params: dict) -> AsyncGenerator[str, None]:
-        payload = {
+        payload = attach_openai_tools({
             "model": model,
             "messages": messages,
             "stream": True,
             "temperature": params.get("temperature", 0.7),
             "max_tokens": params.get("max_tokens", 4096)
-        }
+        }, params)
         headers = {"Content-Type": "application/json"}
         api_key = params.get("api_key")
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            async with client.stream(
-                "POST", self.API_URL, json=payload,
-                headers=headers
-            ) as response:
-                if response.status_code != 200:
-                    body = await response.aread()
-                    raise Exception(f"API error {response.status_code}: {body.decode()[:500]}")
-                async for line in response.aiter_lines():
-                    if not line or not line.startswith("data: "):
-                        continue
-                    data_str = line[6:]
-                    if data_str.strip() == "[DONE]":
-                        break
-                    try:
-                        data = json.loads(data_str)
-                        delta = data["choices"][0].get("delta", {})
-                        content = delta.get("content")
-                        if content:
-                            yield content
-                    except (json.JSONDecodeError, KeyError, IndexError):
-                        continue
+        async for item in stream_openai_chat(self.API_URL, headers, payload):
+            yield item
 
     async def list_models(self) -> list[dict]:
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                r = await client.get("https://gen.pollinations.ai/v1/models")
+                if r.status_code == 200:
+                    mapped = map_pollinations_models(r.json())
+                    if mapped:
+                        self.models = mapped
+                        return mapped
+        except Exception:
+            pass
         return self.models
 
     async def validate_key(self, api_key: str) -> bool:

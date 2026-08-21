@@ -52,6 +52,7 @@ export interface Config {
   max_tokens: number
     auto_approve: boolean
   default_directory?: string
+  free_models_only?: boolean
 }
 
 export interface ProviderConfig {
@@ -65,6 +66,7 @@ export interface ModelInfo {
   name: string
   cost_per_1k: number
   context_length: number
+  free?: boolean
 }
 
 export interface OpenFile {
@@ -190,6 +192,7 @@ export const useStore = create<AppState>((set, get) => ({
     temperature: 0.4,
     max_tokens: 32768,
     auto_approve: true,
+    free_models_only: false,
   },
   fileTree: [],
   pendingApproval: null,

@@ -13,7 +13,7 @@ import CommandPalette from './components/CommandPalette'
 import KeyboardHelp from './components/KeyboardHelp'
 import UpdateBadge from './components/UpdateBadge'
 import { useAvailableUpdate } from './hooks/useAvailableUpdate'
-import { mergeFetchedConfig } from './lib/appConfig'
+import { mergeFetchedConfig, mergeProviderModels } from './lib/appConfig'
 import { refreshSessions } from './lib/sessions'
 import FilePanel from './components/Files/FilePanel'
 
@@ -45,11 +45,20 @@ export default function App() {
     void refreshSessions()
 
     fetch(`${API}/config`)
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (!data?.providers) return
+        if (data?.providers) {
+          const state = useStore.getState()
+          state.setConfig(mergeFetchedConfig(state.config, data))
+        }
+      })
+      .catch(() => {})
+      .then(() => fetch(`${API}/providers`))
+      .then((r) => (r && r.ok ? r.json() : null))
+      .then((list) => {
+        if (!Array.isArray(list)) return
         const state = useStore.getState()
-        state.setConfig(mergeFetchedConfig(state.config, data))
+        state.setConfig(mergeProviderModels(state.config, list))
       })
       .catch(() => {})
 

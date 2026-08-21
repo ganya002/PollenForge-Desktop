@@ -26,6 +26,26 @@ if (process.platform === 'win32') {
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let backendManager: BackendManager | null = null;
+let projectWatcher: fs.FSWatcher | null = null;
+let projectWatchTimer: ReturnType<typeof setTimeout> | null = null;
+
+const WATCH_SKIP = new Set(['.git', 'node_modules', '__pycache__', '.venv', 'venv', 'dist-electron', '.next', 'dist']);
+
+function ignoreWatchPath(relative?: string | null): boolean {
+  if (!relative) return false;
+  return relative.split(/[\\/]/).some((part) => WATCH_SKIP.has(part));
+}
+
+function closeProjectWatcher(): void {
+  if (projectWatchTimer) {
+    clearTimeout(projectWatchTimer);
+    projectWatchTimer = null;
+  }
+  if (projectWatcher) {
+    projectWatcher.close();
+    projectWatcher = null;
+  }
+}
 
 const WINDOW_STATE_FILE = 'window-state.json';
 
@@ -343,6 +363,25 @@ function setupIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle('files:watch', async (_event, dirPath: string) => {
+    closeProjectWatcher();
+    const dir = typeof dirPath === 'string' ? dirPath.trim() : '';
+    if (!dir) return { ok: true };
+    try {
+      projectWatcher = fs.watch(dir, { persistent: true, recursive: true }, (_evt, filename) => {
+        if (ignoreWatchPath(filename ? String(filename) : '')) return;
+        if (projectWatchTimer) clearTimeout(projectWatchTimer);
+        projectWatchTimer = setTimeout(() => {
+          projectWatchTimer = null;
+          mainWindow?.webContents.send('files:changed');
+        }, 200);
+      });
+      return { ok: true };
+    } catch (err: any) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   // Config
   ipcMain.handle('config:get', async () => {
     try {
@@ -462,6 +501,7 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', () => {
+  closeProjectWatcher();
   if (backendManager) {
     backendManager.stop();
     backendManager = null;

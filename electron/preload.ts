@@ -52,6 +52,16 @@ contextBridge.exposeInMainWorld('api', {
     ): Promise<{ success: boolean; items?: FileEntry[]; error?: string }> => {
       return ipcRenderer.invoke('files:list', dirPath);
     },
+    watch: (dirPath: string): Promise<{ ok: boolean; error?: string }> => {
+      return ipcRenderer.invoke('files:watch', dirPath);
+    },
+    onChanged: (callback: () => void): (() => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('files:changed', handler);
+      return () => {
+        ipcRenderer.removeListener('files:changed', handler);
+      };
+    },
   },
 
   config: {

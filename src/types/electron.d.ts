@@ -51,6 +51,13 @@ declare global {
         platform: string
         nativeFrame: boolean
       }
+      files?: {
+        read: (filePath: string) => Promise<{ success: boolean; content?: string; error?: string }>
+        write: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>
+        list: (dirPath: string) => Promise<{ success: boolean; items?: unknown[]; error?: string }>
+        watch: (dirPath: string) => Promise<{ ok: boolean; error?: string }>
+        onChanged: (cb: () => void) => () => void
+      }
       debug?: {
         log: (line: string) => void
       }

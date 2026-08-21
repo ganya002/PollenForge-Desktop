@@ -79,6 +79,8 @@ export function clearDefaultDirectory(): void {
   persistConfig(next)
 }
 
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
 export async function refreshFileTree(root?: string | null): Promise<void> {
   const dir = root ?? currentWorkspace()
   const store = useStore.getState()
@@ -95,6 +97,14 @@ export async function refreshFileTree(root?: string | null): Promise<void> {
   }
 }
 
+export function scheduleFileTreeRefresh(root?: string | null, delay = 250): void {
+  if (refreshTimer) clearTimeout(refreshTimer)
+  refreshTimer = setTimeout(() => {
+    refreshTimer = null
+    void refreshFileTree(root)
+  }, delay)
+}
+
 export async function writeWorkspaceFile(
   relativePath: string,
   content: string,
@@ -109,6 +119,7 @@ export async function writeWorkspaceFile(
   })
   const data = await res.json()
   if (data?.error) throw new Error(String(data.error))
+  scheduleFileTreeRefresh(dir)
   return typeof data?.path === 'string' ? data.path : joinWorkspace(dir, relativePath)
 }
 

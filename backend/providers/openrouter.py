@@ -1,7 +1,8 @@
 from .base import Provider
-import json
 import httpx
 from collections.abc import AsyncGenerator
+
+from openai_tools import attach_openai_tools, stream_openai_chat
 
 
 class OpenRouterProvider(Provider):
@@ -9,7 +10,7 @@ class OpenRouterProvider(Provider):
     API_URL = "https://openrouter.ai/api/v1/chat/completions"
     # Best coding models on OpenRouter as of 2026 - curated for coding + general
     models = [
-        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet (OR)", "cost_per_1k": 0.003, "context_length": 200000},
+        {"id": "anthropic/claude-sonnet-4", "name": "Claude Sonnet 4 (OR)", "cost_per_1k": 0.003, "context_length": 200000},
         {"id": "anthropic/claude-3.5-haiku", "name": "Claude 3.5 Haiku (OR)", "cost_per_1k": 0.0008, "context_length": 200000},
         {"id": "openai/gpt-4o", "name": "GPT-4o (OR)", "cost_per_1k": 0.005, "context_length": 128000},
         {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini (OR)", "cost_per_1k": 0.00015, "context_length": 128000},
@@ -31,57 +32,25 @@ class OpenRouterProvider(Provider):
             raise Exception("OpenRouter API key required (get at https://openrouter.ai/keys)")
 
         # OpenRouter is OpenAI-compatible
-        payload = {
+        payload = attach_openai_tools({
             "model": model,
             "messages": messages,
             "stream": True,
             "temperature": params.get("temperature", 0.4),
             "max_tokens": params.get("max_tokens", 16384),
-        }
-        # Optional: add transforms if needed
+        }, params)
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://github.com/ganya002/PollenForge-Desktop",
             "X-Title": "Nexum",
         }
-        # Allow custom base_url override
         url = params.get("base_url") or self.API_URL
         if not url.endswith("/chat/completions"):
             url = url.rstrip("/") + "/chat/completions"
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            async with client.stream("POST", url, json=payload, headers=headers) as response:
-                if response.status_code != 200:
-                    body = await response.aread()
-                    try:
-                        err = json.loads(body.decode())
-                        msg = err.get("error", {}).get("message", body.decode()[:500])
-                    except:
-                        msg = body.decode()[:500]
-                    raise Exception(f"OpenRouter error {response.status_code}: {msg}")
-                async for line in response.aiter_lines():
-                    if not line or not line.startswith("data: "):
-                        continue
-                    data_str = line[6:]
-                    if data_str.strip() == "[DONE]":
-                        break
-                    try:
-                        data = json.loads(data_str)
-                        choices = data.get("choices", [])
-                        if not choices:
-                            continue
-                        delta = choices[0].get("delta", {})
-                        content = delta.get("content")
-                        if content:
-                            yield content
-                        # Also handle reasoning_content for o1/o3
-                        reasoning = delta.get("reasoning_content") or delta.get("reasoning")
-                        if reasoning:
-                            # Optionally yield reasoning as thinking - for now skip to avoid confusion
-                            pass
-                    except (json.JSONDecodeError, KeyError, IndexError):
-                        continue
+        async for item in stream_openai_chat(url, headers, payload, error_prefix="OpenRouter error"):
+            yield item
 
     async def list_models(self) -> list[dict]:
         return self.models

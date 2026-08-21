@@ -8,11 +8,20 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function asModels(value: unknown): ModelInfo[] | undefined {
   if (!Array.isArray(value)) return undefined
-  return value.filter((item): item is ModelInfo => {
-    if (!item || typeof item !== 'object') return false
+  const models: ModelInfo[] = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
     const model = item as Record<string, unknown>
-    return typeof model.id === 'string'
-  })
+    if (typeof model.id !== 'string' || !model.id) continue
+    models.push({
+      id: model.id,
+      name: typeof model.name === 'string' && model.name ? model.name : model.id,
+      cost_per_1k: typeof model.cost_per_1k === 'number' ? model.cost_per_1k : 0,
+      context_length: typeof model.context_length === 'number' ? model.context_length : 128000,
+      ...(typeof model.free === 'boolean' ? { free: model.free } : {}),
+    })
+  }
+  return models.length ? models : undefined
 }
 
 function uniqueIds(ids: string[]): string[] {
@@ -35,6 +44,7 @@ export function mergeFetchedConfig(current: Config, remote: unknown): Config {
   if (typeof data.temperature === 'number') next.temperature = data.temperature
   if (typeof data.max_tokens === 'number') next.max_tokens = data.max_tokens
   if (typeof data.auto_approve === 'boolean') next.auto_approve = data.auto_approve
+  if (typeof data.free_models_only === 'boolean') next.free_models_only = data.free_models_only
   if (typeof data.model === 'string') next.model = data.model
   if (typeof data.provider === 'string') next.provider = data.provider
   if (typeof data.default_directory === 'string') next.default_directory = data.default_directory
@@ -74,7 +84,7 @@ export function mergeFetchedConfig(current: Config, remote: unknown): Config {
       const shouldKeep = existing || flaggedOn || hasKey || remoteEnabled?.includes(name)
       if (!shouldKeep) continue
 
-      const models = asModels(inc.models) ?? existing?.models ?? catalog.models
+      const models = existing?.models ?? catalog.models
       providers[name] = {
         api_key: hasKey ? (inc.api_key as string) : existing?.api_key || '',
         base_url: typeof inc.base_url === 'string' ? inc.base_url : existing?.base_url || catalog.base_url,
@@ -125,6 +135,23 @@ export function persistConfig(config: Config) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(config),
   }).catch(() => {})
+}
+
+export function mergeProviderModels(
+  config: Config,
+  providers: Array<{ name?: string; models?: unknown }>,
+): Config {
+  const nextProviders = { ...config.providers }
+  let changed = false
+  for (const row of providers) {
+    const name = row?.name
+    if (!name || !nextProviders[name]) continue
+    const models = asModels(row.models)
+    if (!models) continue
+    nextProviders[name] = { ...nextProviders[name], models }
+    changed = true
+  }
+  return changed ? { ...config, providers: nextProviders } : config
 }
 
 export function findProviderModel(

@@ -13,7 +13,7 @@ from pathlib import Path
 from config import load_config, save_config
 from sessions import list_sessions, load_session, save_session, delete_session, create_session
 from workspace import apply_workspace
-from providers import get_provider, list_providers
+from providers import get_provider, list_providers_live
 from tools import list_tools, execute_tool
 
 app = FastAPI(title="Nexum Backend", version="1.0.0")
@@ -85,7 +85,7 @@ async def update_config(body: dict):
 
 @app.get("/providers")
 async def get_providers():
-    return list_providers()
+    return await list_providers_live()
 
 
 @app.get("/tools")

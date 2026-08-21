@@ -38,3 +38,19 @@ def list_providers() -> list[dict]:
         }
         for p in PROVIDER_MAP.values()
     ]
+
+
+async def list_providers_live() -> list[dict]:
+    if not PROVIDER_MAP:
+        _discover_providers()
+    out = []
+    for p in PROVIDER_MAP.values():
+        models = p.models
+        try:
+            listed = await p.list_models()
+            if listed:
+                models = listed
+        except Exception:
+            pass
+        out.append({"name": p.name, "models": models})
+    return out

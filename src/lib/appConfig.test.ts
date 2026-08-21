@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { addEnabledProvider, findProviderModel, mergeFetchedConfig } from './appConfig.ts'
+import { addEnabledProvider, findProviderModel, mergeFetchedConfig, mergeProviderModels } from './appConfig.ts'
 import type { Config } from '../store/store.ts'
 
 const current: Config = {
@@ -73,4 +73,26 @@ test('mergeFetchedConfig keeps default_directory', () => {
     default_directory: 'C:\\Users\\me\\project',
   })
   assert.equal(merged.default_directory, 'C:\\Users\\me\\project')
+})
+
+test('mergeFetchedConfig stores free_models_only', () => {
+  const merged = mergeFetchedConfig(current, {
+    providers: { pollinations: { enabled: true, api_key: '' } },
+    free_models_only: true,
+  })
+  assert.equal(merged.free_models_only, true)
+})
+
+test('mergeProviderModels replaces the live Pollinations catalog', () => {
+  const merged = mergeProviderModels(current, [
+    {
+      name: 'pollinations',
+      models: [
+        { id: 'openai', name: 'openai', cost_per_1k: 0.001, context_length: 400000, free: false },
+        { id: 'x:free', name: 'x', cost_per_1k: 0, context_length: 1, free: true },
+      ],
+    },
+  ])
+  assert.equal(merged.providers.pollinations.models.length, 2)
+  assert.equal(merged.providers.pollinations.models[0].free, false)
 })

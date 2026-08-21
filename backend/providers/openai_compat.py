@@ -1,7 +1,7 @@
 from .base import Provider
-import json
-import httpx
 from collections.abc import AsyncGenerator
+
+from openai_tools import attach_openai_tools, stream_openai_chat
 
 
 class OpenAICompatProvider(Provider):
@@ -20,38 +20,21 @@ class OpenAICompatProvider(Provider):
         if not str(url).endswith("/chat/completions"):
             url = str(url).rstrip("/") + "/chat/completions"
 
-        payload = {
+        payload = attach_openai_tools({
             "model": model,
             "messages": messages,
             "stream": True,
             "temperature": params.get("temperature", 0.4),
             "max_tokens": params.get("max_tokens", 8192),
-        }
+        }, params)
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             **self.extra_headers,
         }
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            async with client.stream("POST", url, json=payload, headers=headers) as response:
-                if response.status_code != 200:
-                    body = await response.aread()
-                    raise Exception(f"{self.name} error {response.status_code}: {body.decode()[:500]}")
-                async for line in response.aiter_lines():
-                    if not line or not line.startswith("data: "):
-                        continue
-                    data_str = line[6:]
-                    if data_str.strip() == "[DONE]":
-                        break
-                    try:
-                        data = json.loads(data_str)
-                        delta = data["choices"][0].get("delta", {})
-                        content = delta.get("content")
-                        if content:
-                            yield content
-                    except (json.JSONDecodeError, KeyError, IndexError):
-                        continue
+        async for item in stream_openai_chat(url, headers, payload, error_prefix=f"{self.name} error"):
+            yield item
 
     async def list_models(self) -> list[dict]:
         return self.models

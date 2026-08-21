@@ -9,6 +9,7 @@ import {
   persistDefaultFromCurrent,
   pickAndSetProjectFolder,
   refreshFileTree,
+  scheduleFileTreeRefresh,
 } from '../../lib/workspace'
 
 function GitBadge({ status }: { status?: string }) {
@@ -166,6 +167,17 @@ export default function FileTree() {
   useEffect(() => {
     void refreshFileTree()
   }, [currentSessionId, pendingWorkspace, defaultDirectory, sessionDir])
+
+  useEffect(() => {
+    const api = window.api?.files
+    if (!dir || !api?.watch) return
+    void api.watch(dir)
+    const off = api.onChanged?.(() => scheduleFileTreeRefresh(dir))
+    return () => {
+      void api.watch('')
+      off?.()
+    }
+  }, [dir])
 
   return (
     <div className="px-2 py-1">

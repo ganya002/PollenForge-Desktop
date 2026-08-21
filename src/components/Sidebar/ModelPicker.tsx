@@ -6,6 +6,7 @@ import {
   enabledProviderIds,
   persistConfig,
 } from '../../lib/appConfig'
+import { isFreeModel, visibleModels } from '../../lib/modelFilter'
 
 function PollenBalance() {
   const [balance, setBalance] = useState<number | null>(null)
@@ -65,7 +66,10 @@ export default function ModelPicker() {
   const q = search.trim().toLowerCase()
 
   const allModels = enabled.flatMap((provider) =>
-    (config.providers[provider]?.models || []).map((model) => ({ provider, model })),
+    visibleModels(config.providers[provider]?.models || [], !!config.free_models_only).map((model) => ({
+      provider,
+      model,
+    })),
   )
 
   const filteredModels = allModels.filter(
@@ -190,7 +194,7 @@ export default function ModelPicker() {
                       >
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta?.color || '#888' }} />
                         <span className="flex-1 min-w-0 text-[13px] truncate">{model.name}</span>
-                        {model.cost_per_1k === 0 && (
+                        {isFreeModel(model) && (
                           <span className="text-[10px] text-text-muted shrink-0">Free</span>
                         )}
                         {active && (

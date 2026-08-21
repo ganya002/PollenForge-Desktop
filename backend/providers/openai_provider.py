@@ -1,7 +1,8 @@
 from .base import Provider
-import json
 import httpx
 from collections.abc import AsyncGenerator
+
+from openai_tools import attach_openai_tools, stream_openai_chat
 
 
 class OpenAIProvider(Provider):
@@ -20,38 +21,19 @@ class OpenAIProvider(Provider):
         if not api_key:
             raise Exception("OpenAI API key required")
 
-        payload = {
+        payload = attach_openai_tools({
             "model": model,
             "messages": messages,
             "stream": True,
             "temperature": params.get("temperature", 0.7),
             "max_tokens": params.get("max_tokens", 4096)
+        }, params)
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
         }
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            async with client.stream(
-                "POST", self.API_URL, json=payload,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                }
-            ) as response:
-                if response.status_code != 200:
-                    body = await response.aread()
-                    raise Exception(f"API error {response.status_code}: {body.decode()[:500]}")
-                async for line in response.aiter_lines():
-                    if not line or not line.startswith("data: "):
-                        continue
-                    data_str = line[6:]
-                    if data_str.strip() == "[DONE]":
-                        break
-                    try:
-                        data = json.loads(data_str)
-                        delta = data["choices"][0].get("delta", {})
-                        content = delta.get("content")
-                        if content:
-                            yield content
-                    except (json.JSONDecodeError, KeyError, IndexError):
-                        continue
+        async for item in stream_openai_chat(self.API_URL, headers, payload):
+            yield item
 
     async def list_models(self) -> list[dict]:
         return self.models

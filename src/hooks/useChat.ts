@@ -3,7 +3,8 @@ import { useStore, Message, ToolCall } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
 import { applyActivePlugins, activePluginIds } from '../lib/plugins'
 import { refreshSessions } from '../lib/sessions'
-import { currentWorkspace, savePlanMarkdown } from '../lib/workspace'
+import { currentWorkspace, savePlanMarkdown, scheduleFileTreeRefresh } from '../lib/workspace'
+import { shouldRefreshFileTree } from '../lib/fileTreeSync'
 import { sanitizeAssistantContent } from '../lib/sanitizeAssistantContent'
 import { useWebSocket } from './useWebSocket'
 
@@ -73,6 +74,7 @@ export function useChat() {
         status: isError ? 'error' : 'done',
         durationMs: running?.startedAt ? Date.now() - running.startedAt : undefined
       })
+      if (shouldRefreshFileTree(tool, result)) scheduleFileTreeRefresh()
       scrollToBottom()
     }, [scrollToBottom]),
 

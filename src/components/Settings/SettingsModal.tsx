@@ -10,6 +10,7 @@ import {
   removeEnabledProvider,
 } from '../../lib/appConfig'
 import { marketplaceSearch, installPlugin, uninstallPlugin, installedPluginIds } from '../../lib/plugins'
+import { isFreeModel } from '../../lib/modelFilter'
 
 export type SettingsTab = 'providers' | 'plugins' | 'general' | 'updates' | 'about'
 
@@ -297,6 +298,48 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                           }`}
                         />
                       </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-surface-2 rounded-lg p-4">
+                    <div className="text-xs font-medium text-text-primary">Model list</div>
+                    <div className="text-[10px] text-text-muted mt-0.5 mb-3">
+                      All models is the default. Free only hides paid Pollinations models.
+                    </div>
+                    <div className="flex gap-1">
+                      {([
+                        { id: 'all', label: 'All models', onlyFree: false },
+                        { id: 'free', label: 'Free only', onlyFree: true },
+                      ] as const).map((opt) => {
+                        const on = !!config.free_models_only === opt.onlyFree
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => {
+                              const cfg = useStore.getState().config
+                              const next = { ...cfg, free_models_only: opt.onlyFree }
+                              setConfig(next)
+                              persistConfig(next)
+                              if (opt.onlyFree) {
+                                const models = next.providers[currentProvider]?.models || []
+                                const current = useStore.getState().currentModel
+                                const stillVisible = models.some((m) => m.id === current && isFreeModel(m))
+                                if (!stillVisible) {
+                                  const fallback = models.find(isFreeModel) || models[0]
+                                  if (fallback) setModel(fallback.id, currentProvider)
+                                }
+                              }
+                            }}
+                            className={`h-8 px-3 text-[12px] rounded-md border transition-smooth ${
+                              on
+                                ? 'bg-surface-3 text-text-primary border-border'
+                                : 'bg-surface-1 text-text-muted border-border hover:text-text-primary'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
 
