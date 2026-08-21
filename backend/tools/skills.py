@@ -1,8 +1,10 @@
 from pathlib import Path
 import json
 import time
+from app_paths import skills_dir, legacy_skills_dir
 
-SKILLS_DIR = Path.home() / ".local" / "share" / "pollenforge" / "skills"
+SKILLS_DIR = skills_dir()
+_LEGACY_SKILLS = legacy_skills_dir()
 
 TOOLS = [
     {
@@ -56,6 +58,19 @@ def _ensure_dirs():
     (SKILLS_DIR / "conventions").mkdir(exist_ok=True)
 
 
+def _skill_files():
+    seen: set[str] = set()
+    for root in (SKILLS_DIR, _LEGACY_SKILLS):
+        folder = root / "skills"
+        if not folder.exists():
+            continue
+        for f in folder.glob("*.json"):
+            if f.stem in seen:
+                continue
+            seen.add(f.stem)
+            yield f
+
+
 def _save_skill(name: str, description: str, steps_json: str, tags: str) -> dict:
     if not name:
         return {"error": "Skill name is required"}
@@ -89,9 +104,7 @@ def _list_skills(tag: str = "") -> dict:
     try:
         _ensure_dirs()
         skills = []
-        skills_dir = SKILLS_DIR / "skills"
-        
-        for f in skills_dir.glob("*.json"):
+        for f in _skill_files():
             try:
                 skill = json.loads(f.read_text())
                 if tag and tag not in skill.get("tags", []):
@@ -121,10 +134,14 @@ def _get_skill(name: str) -> dict:
         _ensure_dirs()
         skill_id = name.lower().replace(" ", "_").replace("-", "_")
         path = SKILLS_DIR / "skills" / f"{skill_id}.json"
+        if not path.exists():
+            legacy = _LEGACY_SKILLS / "skills" / f"{skill_id}.json"
+            if legacy.exists():
+                path = legacy
         
         if not path.exists():
             # Try fuzzy match
-            for f in (SKILLS_DIR / "skills").glob("*.json"):
+            for f in _skill_files():
                 skill = json.loads(f.read_text())
                 if name.lower() in skill.get("name", "").lower():
                     path = f

@@ -15,7 +15,7 @@ from sessions import list_sessions, load_session, save_session, delete_session, 
 from providers import get_provider, list_providers
 from tools import list_tools, execute_tool
 
-app = FastAPI(title="PollenForge Backend", version="1.0.0")
+app = FastAPI(title="Nexum Backend", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,8 +44,8 @@ async def pollinations_balance():
     api_key = cfg.get("providers", {}).get("pollinations", {}).get("api_key", "")
     if not api_key:
         for env_path in [
+            Path.home() / ".local" / "share" / "nexum" / ".env",
             Path.home() / ".local" / "share" / "pollenforge" / ".env",
-            Path("/Users/gabbo/.local/share/pollenforge/.env"),
         ]:
             try:
                 if env_path.exists():
@@ -453,6 +453,7 @@ async def stream_chat(websocket: WebSocket, data: dict, conn_id: str):
         for candidates in [
             os.path.join(cwd, "AGENTS.md"),
             os.path.join(cwd, ".opencode", "AGENTS.md"),
+            os.path.expanduser("~/.config/nexum/AGENTS.md"),
             os.path.expanduser("~/.config/pollenforge/AGENTS.md"),
         ]:
             if os.path.exists(candidates):
@@ -464,7 +465,7 @@ async def stream_chat(websocket: WebSocket, data: dict, conn_id: str):
 
     agents_section = f"\n\n## Project Conventions (from AGENTS.md)\n\n{agents_md}" if agents_md else ""
 
-    system_prompt = f"""You are PollenForge, a powerful autonomous coding agent with FULL access to the user's computer. You are comparable to Claude Code, Codex, Cursor, and OpenCode.
+    system_prompt = f"""You are Nexum, a powerful autonomous coding agent with FULL access to the user's computer. You are comparable to Claude Code, Codex, Cursor, and OpenCode.
 
 CRITICAL: You MUST use tools to fulfill requests. NEVER respond with just text. You HAVE the tools — USE THEM.
 
@@ -643,6 +644,7 @@ START OUTPUTTING TOOL BLOCKS NOW."""
             total_tokens += current_tokens
             full_response += current_response
             cleaned, tool_calls = parse_tool_calls(current_response)
+            await websocket.send_json({"type": "content_set", "content": cleaned})
 
             if not tool_calls:
                 break
@@ -739,6 +741,8 @@ START OUTPUTTING TOOL BLOCKS NOW."""
             tool_results_all = []
 
         elapsed = time.time() - start_time
+        final_text, _ = parse_tool_calls(full_response)
+        await websocket.send_json({"type": "content_set", "content": final_text})
         stats = {
             "tokens": total_tokens,
             "duration_ms": round(elapsed * 1000),

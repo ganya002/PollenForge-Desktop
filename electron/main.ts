@@ -130,7 +130,7 @@ function createTray(): void {
   }
 
   tray = new Tray(trayIcon);
-  tray.setToolTip('PollenForge');
+  tray.setToolTip('Nexum');
 
   const contextMenu = Menu.buildFromTemplate([
     {

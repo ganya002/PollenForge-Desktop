@@ -1,7 +1,6 @@
-from pathlib import Path
-import json
+from app_paths import config_dir, config_file
 
-CONFIG_DIR = Path.home() / ".config" / "pollenforge"
+CONFIG_DIR = config_dir()
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 DEFAULT_CONFIG = {
@@ -53,10 +52,11 @@ DEFAULT_CONFIG = {
 
 
 def load_config() -> dict:
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    if CONFIG_FILE.exists():
+    config_dir().mkdir(parents=True, exist_ok=True)
+    source = config_file()
+    if source.exists():
         try:
-            saved = json.loads(CONFIG_FILE.read_text())
+            saved = json.loads(source.read_text())
             merged = {**DEFAULT_CONFIG}
             for k, v in saved.items():
                 if isinstance(v, dict) and k in merged and isinstance(merged[k], dict):
@@ -70,5 +70,5 @@ def load_config() -> dict:
 
 
 def save_config(cfg: dict):
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    CONFIG_FILE.write_text(json.dumps(cfg, indent=2))
+    dest = config_dir() / "config.json"
+    dest.write_text(json.dumps(cfg, indent=2))

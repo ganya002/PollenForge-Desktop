@@ -1,9 +1,9 @@
 {
-  "name": "pollenforge",
-  "version": "1.0.3",
+  "name": "nexum",
+  "version": "1.0.0",
   "description": "Desktop AI coding assistant with multi-provider support",
   "main": "dist-electron/electron/main.js",
-  "author": "PollenForge",
+  "author": "Nexum",
   "license": "MIT",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:electron\"",
@@ -44,8 +44,8 @@
     "wait-on": "^8.0.1"
   },
   "build": {
-    "appId": "com.pollenforge.desktop",
-    "productName": "PollenForge",
+    "appId": "com.nexum.desktop",
+    "productName": "Nexum",
     "publish": [
       {
         "provider": "github",

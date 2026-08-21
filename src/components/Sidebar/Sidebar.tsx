@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../../store/store'
 import SessionList from './SessionList'
@@ -11,54 +11,77 @@ interface SidebarProps {
   onSettings?: () => void
 }
 
+const MIN_W = 200
+const MAX_W = 480
+const DEFAULT_W = 280
+const WIDTH_KEY = 'nx-sidebar-width'
+
+function readSavedWidth(): number {
+  try {
+    const saved = localStorage.getItem(WIDTH_KEY) || localStorage.getItem('pf-sidebar-width')
+    const n = saved ? parseInt(saved, 10) : DEFAULT_W
+    return Math.min(MAX_W, Math.max(MIN_W, n))
+  } catch {
+    return DEFAULT_W
+  }
+}
+
 export default function Sidebar({ onSettings }: SidebarProps) {
   const sidebarOpen = useStore((s) => s.sidebarOpen)
-  const [width, setWidth] = useState(() => {
-    try {
-      const saved = localStorage.getItem('pf-sidebar-width')
-      const n = saved ? parseInt(saved, 10) : 280
-      return Math.min(480, Math.max(200, n))
-    } catch { return 280 }
-  })
+  const [width, setWidth] = useState(readSavedWidth)
   const [isDragging, setIsDragging] = useState(false)
+  const widthRef = useRef(width)
+  const asideRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (!isDragging) return
-    const onMove = (e: MouseEvent) => {
-      const newWidth = Math.min(480, Math.max(200, e.clientX))
-      setWidth(newWidth)
+
+    const onMove = (e: PointerEvent) => {
+      const next = Math.min(MAX_W, Math.max(MIN_W, e.clientX))
+      widthRef.current = next
+      if (asideRef.current) asideRef.current.style.width = `${next}px`
     }
+
     const onUp = () => {
       setIsDragging(false)
-      try { localStorage.setItem('pf-sidebar-width', String(width)) } catch {}
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      const finalWidth = widthRef.current
+      setWidth(finalWidth)
+      try {
+        localStorage.setItem(WIDTH_KEY, String(finalWidth))
+      } catch {
+        /* ignore */
+      }
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [isDragging, width])
 
-  useEffect(() => {
-    try { localStorage.setItem('pf-sidebar-width', String(width)) } catch {}
-  }, [width])
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isDragging])
 
   return (
     <AnimatePresence initial={false}>
       {sidebarOpen && (
         <motion.aside
-          initial={{ width: 0, opacity: 0 }}
-          animate={{ width, opacity: 1 }}
-          exit={{ width: 0, opacity: 0 }}
-          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          ref={asideRef}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.12 }}
+          style={{ width }}
           className="h-full bg-surface-1 border-r border-border flex flex-col overflow-hidden shrink-0 relative"
         >
-          <div className="flex flex-col h-full pt-[44px]" style={{ width: `${width}px` }}>
+          <div className="flex flex-col h-full pt-[44px]" style={{ width: '100%' }}>
             <ModelPicker />
             <SessionList />
             <WorktreeIndicator />
@@ -82,10 +105,15 @@ export default function Sidebar({ onSettings }: SidebarProps) {
               </div>
             )}
           </div>
-          {/* Resize handle */}
           <div
-            onMouseDown={() => setIsDragging(true)}
-            className={`absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-white/10 transition-colors no-drag ${isDragging ? 'bg-white/10' : ''}`}
+            onPointerDown={(e) => {
+              e.preventDefault()
+              ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+              setIsDragging(true)
+            }}
+            className={`absolute top-0 right-0 w-1.5 h-full cursor-col-resize no-drag ${
+              isDragging ? 'bg-white/15' : 'hover:bg-white/10'
+            }`}
             style={{ touchAction: 'none' }}
             aria-label="Resize sidebar"
           >

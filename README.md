@@ -1,14 +1,14 @@
-# PollenForge Desktop (Beta 1)
+# Nexum
 
 **Matte black AI coding assistant — a Codex / Claude Code / Cursor clone with full computer access.**
 
-PollenForge Desktop is an Electron + React desktop app with a Python backend that gives LLMs **full local control**: read/write/edit files, run shell commands, control apps, manage git/GitHub, run tests/linters, and automate workflows.
+Nexum is an Electron + React desktop app with a Python backend that gives LLMs **full local control**: read/write/edit files, run shell commands, control apps, manage git/GitHub, run tests/linters, and automate workflows.
 
 Built on top of [Pollinations.ai](https://pollinations.ai) (free by default) with support for OpenAI, Anthropic, Google, Ollama, and OpenRouter.
 
 ![Matte black](https://img.shields.io/badge/theme-matte%20black-0a0a0a) ![Electron](https://img.shields.io/badge/Electron-33-47848F) ![React](https://img.shields.io/badge/React-18-61DAFB) ![Python](https://img.shields.io/badge/Python-3.14-3776AB) ![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
 
-<img width="800" alt="PollenForge Desktop" src="https://via.placeholder.com/800x450/0a0a0a/f0f0f0?text=PollenForge+Desktop+%E2%80%94+matte+black">
+<img width="800" alt="Nexum" src="https://via.placeholder.com/800x450/0a0a0a/f0f0f0?text=Nexum+%E2%80%94+matte+black">
 
 ## Download
 
@@ -16,16 +16,16 @@ Installers are on **[Releases](https://github.com/ganya002/PollenForge-Desktop/r
 
 | | Download |
 |---|---|
-| **macOS (Apple Silicon)** | `PollenForge-*-Mac-arm64.dmg` |
-| **macOS (Intel)** | `PollenForge-*-Mac-x64.dmg` |
-| **Windows** | `PollenForge-*-Windows-Setup.exe` |
+| **macOS (Apple Silicon)** | `Nexum-*-Mac-arm64.dmg` |
+| **macOS (Intel)** | `Nexum-*-Mac-x64.dmg` |
+| **Windows** | `Nexum-*-Windows-Setup.exe` |
 
 ### Setup after download
 
 Full steps (including Windows Smart App Control): **[docs/INSTALL.md](docs/INSTALL.md)**.
 
 1. Install [Python 3](https://www.python.org/downloads/) (Windows: tick **Add python.exe to PATH**).
-2. **Mac:** open the `.dmg`, drag PollenForge to Applications, then right-click → **Open**.
+2. **Mac:** open the `.dmg`, drag Nexum to Applications, then right-click → **Open**.
 3. **Windows:** run the Setup `.exe`. If Windows blocks it, see [docs/INSTALL.md](docs/INSTALL.md) (More info → Run anyway, or turn off Smart App Control, or Unblock the file).
 4. Open the app → Settings → paste an API key. Pollinations works without a key.
 
@@ -84,16 +84,16 @@ npm run build   # vite + electron
 
 Open the app → Settings (`Cmd+,`) → paste API key for your provider.
 
-- **Pollinations** is free and works without a key (rate-limited). Get a key at https://enter.pollinations.ai/keys → `POLLINATIONS_API_KEY` goes in Settings or `~/.config/pollenforge/config.json`
+- **Pollinations** is free and works without a key (rate-limited). Get a key at https://enter.pollinations.ai/keys → `POLLINATIONS_API_KEY` goes in Settings or `~/.config/nexum/config.json`
 - **OpenRouter**: https://openrouter.ai/keys
 - **OpenAI**: https://platform.openai.com/api-keys
 - **Anthropic**: https://console.anthropic.com/
 
-No keys are committed — see `.env.example`. The app reads `~/.config/pollenforge/config.json` and `~/.local/share/pollenforge/.env` at runtime (gitignored).
+No keys are committed — see `.env.example`. The app reads `~/.config/nexum/config.json` and `~/.local/share/nexum/.env` at runtime (gitignored). Previous PollenForge config paths are still read as a fallback.
 
 ## Configuration
 
-All keys are stored **outside the repo** in `~/.config/pollenforge/config.json` (or via Settings UI). Example:
+All keys are stored **outside the repo** in `~/.config/nexum/config.json` (or via Settings UI). Example:
 
 ```json
 {
@@ -109,7 +109,7 @@ Or use the Settings modal in-app. Never commit `.env`.
 ## Project structure
 
 ```
-PollenForge-Desktop/
+Nexum/
 ├── electron/           # Electron main + backend launcher
 ├── backend/            # FastAPI + WebSocket server
 │   ├── server.py       # agent loop, tool parsing (handles truncated outputs)

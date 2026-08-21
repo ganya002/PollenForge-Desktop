@@ -57,6 +57,8 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
       components={{
         code({ className, children, ...props }) {
           const match = /language-(\w+)/.exec(className || '')
+          const lang = match?.[1] || ''
+          if (lang === 'tool') return null
           const isInline = !match && !String(children).includes('\n')
           if (isInline) {
             return (
@@ -66,7 +68,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
             )
           }
           return (
-            <CodeBlock language={match?.[1] || ''}>
+            <CodeBlock language={lang}>
               {String(children).replace(/\n$/, '')}
             </CodeBlock>
           )

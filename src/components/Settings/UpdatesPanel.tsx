@@ -185,7 +185,7 @@ export default function UpdatesPanel() {
                 {confirming && (
                   <p className="text-[10px] text-text-muted mt-2 leading-relaxed">
                     This replaces the current app with {release.tag}. Chats and settings in this
-                    computer stay. Click again to download the installer and quit PollenForge.
+                    computer stay. Click again to download the installer and quit Nexum.
                   </p>
                 )}
                 {release.body && (

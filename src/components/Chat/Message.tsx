@@ -3,6 +3,7 @@ import ToolResult from './ToolResult'
 import StreamingText from './StreamingText'
 import MessageActions from './MessageActions'
 import MarkdownRenderer from './MarkdownRenderer'
+import { sanitizeAssistantContent } from '../../lib/sanitizeAssistantContent'
 
 interface Props { message: MessageType; onRetry?: () => void; onEdit?: (c: string) => void }
 
@@ -13,9 +14,10 @@ function formatTime(ts: number): string {
 export default function Message({ message, onRetry, onEdit }: Props) {
   const isUser = message.role === 'user'
   const hasTools = !!message.toolCalls?.length
-  const isThinking = !isUser && !message.content && !hasTools
-  const isStreaming = !isUser && !!message.content && !message.stats && !message.isError
-  const hasContent = !!message.content?.trim()
+  const displayContent = isUser ? message.content : sanitizeAssistantContent(message.content || '')
+  const isThinking = !isUser && !displayContent && !hasTools
+  const isStreaming = !isUser && !!displayContent && !message.stats && !message.isError
+  const hasContent = !!displayContent.trim()
 
   if (isUser) {
     return (
@@ -55,7 +57,7 @@ export default function Message({ message, onRetry, onEdit }: Props) {
       {hasContent && (
         <div className={`relative ${message.isError ? 'bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3' : ''}`}>
           <div className={`${message.isError ? '' : 'px-1'} markdown-body text-[14px] leading-relaxed min-w-0`}>
-            <MarkdownRenderer content={message.content} />
+            <MarkdownRenderer content={displayContent} />
             {isStreaming && <span className="inline-block w-2 h-4 bg-accent/70 animate-pulse ml-0.5 -mb-1 rounded-sm" />}
           </div>
           {message.stats && (
@@ -75,7 +77,7 @@ export default function Message({ message, onRetry, onEdit }: Props) {
       {!isThinking && (hasContent || hasTools) && (
         <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <span className="text-[10px] text-text-muted tabular-nums">{formatTime(message.timestamp)}</span>
-          <MessageActions content={message.content} isUser={false} onRetry={onRetry} onEdit={onEdit} />
+          <MessageActions content={displayContent} isUser={false} onRetry={onRetry} onEdit={onEdit} />
         </div>
       )}
     </div>

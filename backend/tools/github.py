@@ -71,11 +71,16 @@ def _get_token(provided_token: str = "") -> str:
     import os
     token = provided_token or os.environ.get("GITHUB_TOKEN", "")
     if not token:
-        config_path = Path.home() / ".local" / "share" / "pollenforge" / ".env"
-        if config_path.exists():
-            for line in config_path.read_text().split("\n"):
-                if line.startswith("GITHUB_TOKEN="):
-                    token = line.split("=", 1)[1].strip()
+        config_path = Path.home() / ".local" / "share" / "nexum" / ".env"
+        legacy_path = Path.home() / ".local" / "share" / "pollenforge" / ".env"
+        for env_file in (config_path, legacy_path):
+            if env_file.exists():
+                for line in env_file.read_text().split("\n"):
+                    if line.startswith("GITHUB_TOKEN="):
+                        token = line.split("=", 1)[1].strip()
+                        break
+            if token:
+                break
     return token
 
 

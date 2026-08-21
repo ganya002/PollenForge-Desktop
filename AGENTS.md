@@ -1,4 +1,4 @@
-# PollenForge Desktop — agent notes
+# Nexum — agent notes
 
 **This file is for every coding agent**, not only Cursor: Claude Code, Gemini CLI, GitHub Copilot, Codex, Aider, and humans. `CLAUDE.md`, `GEMINI.md`, `CONTRIBUTING.md`, and `.github/copilot-instructions.md` all point here. Do not keep a Cursor-only copy of this process.
 
@@ -18,9 +18,9 @@ Blocked by Windows Smart App Control / SmartScreen or macOS Gatekeeper: send use
 1. A push to `main` (or **Run workflow**) starts [`.github/workflows/release.yml`](.github/workflows/release.yml).
 2. CI tags a new version, then **must** build both Mac and Windows.
 3. A GitHub **Release** is created **only after both platforms succeed**, with:
-   - Title `PollenForge X.Y.Z`
+   - Title `Nexum X.Y.Z`
    - Notes from [`.github/release-notes.md`](.github/release-notes.md) (separate Mac / Windows download + setup)
-   - `PollenForge-X.Y.Z-Mac-arm64.dmg`, `PollenForge-X.Y.Z-Mac-x64.dmg`, `PollenForge-X.Y.Z-Windows-Setup.exe`
+   - `Nexum-X.Y.Z-Mac-arm64.dmg`, `Nexum-X.Y.Z-Mac-x64.dmg`, `Nexum-X.Y.Z-Windows-Setup.exe`
 4. Installed apps:
    - **Latest:** `electron-updater` reads `latest-mac.yml` / `latest.yml` from that release.
    - **Older versions:** Settings → Updates lists releases, downloads the installer for this OS, launches it, then quits.
@@ -51,7 +51,7 @@ To force a minor/major instead of a patch, bump `"version"` in `package.json` yo
 
 Confirm on https://github.com/ganya002/PollenForge-Desktop/releases (Releases, not Tags):
 
-- Title `PollenForge X.Y.Z`
+- Title `Nexum X.Y.Z`
 - Mac dmg + Windows Setup exe
 - `latest-mac.yml` and `latest.yml`
 

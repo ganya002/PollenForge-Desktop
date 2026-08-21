@@ -6,7 +6,7 @@ import * as https from 'https';
 export const GITHUB_OWNER = 'ganya002';
 export const GITHUB_REPO = 'PollenForge-Desktop';
 
-const USER_AGENT = 'PollenForge-Desktop';
+const USER_AGENT = 'Nexum-Desktop';
 const RELEASES_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases?per_page=50`;
 
 export interface ReleaseAsset {
@@ -213,7 +213,7 @@ export async function installReleaseVersion(
       return { ok: false, error: `No installer for this platform in ${release.tag}.` };
     }
 
-    const dest = path.join(app.getPath('temp'), 'pollenforge-updates', release.asset.name);
+    const dest = path.join(app.getPath('temp'), 'nexum-updates', release.asset.name);
     await downloadReleaseAsset(release.asset, dest, onProgress);
 
     const openError = await shell.openPath(dest);

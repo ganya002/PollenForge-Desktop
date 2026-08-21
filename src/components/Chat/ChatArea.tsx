@@ -26,7 +26,7 @@ function WelcomeScreen() {
             <path d="M4 10l12 6m0 0l12-6m-12 6v12" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
           </svg>
         </div>
-        <h1 className="text-2xl font-semibold text-text-primary mb-2">PollenForge</h1>
+        <h1 className="text-2xl font-semibold text-text-primary mb-2">Nexum</h1>
         <p className="text-text-secondary text-sm leading-relaxed mb-6">
           AI coding assistant with full computer access. I can read, write, and execute anything on your machine.
         </p>

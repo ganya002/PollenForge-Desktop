@@ -1,5 +1,5 @@
 #!/bin/bash
-# PollenForge Desktop - Development Start Script
+# Nexum Desktop - Development Start Script
 
 set -e
 
@@ -8,7 +8,7 @@ BACKEND_DIR="$SCRIPT_DIR/backend"
 BACKEND_PORT=8765
 
 echo "╔══════════════════════════════════════╗"
-echo "║     PollenForge Desktop v1.0         ║"
+echo "║           Nexum Desktop              ║"
 echo "╚══════════════════════════════════════╝"
 echo ""
 
@@ -44,7 +44,7 @@ ELECTRON_PID=$!
 
 echo ""
 echo "╔══════════════════════════════════════╗"
-echo "║  PollenForge is running!             ║"
+echo "║  Nexum is running!                   ║"
 echo "║  Backend: http://localhost:$BACKEND_PORT     ║"
 echo "║  Frontend: http://localhost:5173     ║"
 echo "╚══════════════════════════════════════╝"

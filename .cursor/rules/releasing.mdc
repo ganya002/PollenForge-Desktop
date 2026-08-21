@@ -5,6 +5,6 @@ alwaysApply: true
 
 Follow **AGENTS.md** (repo root). That is the shared spec for Cursor, Claude, Gemini, Copilot, and any other agent.
 
-Installers: GitHub **Releases** tab, files `PollenForge-X.Y.Z-Mac-arm64.dmg`, `PollenForge-X.Y.Z-Mac-x64.dmg`, `PollenForge-X.Y.Z-Windows-Setup.exe`.
+Installers: GitHub **Releases** tab, files `Nexum-X.Y.Z-Mac-arm64.dmg`, `Nexum-X.Y.Z-Mac-x64.dmg`, `Nexum-X.Y.Z-Windows-Setup.exe`.
 
 If Windows Smart App Control / SmartScreen or macOS Gatekeeper blocks the app, use **docs/INSTALL.md**. Do not tell users to clone the repo to run it.

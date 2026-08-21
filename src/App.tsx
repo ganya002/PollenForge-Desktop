@@ -137,7 +137,7 @@ export default function App() {
           </button>
 
           <span className="flex-1 text-xs text-text-muted font-medium select-none">
-            PollenForge
+            Nexum
           </span>
 
           <div className="no-drag flex items-center gap-1">

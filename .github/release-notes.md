@@ -1,4 +1,4 @@
-# PollenForge ${VERSION}
+# Nexum ${VERSION}
 
 Desktop AI coding assistant for **macOS** and **Windows**.
 
@@ -6,29 +6,29 @@ Desktop AI coding assistant for **macOS** and **Windows**.
 
 ### macOS ${VERSION}
 
-- **Apple Silicon (M1–M4):** [PollenForge-${VERSION}-Mac-arm64.dmg](${BASE}/PollenForge-${VERSION}-Mac-arm64.dmg)
-- **Intel:** [PollenForge-${VERSION}-Mac-x64.dmg](${BASE}/PollenForge-${VERSION}-Mac-x64.dmg)
+- **Apple Silicon (M1–M4):** [Nexum-${VERSION}-Mac-arm64.dmg](${BASE}/Nexum-${VERSION}-Mac-arm64.dmg)
+- **Intel:** [Nexum-${VERSION}-Mac-x64.dmg](${BASE}/Nexum-${VERSION}-Mac-x64.dmg)
 
 On a Mac, Apple menu → About This Mac. If the chip says Apple, use Apple Silicon.
 
 ### Windows ${VERSION}
 
-- **Installer (recommended):** [PollenForge-${VERSION}-Windows-Setup.exe](${BASE}/PollenForge-${VERSION}-Windows-Setup.exe)
-- **Portable zip:** [PollenForge-${VERSION}-Windows.zip](${BASE}/PollenForge-${VERSION}-Windows.zip)
+- **Installer (recommended):** [Nexum-${VERSION}-Windows-Setup.exe](${BASE}/Nexum-${VERSION}-Windows-Setup.exe)
+- **Portable zip:** [Nexum-${VERSION}-Windows.zip](${BASE}/Nexum-${VERSION}-Windows.zip)
 
 ## Setup
 
-PollenForge needs **Python 3** on your PATH (the UI is packaged; the local tools backend is Python).
+Nexum needs **Python 3** on your PATH (the UI is packaged; the local tools backend is Python).
 
 1. Install Python 3 from https://www.python.org/downloads/
    - Windows: enable **Add python.exe to PATH**
-2. Install PollenForge with the file above.
+2. Install Nexum with the file above.
 3. Open the app → **Settings** → paste an API key (Pollinations works without a key).
 
 ### macOS install
 
 1. Open the `.dmg`.
-2. Drag **PollenForge** into **Applications**.
+2. Drag **Nexum** into **Applications**.
 3. First launch: right-click the app → **Open** (builds are unsigned until notarized).
 
 ### Windows install
@@ -38,7 +38,7 @@ PollenForge needs **Python 3** on your PATH (the UI is packaged; the local tools
 3. If **Smart App Control** blocks it with no Run anyway:
    - Windows Security → App & browser control → Smart App Control → **Off**
    - Or right-click the `.exe` → Properties → check **Unblock** → Apply
-4. Open PollenForge from the Start menu.
+4. Open Nexum from the Start menu.
 
 Full unblock steps: https://github.com/ganya002/PollenForge-Desktop/blob/main/docs/INSTALL.md
 

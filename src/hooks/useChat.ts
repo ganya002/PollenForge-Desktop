@@ -32,6 +32,14 @@ export function useChat() {
       scrollToBottom()
     }, [scrollToBottom]),
 
+    onContentSet: useCallback((content: string) => {
+      const state = useStore.getState()
+      const last = state.messages[state.messages.length - 1]
+      if (last?.role === 'assistant') {
+        state.updateMessage(last.id, { content })
+      }
+    }, []),
+
     onToolStart: useCallback((tool: string, args: Record<string, unknown>) => {
       const state = useStore.getState()
       const last = state.messages[state.messages.length - 1]

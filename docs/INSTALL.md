@@ -1,4 +1,4 @@
-# Install PollenForge (macOS and Windows)
+# Install Nexum (macOS and Windows)
 
 Installers: [GitHub Releases](https://github.com/ganya002/PollenForge-Desktop/releases/latest) — use the **Releases** tab, not Tags.
 
@@ -7,7 +7,7 @@ You also need **Python 3** on your PATH. The desktop UI is packaged; the local t
 - Windows: https://www.python.org/downloads/ — enable **Add python.exe to PATH**
 - macOS: Python 3 from python.org, or `brew install python`
 
-Then install PollenForge and open **Settings** to paste an API key. Pollinations works without a key.
+Then install Nexum and open **Settings** to paste an API key. Pollinations works without a key.
 
 ## Windows: Smart App Control / SmartScreen is blocking it
 
@@ -25,7 +25,7 @@ This can block the app with no Run anyway button.
 1. Open **Windows Security** → **App & browser control**.
 2. Open **Smart App Control settings**.
 3. Set Smart App Control to **Off**.
-4. Run `PollenForge-*-Windows-Setup.exe` again.
+4. Run `Nexum-*-Windows-Setup.exe` again.
 
 You can also unblock the downloaded file:
 
@@ -34,25 +34,25 @@ You can also unblock the downloaded file:
 3. Or in PowerShell:
 
 ```powershell
-Unblock-File .\PollenForge-*-Windows-Setup.exe
+Unblock-File .\Nexum-*-Windows-Setup.exe
 ```
 
-Then run the installer. Open PollenForge from the Start menu.
+Then run the installer. Open Nexum from the Start menu.
 
 The lasting fix is an Authenticode certificate in CI. Until then, use the steps above. Do not tell users to clone the repo to “avoid” this.
 
 ## macOS: Gatekeeper is blocking it
 
 1. Open the `.dmg` (`Mac-arm64` for Apple Silicon, `Mac-x64` for Intel).
-2. Drag **PollenForge** into **Applications**.
+2. Drag **Nexum** into **Applications**.
 3. Right-click the app → **Open** → **Open**.
 4. If it still blocks: **System Settings** → **Privacy & Security** → **Open Anyway**.
 
 Or in Terminal:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/PollenForge.app
-open /Applications/PollenForge.app
+xattr -dr com.apple.quarantine /Applications/Nexum.app
+open /Applications/Nexum.app
 ```
 
 The lasting fix is Apple Developer ID signing + notarization.

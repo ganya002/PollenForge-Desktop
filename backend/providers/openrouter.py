@@ -42,8 +42,8 @@ class OpenRouterProvider(Provider):
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://pollenforge.app",
-            "X-Title": "PollenForge",
+            "HTTP-Referer": "https://github.com/ganya002/PollenForge-Desktop",
+            "X-Title": "Nexum",
         }
         # Allow custom base_url override
         url = params.get("base_url") or self.API_URL

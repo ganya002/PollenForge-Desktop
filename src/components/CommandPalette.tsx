@@ -81,7 +81,7 @@ export default function CommandPalette({ open, onClose, onNewChat }: CommandPale
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `pollenforge-chat-${Date.now()}.md`
+        a.download = `nexum-chat-${Date.now()}.md`
         a.click()
         URL.revokeObjectURL(url)
         break

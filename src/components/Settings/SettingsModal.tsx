@@ -234,7 +234,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
 
               {activeTab === 'about' && (
                 <div className="text-center py-4">
-                  <div className="text-lg font-semibold text-text-primary mb-1">PollenForge</div>
+                  <div className="text-lg font-semibold text-text-primary mb-1">Nexum</div>
                   <div className="text-xs text-text-muted mb-4 font-mono">Version {appVersion}</div>
                   <p className="text-xs text-text-secondary leading-relaxed max-w-xs mx-auto">
                     AI-powered coding assistant with multi-provider support. Built with Electron, React, and Python.
