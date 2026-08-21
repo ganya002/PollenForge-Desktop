@@ -1,25 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useStore, FileEntry } from '../../store/store'
-
-function FileTypeIcon({ name, isDirectory, isExpanded }: { name: string; isDirectory: boolean; isExpanded?: boolean }) {
-  if (isDirectory) {
-    return (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="shrink-0 text-text-muted">
-        <path
-          d="M1.5 3.5A1.5 1.5 0 013 2h4l2 2h5a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0114 14H3a1.5 1.5 0 01-1.5-1.5v-9z"
-          fill="currentColor"
-          opacity={isExpanded ? 0.9 : 0.7}
-        />
-      </svg>
-    )
-  }
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="shrink-0 text-text-muted">
-      <path d="M3 2.5A1.5 1.5 0 014.5 1h5.38a1 1 0 01.7.29l2.83 2.83a1 1 0 01.29.7V13.5A1.5 1.5 0 0112 15H4.5A1.5 1.5 0 013 13.5v-11z" stroke="currentColor" strokeWidth="1.1" />
-      <path d="M9.5 1v3.5H13" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
-    </svg>
-  )
-}
+import { FileTypeIcon } from './fileIcons'
 
 function GitBadge({ status }: { status?: string }) {
   if (!status) return null
@@ -92,7 +73,7 @@ function TreeNode({ entry, depth = 0 }: { entry: FileEntry; depth?: number }) {
       <button
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        className="w-full flex items-center gap-1.5 px-2 py-[5px] text-[13px] text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-smooth rounded group"
+        className="w-full flex items-center gap-1.5 px-2 h-7 text-[13px] text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-smooth rounded group"
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         title={entry.path}
       >

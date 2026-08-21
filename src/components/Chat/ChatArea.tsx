@@ -40,7 +40,9 @@ function WelcomeScreen() {
                 document.dispatchEvent(new CustomEvent('send-message', { detail: s.text }))
               }}
             >
-              <span className="shrink-0 text-text-muted">
+              <span className={`shrink-0 w-4 h-4 inline-flex items-center justify-center ${
+                s.icon === 'folder' ? 'text-sky-400' : s.icon === 'chip' ? 'text-emerald-400' : s.icon === 'window' ? 'text-amber-400' : 'text-violet-400'
+              }`}>
                 {s.icon === 'folder' && <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M1.5 3.5A1.5 1.5 0 013 2h4l2 2h5a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0114 14H3a1.5 1.5 0 01-1.5-1.5v-9z" fill="currentColor" /></svg>}
                 {s.icon === 'chip' && <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M6 3v2M10 3v2M6 11v2M10 11v2M3 6h2M3 10h2M11 6h2M11 10h2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" /></svg>}
                 {s.icon === 'window' && <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M2 5.5h12" stroke="currentColor" strokeWidth="1.1" /></svg>}

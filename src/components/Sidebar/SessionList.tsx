@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore, Session } from '../../store/store'
 import { refreshSessions, sessionTimestampMs } from '../../lib/sessions'
+import { ChatIcon } from './fileIcons'
 
 function groupSessions(sessions: Session[]) {
   const now = new Date()
@@ -162,9 +163,12 @@ export default function SessionList() {
                     />
                   ) : (
                     <>
-                      <div className="truncate leading-5">{s.name}</div>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ChatIcon className={currentSessionId === s.id ? 'text-text-secondary' : 'text-text-muted'} />
+                        <div className="truncate leading-5">{s.name}</div>
+                      </div>
                       {s.message_count > 0 && (
-                        <div className="text-[11px] leading-4 text-text-muted mt-0.5">{s.message_count} messages</div>
+                        <div className="text-[11px] leading-4 text-text-muted mt-0.5 pl-6">{s.message_count} messages</div>
                       )}
                     </>
                   )}
