@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import MarkdownRenderer from '../Chat/MarkdownRenderer'
 import { useUpdates } from '../../hooks/useUpdates'
 import { notesForDisplay } from '../../lib/releaseNotes'
+import { compareVersions } from '../../lib/version'
 import type { AppRelease } from '../../types/electron'
 
 function formatDate(iso: string): string {
@@ -146,6 +147,7 @@ export default function UpdatesPanel() {
         {releases.map((release) => {
           const isCurrent = release.version === version
           const confirming = confirmTag === release.tag
+          const isDowngrade = compareVersions(release.version, version) < 0
           return (
             <div key={release.tag} className="bg-surface-2 rounded-lg p-3">
               <div className="flex items-start justify-between gap-2">
@@ -157,6 +159,11 @@ export default function UpdatesPanel() {
                     {isCurrent && (
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent/15 text-text-secondary">
                         current
+                      </span>
+                    )}
+                    {isDowngrade && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-300">
+                        older
                       </span>
                     )}
                     {release.prerelease && (
@@ -179,13 +186,22 @@ export default function UpdatesPanel() {
                       : 'bg-surface-1 border-border text-text-secondary hover:text-text-primary'
                   }`}
                 >
-                  {confirming ? 'Confirm install' : isCurrent ? 'Installed' : 'Install this version'}
+                  {confirming
+                    ? isDowngrade
+                      ? 'Confirm downgrade'
+                      : 'Confirm install'
+                    : isCurrent
+                      ? 'Installed'
+                      : isDowngrade
+                        ? 'Install older version'
+                        : 'Install this version'}
                 </button>
               </div>
               {confirming && (
-                <p className="text-[10px] text-text-muted mt-2 leading-relaxed">
-                  This replaces the current app with {release.tag}. Chats and settings in this
-                  computer stay. Click again to download the installer and quit Nexum.
+                <p className={`text-[10px] mt-2 leading-relaxed ${isDowngrade ? 'text-red-300' : 'text-text-muted'}`}>
+                  {isDowngrade
+                    ? `Warning: installing ${release.tag} can delete chats, settings, and other Nexum data. This cannot be undone. Click again to download the installer and quit.`
+                    : `This replaces the current app with ${release.tag}. Chats and settings stay on this computer. Click again to download the installer and quit Nexum.`}
                 </p>
               )}
               <div className="release-notes markdown-body mt-2 rounded-md border border-border bg-surface-1 px-2.5 py-2 max-h-24 overflow-y-auto">

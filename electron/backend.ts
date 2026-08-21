@@ -62,6 +62,7 @@ export class BackendManager {
         env: {
           ...process.env,
           PORT: String(this.port),
+          NEXUM_USER_DATA: app.getPath('userData'),
         },
         stdio: ['ignore', 'pipe', 'pipe'],
       });

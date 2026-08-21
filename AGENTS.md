@@ -26,7 +26,7 @@ Blocked by Windows Smart App Control / SmartScreen or macOS Gatekeeper: send use
    - **Older versions:** Settings → Updates lists releases, downloads the installer for this OS, launches it, then quits.
 5. `npm run dev` is unpackaged. The Updates UI still lists versions, but Check / Download / Install stay disabled.
 
-User data lives in Electron `userData` and survives updates/rollbacks.
+User data (chats, settings, skills) lives in Electron `userData` and survives restarts and updates. Installing an older version can delete or hide that data — Settings → Updates warns before a downgrade.
 
 Packaged builds still need **system Python** on PATH. Do not ship `.venv`.
 
