@@ -56,7 +56,7 @@ open /Applications/Nexum.app
 
 If it still blocks: **System Settings** → **Privacy & Security** → **Open Anyway**. Right-click → Open often is not enough for this specific “damaged” dialog.
 
-The lasting fix is Apple Developer ID signing + notarization.
+If Settings → Updates shows a **code signature / ShipIt** error, ignore Check for updates. Use **Install this version** to download the `.dmg`, then run the `xattr` command above.
 
 ## After it is installed
 

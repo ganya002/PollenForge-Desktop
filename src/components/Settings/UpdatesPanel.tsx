@@ -105,6 +105,13 @@ export default function UpdatesPanel() {
           </p>
         )}
 
+        {window.api?.app?.platform === 'darwin' && (
+          <p className="text-[11px] text-text-muted mt-3 leading-relaxed">
+            On Mac, use <span className="text-text-secondary">Install this version</span> to
+            download the .dmg. Zip auto-update needs Apple signing and will show a signature error.
+          </p>
+        )}
+
         {status.status === 'error' && status.message && (
           <p className="text-[11px] text-red-400 mt-3">{status.message}</p>
         )}

@@ -15,6 +15,7 @@ import { checkForUpdatesOnStartup, setupUpdater } from './updater';
 import { browserWindowOptions, windowsChromiumSwitches, clampWindowBounds, resolveRenderer } from './windowOptions';
 
 if (process.platform === 'win32') {
+  app.disableHardwareAcceleration();
   for (const [flag, value] of windowsChromiumSwitches()) {
     if (value === undefined) app.commandLine.appendSwitch(flag);
     else app.commandLine.appendSwitch(flag, value);
