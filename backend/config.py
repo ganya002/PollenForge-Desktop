@@ -1,0 +1,74 @@
+from pathlib import Path
+import json
+
+CONFIG_DIR = Path.home() / ".config" / "pollenforge"
+CONFIG_FILE = CONFIG_DIR / "config.json"
+
+DEFAULT_CONFIG = {
+    "default_provider": "pollinations",
+    "default_model": "gpt-4o",
+    "providers": {
+        "pollinations": {
+            "enabled": True,
+            "api_key": None,
+            "default_model": "gpt-4o"
+        },
+        "openai": {
+            "enabled": False,
+            "api_key": None,
+            "default_model": "gpt-4o"
+        },
+        "anthropic": {
+            "enabled": False,
+            "api_key": None,
+            "default_model": "claude-sonnet-4-20250514"
+        },
+        "google": {
+            "enabled": False,
+            "api_key": None,
+            "default_model": "gemini-1.5-pro"
+        },
+        "ollama": {
+            "enabled": False,
+            "base_url": "http://localhost:11434",
+            "default_model": "llama3"
+        },
+        "openrouter": {
+            "enabled": False,
+            "api_key": None,
+            "base_url": "https://openrouter.ai/api/v1",
+            "default_model": "anthropic/claude-3.5-sonnet"
+        }
+    },
+    "tools": {
+        "filesystem": {"enabled": True, "base_dir": None},
+        "shell": {"enabled": True, "timeout": 30, "dangerous_enabled": False},
+        "apps": {"enabled": True}
+    },
+    "theme": "dark",
+    "font_size": 14,
+    "max_tokens": 4096,
+    "temperature": 0.7
+}
+
+
+def load_config() -> dict:
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    if CONFIG_FILE.exists():
+        try:
+            saved = json.loads(CONFIG_FILE.read_text())
+            merged = {**DEFAULT_CONFIG}
+            for k, v in saved.items():
+                if isinstance(v, dict) and k in merged and isinstance(merged[k], dict):
+                    merged[k] = {**merged[k], **v}
+                else:
+                    merged[k] = v
+            return merged
+        except Exception:
+            pass
+    return DEFAULT_CONFIG.copy()
+
+
+def save_config(cfg: dict):
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_FILE.write_text(json.dumps(cfg, indent=2))

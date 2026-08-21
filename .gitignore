@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+backend/.venv/
+backend/__pycache__/
+backend/tools/__pycache__/
+backend/providers/__pycache__/
+backend/.pytest_cache/
+
+# Build outputs
+dist/
+dist-electron/
+build/
+out/
+*.dmg
+*.zip
+*.AppImage
+*.exe
+*.deb
+*.snap
+
+# Env & secrets - NEVER commit real keys
+.env
+.env.local
+.env.*.local
+backend/.env
+*.key
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & sessions (contain history)
+logs/
+sessions/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Electron
+electron/dist/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Cache
+.cache/
+.parcel-cache/
