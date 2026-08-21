@@ -120,6 +120,7 @@ interface AppState {
   worktrees: Worktree[]
   tasks: BackgroundTask[]
   diffs: DiffEntry[]
+  availableUpdate: string | null
   _wsSend: ((data: Record<string, unknown>) => boolean) | null
 
   addMessage: (msg: Message) => void
@@ -144,6 +145,7 @@ interface AppState {
   setWorktrees: (w: Worktree[]) => void
   setTasks: (t: BackgroundTask[]) => void
   setDiffs: (d: DiffEntry[]) => void
+  setAvailableUpdate: (version: string | null) => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -236,6 +238,7 @@ export const useStore = create<AppState>((set, get) => ({
   worktrees: [],
   tasks: [],
   diffs: [],
+  availableUpdate: null,
   _wsSend: null,
 
   addMessage: (msg) => set((s) => {
@@ -302,4 +305,5 @@ export const useStore = create<AppState>((set, get) => ({
   setWorktrees: (worktrees) => set({ worktrees }),
   setTasks: (tasks) => set({ tasks }),
   setDiffs: (diffs) => set({ diffs }),
+  setAvailableUpdate: (availableUpdate) => set({ availableUpdate }),
 }))

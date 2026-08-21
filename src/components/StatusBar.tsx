@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
 import { useStore } from '../store/store'
+import UpdateBadge from './UpdateBadge'
 
 interface StatusBarProps {
   onOpenUpdates?: () => void
@@ -24,20 +24,6 @@ export default function StatusBar({ onOpenUpdates }: StatusBarProps) {
 
   const lastStats = [...messages].reverse().find(m => m.role === 'assistant' && m.stats)?.stats
   const runningTasks = tasks.filter(t => t.status === 'running' || t.status === 'queued').length
-  const [availableVersion, setAvailableVersion] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!window.api?.updates) return
-    const off = window.api.updates.onStatus((payload) => {
-      if (payload.status === 'available' && payload.version) {
-        setAvailableVersion(payload.version)
-      }
-      if (payload.status === 'not-available' || payload.status === 'downloaded') {
-        if (payload.status === 'not-available') setAvailableVersion(null)
-      }
-    })
-    return off
-  }, [])
 
   return (
     <div className="h-6 flex items-center justify-between px-3 bg-surface-1 border-t border-border/60 text-[11px] text-text-muted select-none shrink-0">
@@ -46,6 +32,7 @@ export default function StatusBar({ onOpenUpdates }: StatusBarProps) {
           <span className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-500 shadow-sm' : 'bg-red-500 animate-pulse'}`} />
           <span className={wsConnected ? '' : 'text-red-400'}>{wsConnected ? 'Connected' : 'Disconnected'}</span>
         </div>
+        <UpdateBadge variant="pill" onClick={onOpenUpdates} />
         {isStreaming && (
           <div className="flex items-center gap-1.5 text-violet-400">
             <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
@@ -79,14 +66,6 @@ export default function StatusBar({ onOpenUpdates }: StatusBarProps) {
           <span className="tabular-nums hidden sm:inline">
             {totalTokensUsed.toLocaleString()} total{totalCost > 0 && ` · $${totalCost.toFixed(3)}`}
           </span>
-        )}
-        {availableVersion && (
-          <button
-            onClick={onOpenUpdates}
-            className="text-emerald-400 hover:text-emerald-300 transition-smooth"
-          >
-            Update {availableVersion}
-          </button>
         )}
         <span className="hidden md:inline font-mono text-text-secondary">{currentModel}</span>
         <span className="opacity-40 hidden lg:inline">{currentProvider}</span>

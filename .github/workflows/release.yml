@@ -95,7 +95,8 @@ jobs:
           name: ${{ matrix.artifact }}
           if-no-files-found: error
           path: |
-            release/*.yml
+            release/latest.yml
+            release/latest-mac.yml
             release/*.exe
             release/*.zip
             release/*.dmg
@@ -114,8 +115,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          gh release create "${{ needs.version.outputs.tag }}" \
-            artifacts/mac/* artifacts/win/* \
-            --repo "${{ github.repository }}" \
-            --title "PollenForge ${{ needs.version.outputs.version }}" \
-            --generate-notes
+          mkdir -p upload
+          find artifacts -type f \
+            \( -name 'latest.yml' -o -name 'latest-mac.yml' -o -name '*.exe' -o -name '*.zip' -o -name '*.dmg' -o -name '*.blockmap' \) \
+            ! -name 'builder-debug.yml' \
+            -exec cp -n {} upload/ \;
+          ls -la upload
+          TAG="${{ needs.version.outputs.tag }}"
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$TAG" upload/* --repo "${{ github.repository }}" --clobber
+          else
+            gh release create "$TAG" upload/* \
+              --repo "${{ github.repository }}" \
+              --title "PollenForge ${{ needs.version.outputs.version }}" \
+              --generate-notes
+          fi

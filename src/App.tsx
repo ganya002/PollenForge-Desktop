@@ -11,6 +11,8 @@ import SettingsModal from './components/Settings/SettingsModal'
 import type { SettingsTab } from './components/Settings/SettingsModal'
 import CommandPalette from './components/CommandPalette'
 import KeyboardHelp from './components/KeyboardHelp'
+import UpdateBadge from './components/UpdateBadge'
+import { useAvailableUpdate } from './hooks/useAvailableUpdate'
 
 export default function App() {
   const sidebarOpen = useStore((s) => s.sidebarOpen)
@@ -20,6 +22,7 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('providers')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  useAvailableUpdate()
 
   const handleNewChat = useCallback(() => {
     useStore.getState().clearMessages()
@@ -136,6 +139,10 @@ export default function App() {
           <span className="flex-1 text-xs text-text-muted font-medium select-none">
             PollenForge
           </span>
+
+          <div className="no-drag flex items-center gap-1">
+            <UpdateBadge variant="icon" onClick={() => openSettings('updates')} />
+          </div>
         </div>
 
         {/* Main content */}
