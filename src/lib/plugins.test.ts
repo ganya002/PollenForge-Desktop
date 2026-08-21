@@ -22,21 +22,43 @@ test('applyActivePlugins prepends installed active plugin prompts', () => {
   assert.match(out, /User request:\nfix the login/)
 })
 
-test('/caveman consumes the slash and activates the plugin', () => {
+test('setPluginActive does not auto-install marketplace plugins', () => {
+  const next = setPluginActive(base, 'caveman', true)
+  assert.deepEqual(next.installed_plugins, [])
+  assert.deepEqual(next.active_plugins, [])
+})
+
+test('/caveman is blocked until the plugin is installed', () => {
   const { result, config } = handlePluginSlash('/caveman', base)
+  assert.equal(result.kind, 'consumed')
+  if (result.kind === 'consumed') assert.match(result.notice, /not installed/i)
+  assert.equal(config.active_plugins.includes('caveman'), false)
+  assert.equal(config.installed_plugins.includes('caveman'), false)
+})
+
+test('/caveman activates when installed', () => {
+  const { result, config } = handlePluginSlash('/caveman', installPlugin(base, 'caveman'))
   assert.equal(result.kind, 'consumed')
   assert.ok(config.active_plugins.includes('caveman'))
   assert.ok(config.installed_plugins.includes('caveman'))
 })
 
-test('/goal with text sends the remainder', () => {
-  const { result, config } = handlePluginSlash('/goal ship 1.0.0', base)
+test('/goal with text sends the remainder when installed', () => {
+  const { result, config } = handlePluginSlash('/goal ship 1.0.0', installPlugin(base, 'goal'))
   assert.deepEqual(result, { kind: 'send', text: 'ship 1.0.0' })
   assert.ok(config.active_plugins.includes('goal'))
 })
 
-test('/plan with text sends the remainder', () => {
-  const { result, config } = handlePluginSlash('/plan add file preview', base)
+test('/plan with text sends the remainder when installed', () => {
+  const { result, config } = handlePluginSlash('/plan add file preview', installPlugin(base, 'planner'))
   assert.deepEqual(result, { kind: 'send', text: 'add file preview' })
   assert.ok(config.active_plugins.includes('planner'))
+})
+
+test('activating goal turns plan off and the reverse', () => {
+  let cfg = setPluginActive(installPlugin(installPlugin(base, 'goal'), 'planner'), 'planner', true)
+  cfg = setPluginActive(cfg, 'goal', true)
+  assert.deepEqual(cfg.active_plugins.filter((id) => id === 'goal' || id === 'planner'), ['goal'])
+  cfg = setPluginActive(cfg, 'planner', true)
+  assert.deepEqual(cfg.active_plugins.filter((id) => id === 'goal' || id === 'planner'), ['planner'])
 })

@@ -13,6 +13,7 @@ const shortcuts = [
   ]},
   { category: 'Navigation', items: [
     { keys: ['Cmd', 'B'], description: 'Toggle sidebar' },
+    { keys: ['Cmd', 'Shift', 'B'], description: 'Toggle browser' },
     { keys: ['Cmd', 'K'], description: 'Command palette' },
     { keys: ['Cmd', 'Shift', 'K'], description: 'Clear chat' },
     { keys: ['Cmd', 'N'], description: 'New chat' },

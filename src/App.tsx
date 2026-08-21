@@ -16,10 +16,12 @@ import { useAvailableUpdate } from './hooks/useAvailableUpdate'
 import { mergeFetchedConfig, mergeProviderModels } from './lib/appConfig'
 import { refreshSessions } from './lib/sessions'
 import FilePanel from './components/Files/FilePanel'
+import BrowserPanel from './components/Browser/BrowserPanel'
 
 export default function App() {
-  const sidebarOpen = useStore((s) => s.sidebarOpen)
   const toggleSidebar = useStore((s) => s.toggleSidebar)
+  const toggleBrowser = useStore((s) => s.toggleBrowser)
+  const browserOpen = useStore((s) => s.browserOpen)
   const { messages, isStreaming, sendMessage, retryLastMessage, scrollRef } = useChat()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('providers')
@@ -89,9 +91,10 @@ export default function App() {
           setPaletteOpen(true)
         }
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
         e.preventDefault()
-        toggleSidebar()
+        if (e.shiftKey) toggleBrowser()
+        else toggleSidebar()
       }
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault()
@@ -109,7 +112,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [toggleSidebar, handleNewChat])
+  }, [toggleSidebar, toggleBrowser, handleNewChat])
 
   return (
     <div className="flex h-full bg-surface-0">
@@ -149,6 +152,19 @@ export default function App() {
 
           <div className="no-drag flex items-center gap-1">
             <UpdateBadge variant="icon" onClick={() => openSettings('updates')} />
+            <button
+              onClick={toggleBrowser}
+              className={`p-1.5 rounded hover:bg-surface-2 transition-smooth ${
+                browserOpen ? 'text-text-primary bg-surface-2' : 'text-text-secondary hover:text-text-primary'
+              }`}
+              aria-label="Toggle browser"
+              title="Browser (Ctrl+Shift+B)"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M9.5 3v10M2 6.5h7.5" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -165,6 +181,8 @@ export default function App() {
         {/* Status bar */}
         <StatusBar onOpenUpdates={() => openSettings('updates')} />
       </div>
+
+      <BrowserPanel />
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} initialTab={settingsTab} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onNewChat={handleNewChat} />

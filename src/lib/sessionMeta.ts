@@ -24,5 +24,6 @@ export function normalizeSession(raw: Record<string, unknown>) {
     message_count: typeof raw.message_count === 'number' ? raw.message_count : 0,
     updated_at: ts || undefined,
     directory: typeof raw.directory === 'string' ? raw.directory : '',
+    preview: typeof raw.preview === 'string' ? raw.preview : '',
   }
 }

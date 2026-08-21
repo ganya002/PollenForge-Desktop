@@ -100,7 +100,7 @@ export default function ToolResult({ toolCall }: Props) {
   }, [toolCall.durationMs, toolCall.startedAt, isRunning])
 
   return (
-    <div className={`group relative rounded-lg border bg-surface-1/50 overflow-hidden ${isError ? 'border-red-500/20' : isRunning ? 'border-amber-500/20' : 'border-border/60'} ${isRunning ? 'animate-pulse-dot' : ''}`}>
+    <div className={`group relative rounded-lg border bg-surface-1 overflow-hidden ${isError ? 'border-red-500/20' : isRunning ? 'border-amber-500/20' : 'border-border'} ${isRunning ? 'animate-pulse-dot' : ''}`}>
       <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-current opacity-30" style={{ color: status.color.includes('amber') ? '#f59e0b' : status.color.includes('emerald') ? '#10b981' : status.color.includes('red') ? '#ef4444' : '#f0f0f0' }} />
       <button
         onClick={() => setExpanded(!shouldExpand)}
@@ -118,15 +118,15 @@ export default function ToolResult({ toolCall }: Props) {
       </button>
 
       {shouldExpand && (
-        <div className="border-t border-border/40 bg-surface-0/50">
+        <div className="border-t border-border bg-surface-1">
           <div className="px-3 py-2">
             <div className="text-[10px] font-medium tracking-wider uppercase text-text-muted mb-1 flex items-center justify-between">
               <span>{toolCall.name === 'run_command' ? 'Command' : 'Arguments'}</span>
-              <button onClick={handleCopy} className="text-[10px] normal-case tracking-normal font-mono px-1.5 py-0.5 rounded hover:bg-surface-2 text-text-muted hover:text-text-primary transition-smooth">
+              <button onClick={handleCopy} className="text-[10px] normal-case tracking-normal font-mono px-1.5 py-0.5 rounded hover:bg-surface-3 text-text-muted hover:text-text-primary transition-smooth">
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <pre className="text-xs font-mono bg-surface-0 border border-border/40 rounded-md px-2.5 py-2 overflow-x-auto whitespace-pre-wrap break-words text-text-secondary max-h-40 overflow-y-auto">
+            <pre className="text-xs font-mono bg-surface-2 border border-border rounded-md px-2.5 py-2 overflow-x-auto whitespace-pre-wrap break-words text-text-secondary max-h-40 overflow-y-auto">
               {toolCall.name === 'run_command' ? (toolCall.args as any).command : JSON.stringify(toolCall.args, null, 2)}
             </pre>
           </div>
@@ -134,7 +134,7 @@ export default function ToolResult({ toolCall }: Props) {
           {(toolCall.result || isRunning) && (
             <div className="px-3 pb-3">
               <div className="text-[10px] font-medium tracking-wider uppercase text-text-muted mb-1">Output</div>
-              <pre className={`text-xs font-mono border rounded-md px-2.5 py-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words ${isError ? 'bg-red-500/5 border-red-500/20 text-red-300' : 'bg-surface-0 border-border/40 text-text-secondary'}`}>
+              <pre className={`text-xs font-mono border border-border rounded-md px-2.5 py-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words ${isError ? 'bg-surface-2 text-danger' : 'bg-surface-2 text-text-secondary'}`}>
                 {isRunning && !output ? 'Running…' : output || '(no output)'}
               </pre>
               {(toolCall.result as any)?.truncated && (

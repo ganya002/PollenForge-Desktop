@@ -3,6 +3,9 @@ import remarkGfm from 'remark-gfm'
 import { useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { currentWorkspace } from '../../lib/workspace'
+import { isSafeBrowserUrl, resolveBrowserUrl } from '../../lib/browserTargets'
+import { useStore } from '../../store/store'
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
@@ -87,7 +90,22 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
           return <td className="px-3 py-2 text-text-primary border-b border-border/50">{children}</td>
         },
         a({ href, children }) {
-          return <a href={href} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">{children}</a>
+          return (
+            <a
+              href={href}
+              onClick={(e) => {
+                const url = resolveBrowserUrl(href || '', currentWorkspace())
+                  || (href && isSafeBrowserUrl(href) ? href : '')
+                if (url) {
+                  e.preventDefault()
+                  useStore.getState().openInBrowser(url)
+                }
+              }}
+              className="text-accent hover:underline"
+            >
+              {children}
+            </a>
+          )
         },
         blockquote({ children }) {
           return <blockquote className="border-l-3 border-accent pl-3 text-text-secondary italic my-2">{children}</blockquote>

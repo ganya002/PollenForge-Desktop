@@ -4,7 +4,7 @@ import CommandMenu from './CommandMenu'
 import FileMentionMenu from './FileMentionMenu'
 import { persistConfig } from '../../lib/appConfig'
 import { PLUGIN_CATALOG_MAP, pluginByCommand } from '../../lib/pluginCatalog'
-import { activePluginIds, handlePluginSlash, setPluginActive } from '../../lib/plugins'
+import { activePluginIds, handlePluginSlash, installedPluginCommands, installedPluginIds, setPluginActive } from '../../lib/plugins'
 import { ensurePlanFile } from '../../lib/workspace'
 
 interface Props { onSend: (content: string) => void; isStreaming: boolean }
@@ -196,7 +196,9 @@ export default function InputBar({ onSend, isStreaming }: Props) {
       const s = useStore.getState()
       onSend(`Token usage: ${s.totalTokensUsed} total. Model ${s.currentModel} on ${s.currentProvider}.`)
     } else if (command === '/help') {
-      onSend('Show available commands: /clear, /compact, /cost, /help, /plan, /caveman, /goal, /review, @files, and tools.')
+      const extras = installedPluginCommands(useStore.getState().config).map((c) => c.name)
+      const cmds = ['/clear', '/compact', '/cost', '/help', ...extras, '@files'].join(', ')
+      onSend(`Show available commands: ${cmds}. Install more from Settings → Plugins.`)
     } else if (command === '/new') {
       useStore.getState().clearMessages()
       useStore.getState().setCurrentSessionId(null)
@@ -257,7 +259,12 @@ export default function InputBar({ onSend, isStreaming }: Props) {
     <div className="bg-surface-0 px-4 pt-2 pb-2">
       <div className="composer-col relative">
         {showCommands && (
-          <CommandMenu filter={value.slice(1)} onSelect={handleCommandSelect} onClose={() => setShowCommands(false)} />
+          <CommandMenu
+            filter={value.slice(1)}
+            pluginCommands={installedPluginCommands(config)}
+            onSelect={handleCommandSelect}
+            onClose={() => setShowCommands(false)}
+          />
         )}
         {showFileMention && (
           <FileMentionMenu query={fileMentionQuery} onSelect={handleFileSelect} onClose={() => setShowFileMention(false)} />
@@ -327,6 +334,10 @@ export default function InputBar({ onSend, isStreaming }: Props) {
               onClick={async () => {
                 const cfg = useStore.getState().config
                 const on = !activePluginIds(cfg).includes('planner')
+                if (on && !installedPluginIds(cfg).includes('planner')) {
+                  setPluginNotice('Plan is not installed. Install it from Settings → Plugins.')
+                  return
+                }
                 if (on) {
                   const path = await ensurePlanFile()
                   if (!path) {

@@ -5,13 +5,23 @@ function unique(ids: string[]): string[] {
   return [...new Set(ids.filter(Boolean))]
 }
 
+const EXCLUSIVE: Record<string, string[]> = {
+  goal: ['planner'],
+  planner: ['goal'],
+}
+
 export function installedPluginIds(config: Config): string[] {
   return Array.isArray(config.installed_plugins) ? config.installed_plugins : []
 }
 
 export function activePluginIds(config: Config): string[] {
   const installed = new Set(installedPluginIds(config))
-  return (config.active_plugins || []).filter((id) => installed.has(id))
+  let active = (config.active_plugins || []).filter((id) => installed.has(id))
+  const lastExclusive = [...active].reverse().find((id) => id === 'goal' || id === 'planner')
+  if (active.includes('goal') && active.includes('planner') && lastExclusive) {
+    active = active.filter((id) => (id !== 'goal' && id !== 'planner') || id === lastExclusive)
+  }
+  return active
 }
 
 export function installPlugin(config: Config, id: string): Config {
@@ -29,11 +39,12 @@ export function uninstallPlugin(config: Config, id: string): Config {
 
 export function setPluginActive(config: Config, id: string, on: boolean): Config {
   if (!PLUGIN_CATALOG_MAP[id]) return config
-  const installed = unique([...installedPluginIds(config), id])
+  if (on && !installedPluginIds(config).includes(id)) return config
+  const drop = new Set(on ? EXCLUSIVE[id] || [] : [])
   const active = on
-    ? unique([...activePluginIds({ ...config, installed_plugins: installed }), id])
+    ? unique([...(config.active_plugins || []).filter((p) => !drop.has(p)), id])
     : (config.active_plugins || []).filter((p) => p !== id)
-  return { ...config, installed_plugins: installed, active_plugins: active }
+  return { ...config, active_plugins: active }
 }
 
 export function applyActivePlugins(userText: string, config: Config): string {
@@ -73,6 +84,13 @@ export function handlePluginSlash(raw: string, config: Config): { result: SlashR
     return { result: { kind: 'consumed', notice: `${plugin.name} off` }, config: next }
   }
 
+  if (!installedPluginIds(config).includes(plugin.id)) {
+    return {
+      result: { kind: 'consumed', notice: `${plugin.name} is not installed. Install it from Settings → Plugins.` },
+      config,
+    }
+  }
+
   let next = setPluginActive(config, plugin.id, true)
   if (plugin.id === 'caveman' && args && !off) {
     next = {
@@ -101,4 +119,12 @@ export function marketplaceSearch(query: string) {
       p.command.toLowerCase().includes(q) ||
       p.description.toLowerCase().includes(q),
   )
+}
+
+export function installedPluginCommands(config: Config): Array<{ name: string; description: string }> {
+  const installed = new Set(installedPluginIds(config))
+  return PLUGIN_CATALOG.filter((p) => installed.has(p.id)).map((p) => ({
+    name: p.command,
+    description: p.description,
+  }))
 }

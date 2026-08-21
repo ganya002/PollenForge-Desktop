@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore, Session } from '../../store/store'
 import { refreshSessions, sessionTimestampMs } from '../../lib/sessions'
-import { ChatIcon } from './fileIcons'
+import { displaySessionTitle, relativeTime, sessionAccent, sessionInitial } from '../../lib/chatTitle'
 import { currentWorkspace, folderName, pickAndSetProjectFolder, refreshFileTree } from '../../lib/workspace'
 
 function groupSessions(sessions: Session[]) {
@@ -90,7 +90,7 @@ export default function SessionList() {
 
   const startRename = (id: string) => {
     const current = useStore.getState().sessions.find((s) => s.id === id)
-    setRenameValue(current?.name || '')
+    setRenameValue(current ? displaySessionTitle(current) : '')
     setRenamingId(id)
     setContextMenu(null)
   }
@@ -114,8 +114,8 @@ export default function SessionList() {
   }
 
   return (
-    <div className="flex flex-col border-b border-border">
-      <div className="flex items-center justify-between px-3 h-9">
+    <div className="flex flex-col border-b border-border min-h-0 max-h-[50%] overflow-hidden">
+      <div className="flex items-center justify-between px-3 h-9 shrink-0">
         <span className="sidebar-label">Chats</span>
         <button
           onClick={handleNew}
@@ -129,63 +129,85 @@ export default function SessionList() {
         </button>
       </div>
 
-      <div className="max-h-48 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0 px-1.5 pb-2">
+        {sessions.length === 0 && (
+          <div className="px-2 py-3 text-[12px] text-text-muted">No chats yet</div>
+        )}
         {Object.entries(grouped).map(([label, items]) =>
           items.length > 0 ? (
-            <div key={label}>
-              <div className="px-3 pt-2 pb-1 sidebar-label">{label}</div>
-              {items.map((s) => (
-                <div
-                  key={s.id}
-                  onClick={() => handleLoad(s.id)}
-                  onContextMenu={(e) => {
-                    e.preventDefault()
-                    setContextMenu({ x: e.clientX, y: e.clientY, id: s.id })
-                  }}
-                  className={`w-full text-left px-3 py-2 text-[13px] cursor-pointer transition-smooth ${
-                    currentSessionId === s.id
-                      ? 'bg-surface-2 text-text-primary'
-                      : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'
-                  }`}
-                >
-                  {renamingId === s.id ? (
-                    <input
-                      ref={renameRef}
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          void commitRename()
-                        }
-                        if (e.key === 'Escape') {
-                          e.preventDefault()
-                          setRenamingId(null)
-                        }
-                      }}
-                      onBlur={() => void commitRename()}
-                      className="h-7 w-full px-1.5 text-[13px] bg-surface-1 border border-border rounded-md text-text-primary focus:outline-none focus:border-border-hover"
-                    />
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <ChatIcon className={currentSessionId === s.id ? 'text-text-secondary' : 'text-text-muted'} />
-                        <div className="truncate leading-5">{s.name}</div>
-                      </div>
-                      {s.directory && (
-                        <div className="text-[11px] leading-4 text-text-muted mt-0.5 pl-6 truncate" title={s.directory}>
-                          {folderName(s.directory)}
+            <div key={label} className="mb-1">
+              <div className="px-2 pt-2 pb-1 sidebar-label">{label}</div>
+              {items.map((s) => {
+                const title = displaySessionTitle(s)
+                const active = currentSessionId === s.id
+                const project = s.directory ? folderName(s.directory) : ''
+                const when = relativeTime(sessionTimestampMs(s))
+                const meta = [project, when].filter(Boolean).join(' · ')
+                const accent = sessionAccent(s.id)
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => handleLoad(s.id)}
+                    onDoubleClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      startRename(s.id)
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setContextMenu({ x: e.clientX, y: e.clientY, id: s.id })
+                    }}
+                    className={`relative w-full text-left rounded-md px-2 py-1.5 cursor-pointer transition-smooth ${
+                      active
+                        ? 'bg-surface-2 text-text-primary'
+                        : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'
+                    }`}
+                  >
+                    {active && (
+                      <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full" style={{ background: accent }} />
+                    )}
+                    {renamingId === s.id ? (
+                      <input
+                        ref={renameRef}
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            void commitRename()
+                          }
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            setRenamingId(null)
+                          }
+                        }}
+                        onBlur={() => void commitRename()}
+                        className="h-7 w-full px-1.5 text-[13px] bg-surface-1 border border-border rounded-md text-text-primary focus:outline-none"
+                      />
+                    ) : (
+                      <div className="flex items-start gap-2 min-w-0">
+                        <span
+                          className="mt-0.5 h-6 w-6 shrink-0 rounded-md flex items-center justify-center text-[10px] font-medium text-white/90"
+                          style={{ background: accent }}
+                          aria-hidden
+                        >
+                          {sessionInitial(title)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate leading-5 text-[13px]">{title}</div>
+                          {meta && (
+                            <div className="truncate text-[11px] leading-4 text-text-muted mt-0.5" title={s.directory || undefined}>
+                              {meta}
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {s.message_count > 0 && (
-                        <div className="text-[11px] leading-4 text-text-muted mt-0.5 pl-6">{s.message_count} messages</div>
-                      )}
-                    </>
-                  )}
-                </div>
-              ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           ) : null
         )}

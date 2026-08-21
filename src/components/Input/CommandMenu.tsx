@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, KeyboardEvent } from 'react'
-import { PLUGIN_CATALOG } from '../../lib/pluginCatalog'
 
 interface CommandMenuProps {
   filter: string
+  pluginCommands: Array<{ name: string; description: string }>
   onSelect: (command: string) => void
   onClose: () => void
 }
@@ -20,14 +20,11 @@ const BUILTINS = [
   { name: '/diff', description: 'Show diff' },
 ]
 
-export default function CommandMenu({ filter, onSelect, onClose }: CommandMenuProps) {
+export default function CommandMenu({ filter, pluginCommands, onSelect, onClose }: CommandMenuProps) {
   const [selected, setSelected] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
 
-  const commands = [
-    ...BUILTINS,
-    ...PLUGIN_CATALOG.map((p) => ({ name: p.command, description: p.description })),
-  ]
+  const commands = [...BUILTINS, ...pluginCommands]
   const filtered = commands.filter((c) => c.name.toLowerCase().includes(filter.toLowerCase()))
 
   useEffect(() => {

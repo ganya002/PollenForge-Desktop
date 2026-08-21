@@ -10,8 +10,10 @@ test('normalizeSession keeps the per-chat project folder', () => {
     modified: '2026-01-02',
     message_count: 2,
     directory: 'C:\\proj\\app',
+    preview: 'hello',
   })
   assert.equal(session.directory, 'C:\\proj\\app')
+  assert.equal(session.preview, 'hello')
 })
 
 test('sessionTimestampMs treats unix seconds as dates after 2001', () => {

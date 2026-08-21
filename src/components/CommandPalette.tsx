@@ -12,6 +12,7 @@ const COMMANDS = [
   { id: 'new-chat', label: 'New Chat', description: 'Start a fresh conversation', shortcut: 'Cmd+N', icon: 'plus' },
   { id: 'clear-chat', label: 'Clear Chat', description: 'Clear all messages', shortcut: 'Cmd+K', icon: 'trash' },
   { id: 'toggle-sidebar', label: 'Toggle Sidebar', description: 'Show/hide the sidebar', shortcut: 'Cmd+B', icon: 'sidebar' },
+  { id: 'toggle-browser', label: 'Toggle Browser', description: 'Show/hide the right browser', shortcut: 'Cmd+Shift+B', icon: 'sidebar' },
   { id: 'settings', label: 'Settings', description: 'Open settings', shortcut: 'Cmd+,', icon: 'settings' },
   { id: 'check-updates', label: 'Check for Updates', description: 'See versions and install updates', icon: 'download' },
   { id: 'export-chat', label: 'Export Chat', description: 'Save conversation as markdown', icon: 'export' },
@@ -64,6 +65,9 @@ export default function CommandPalette({ open, onClose, onNewChat }: CommandPale
         break
       case 'toggle-sidebar':
         useStore.getState().toggleSidebar()
+        break
+      case 'toggle-browser':
+        useStore.getState().toggleBrowser()
         break
       case 'settings':
         document.dispatchEvent(new CustomEvent('open-settings'))

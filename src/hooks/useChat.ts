@@ -2,8 +2,9 @@ import { useCallback, useRef, useEffect } from 'react'
 import { useStore, Message, ToolCall } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
 import { applyActivePlugins, activePluginIds } from '../lib/plugins'
-import { refreshSessions } from '../lib/sessions'
+import { refreshSessions, nameSessionFromPrompt } from '../lib/sessions'
 import { currentWorkspace, savePlanMarkdown, scheduleFileTreeRefresh } from '../lib/workspace'
+import { titleFromPrompt } from '../lib/chatTitle'
 import { shouldRefreshFileTree } from '../lib/fileTreeSync'
 import { sanitizeAssistantContent } from '../lib/sanitizeAssistantContent'
 import { useWebSocket } from './useWebSocket'
@@ -162,7 +163,7 @@ export function useChat() {
     let sessionId = state.currentSessionId
     if (!sessionId) {
       try {
-        const preview = content.slice(0, 60).replace(/[\n\r]+/g, ' ').trim() || 'New Chat'
+        const preview = titleFromPrompt(content) || 'New Chat'
         const res = await fetch('http://127.0.0.1:8765/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -177,6 +178,8 @@ export function useChat() {
       } catch (e) {
         console.error('Failed to create session:', e)
       }
+    } else {
+      void nameSessionFromPrompt(sessionId, content)
     }
 
     const userMsg: Message = { id: genId(), role: 'user', content, timestamp: Date.now() }

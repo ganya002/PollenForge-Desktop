@@ -38,6 +38,7 @@ export interface Session {
   message_count: number
   updated_at?: number
   directory?: string
+  preview?: string
 }
 
 export interface Config {
@@ -130,6 +131,9 @@ interface AppState {
   currentProvider: string
   isStreaming: boolean
   sidebarOpen: boolean
+  browserOpen: boolean
+  browserUrl: string
+  browserFullscreen: boolean
   sessions: Session[]
   currentSessionId: string | null
   config: Config
@@ -155,6 +159,10 @@ interface AppState {
   setStreaming: (v: boolean) => void
   setModel: (model: string, provider: string) => void
   toggleSidebar: () => void
+  toggleBrowser: () => void
+  openInBrowser: (url: string) => void
+  setBrowserUrl: (url: string) => void
+  setBrowserFullscreen: (on: boolean) => void
   setSessions: (sessions: Session[]) => void
   setConfig: (config: Config) => void
   setFileTree: (tree: FileEntry[]) => void
@@ -182,6 +190,9 @@ export const useStore = create<AppState>((set, get) => ({
   currentProvider: 'pollinations',
   isStreaming: false,
   sidebarOpen: true,
+  browserOpen: false,
+  browserUrl: '',
+  browserFullscreen: false,
   sessions: [],
   currentSessionId: null,
   config: {
@@ -242,6 +253,10 @@ export const useStore = create<AppState>((set, get) => ({
   setStreaming: (v) => set({ isStreaming: v }),
   setModel: (model, provider) => set({ currentModel: model, currentProvider: provider }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, browserFullscreen: s.browserOpen ? false : s.browserFullscreen })),
+  openInBrowser: (url) => set({ browserOpen: true, browserUrl: url }),
+  setBrowserUrl: (browserUrl) => set({ browserUrl }),
+  setBrowserFullscreen: (browserFullscreen) => set({ browserFullscreen }),
   setSessions: (sessions) => set({ sessions }),
   setConfig: (config) => set({ config }),
   setFileTree: (tree) => set({ fileTree: tree }),

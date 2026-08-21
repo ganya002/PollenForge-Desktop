@@ -36,6 +36,16 @@ def _path_for(session_id: str, for_write: bool = False) -> Path:
     return current
 
 
+def _user_preview(messages: list) -> str:
+    for item in messages or []:
+        if not isinstance(item, dict) or item.get("role") != "user":
+            continue
+        text = str(item.get("content") or "").strip()
+        if text:
+            return text[:200]
+    return ""
+
+
 def list_sessions() -> list[dict]:
     _ensure_dir()
     sessions = []
@@ -49,6 +59,7 @@ def list_sessions() -> list[dict]:
                 "message_count": len(data.get("messages", [])),
                 "updated_at": meta.get("updated_at", 0),
                 "directory": meta.get("directory") or "",
+                "preview": _user_preview(data.get("messages", [])),
             })
         except Exception:
             continue

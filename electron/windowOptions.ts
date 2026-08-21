@@ -63,6 +63,7 @@ export function browserWindowOptions(
     show: platform === 'win32',
     autoHideMenuBar: true,
     webPreferences: {
+      webviewTag: true,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

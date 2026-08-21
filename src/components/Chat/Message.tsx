@@ -4,6 +4,9 @@ import StreamingText from './StreamingText'
 import MessageActions from './MessageActions'
 import MarkdownRenderer from './MarkdownRenderer'
 import { sanitizeAssistantContent } from '../../lib/sanitizeAssistantContent'
+import { currentWorkspace } from '../../lib/workspace'
+import { extractBrowserTargets } from '../../lib/browserTargets'
+import { useStore } from '../../store/store'
 
 interface Props { message: MessageType; onRetry?: () => void; onEdit?: (c: string) => void }
 
@@ -15,6 +18,7 @@ export default function Message({ message, onRetry, onEdit }: Props) {
   const isUser = message.role === 'user'
   const hasTools = !!message.toolCalls?.length
   const displayContent = isUser ? message.content : sanitizeAssistantContent(message.content || '')
+  const browserLinks = !isUser ? extractBrowserTargets(displayContent, currentWorkspace()) : []
   const isThinking = !isUser && !displayContent && !hasTools
   const isStreaming = !isUser && !!displayContent && !message.stats && !message.isError
   const hasContent = !!displayContent.trim()
@@ -59,6 +63,19 @@ export default function Message({ message, onRetry, onEdit }: Props) {
           <div className={`${message.isError ? '' : 'px-1'} markdown-body text-[14px] leading-relaxed min-w-0`}>
             <MarkdownRenderer content={displayContent} />
             {isStreaming && <span className="inline-block w-2 h-4 bg-accent/70 animate-pulse ml-0.5 -mb-1 rounded-sm" />}
+            {browserLinks.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {browserLinks.map((hit) => (
+                  <button
+                    key={hit.url}
+                    onClick={() => useStore.getState().openInBrowser(hit.url)}
+                    className="h-7 px-2.5 rounded-md border border-border bg-surface-2 text-[12px] text-text-secondary hover:text-text-primary"
+                  >
+                    {hit.label.startsWith('Open ') ? hit.label : `Open ${hit.label}`}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           {message.stats && (
             <div className="mt-3 flex items-center gap-2.5 text-[10px] text-text-muted flex-wrap border-t border-border/40 pt-2.5">
