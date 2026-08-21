@@ -11,6 +11,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import WebSocket from 'ws';
 import { BackendManager } from './backend';
+import { checkForUpdatesOnStartup, setupUpdater } from './updater';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -373,9 +374,11 @@ async function startBackend(): Promise<void> {
 
 app.whenReady().then(async () => {
   setupIpcHandlers();
+  setupUpdater(() => mainWindow);
   createWindow();
   createTray();
   await startBackend();
+  checkForUpdatesOnStartup();
 });
 
 app.on('window-all-closed', () => {

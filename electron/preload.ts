@@ -105,5 +105,46 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.removeListener('window:maximized', handler);
       };
     },
+    getVersion: (): Promise<{ version: string; packaged: boolean }> => {
+      return ipcRenderer.invoke('app:get-version');
+    },
+  },
+
+  updates: {
+    check: (): Promise<{ ok: boolean; packaged?: boolean; error?: string; updateInfo?: unknown }> => {
+      return ipcRenderer.invoke('updates:check');
+    },
+    download: (): Promise<{ ok: boolean; error?: string }> => {
+      return ipcRenderer.invoke('updates:download');
+    },
+    install: (): Promise<{ ok: boolean; error?: string }> => {
+      return ipcRenderer.invoke('updates:install');
+    },
+    list: (): Promise<{ ok: boolean; releases?: unknown[]; error?: string }> => {
+      return ipcRenderer.invoke('updates:list');
+    },
+    installVersion: (tag: string): Promise<{ ok: boolean; error?: string; path?: string }> => {
+      return ipcRenderer.invoke('updates:install-version', tag);
+    },
+    onStatus: (callback: (payload: Record<string, unknown>) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: Record<string, unknown>) =>
+        callback(payload);
+      ipcRenderer.on('updates:status', handler);
+      return () => {
+        ipcRenderer.removeListener('updates:status', handler);
+      };
+    },
+    onProgress: (
+      callback: (payload: { percent: number; transferred: number; total: number }) => void,
+    ): (() => void) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        payload: { percent: number; transferred: number; total: number },
+      ) => callback(payload);
+      ipcRenderer.on('updates:progress', handler);
+      return () => {
+        ipcRenderer.removeListener('updates:progress', handler);
+      };
+    },
   },
 });

@@ -8,34 +8,27 @@ import InputBar from './components/Input/InputBar'
 import StatusBar from './components/StatusBar'
 import ApprovalPrompt from './components/Chat/ApprovalPrompt'
 import SettingsModal from './components/Settings/SettingsModal'
+import type { SettingsTab } from './components/Settings/SettingsModal'
 import CommandPalette from './components/CommandPalette'
 import KeyboardHelp from './components/KeyboardHelp'
-
-declare global {
-  interface Window {
-    api: {
-      app: {
-        quit: () => void
-        minimize: () => void
-        maximize: () => void
-        isMaximized: () => Promise<boolean>
-        onMaximized: (cb: (maximized: boolean) => void) => () => void
-      }
-    }
-  }
-}
 
 export default function App() {
   const sidebarOpen = useStore((s) => s.sidebarOpen)
   const toggleSidebar = useStore((s) => s.toggleSidebar)
   const { messages, isStreaming, sendMessage, retryLastMessage, scrollRef } = useChat()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('providers')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
 
   const handleNewChat = useCallback(() => {
     useStore.getState().clearMessages()
     useStore.getState().setCurrentSessionId(null)
+  }, [])
+
+  const openSettings = useCallback((tab: SettingsTab = 'providers') => {
+    setSettingsTab(tab)
+    setSettingsOpen(true)
   }, [])
 
   useEffect(() => {
@@ -81,10 +74,13 @@ export default function App() {
       if (data?.worktrees) useStore.getState().setWorktrees(data.worktrees)
     }).catch(() => {})
 
-    const openSettings = () => setSettingsOpen(true)
-    document.addEventListener('open-settings', openSettings)
-    return () => document.removeEventListener('open-settings', openSettings)
-  }, [])
+    const openSettingsEvent = (e: Event) => {
+      const tab = (e as CustomEvent<{ tab?: SettingsTab }>).detail?.tab
+      openSettings(tab || 'providers')
+    }
+    document.addEventListener('open-settings', openSettingsEvent)
+    return () => document.removeEventListener('open-settings', openSettingsEvent)
+  }, [openSettings])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -103,6 +99,7 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault()
         setSettingsOpen(true)
+        setSettingsTab('providers')
       }
       if ((e.metaKey || e.ctrlKey) && e.key === '/') {
         e.preventDefault()
@@ -119,7 +116,7 @@ export default function App() {
 
   return (
     <div className="flex h-full bg-surface-0">
-      <Sidebar onSettings={() => setSettingsOpen(true)} />
+      <Sidebar onSettings={() => openSettings('providers')} />
 
       <div className="flex flex-col flex-1 min-w-0">
         {/* Title bar */}
@@ -149,10 +146,10 @@ export default function App() {
         </div>
 
         {/* Status bar */}
-        <StatusBar />
+        <StatusBar onOpenUpdates={() => openSettings('updates')} />
       </div>
 
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} initialTab={settingsTab} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onNewChat={handleNewChat} />
       <KeyboardHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>

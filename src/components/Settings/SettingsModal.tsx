@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../../store/store'
+import UpdatesPanel from './UpdatesPanel'
+
+export type SettingsTab = 'providers' | 'general' | 'updates' | 'about'
 
 interface SettingsModalProps {
   open: boolean
   onClose: () => void
+  initialTab?: SettingsTab
 }
 
 const PROVIDER_META: Record<string, { label: string; placeholder: string; color: string; keyUrl?: string }> = {
@@ -16,23 +20,28 @@ const PROVIDER_META: Record<string, { label: string; placeholder: string; color:
   openrouter: { label: 'OpenRouter', placeholder: 'sk-or-...', color: '#00e6ff', keyUrl: 'https://openrouter.ai/keys' },
 }
 
-export default function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<'providers' | 'general' | 'about'>('providers')
+export default function SettingsModal({ open, onClose, initialTab = 'providers' }: SettingsModalProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
   const config = useStore((s) => s.config)
   const setConfig = useStore((s) => s.setConfig)
   const [keys, setKeys] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
+  const [appVersion, setAppVersion] = useState('…')
 
   useEffect(() => {
     if (open) {
+      setActiveTab(initialTab)
       const initial: Record<string, string> = {}
       for (const [name, cfg] of Object.entries(config.providers)) {
         initial[name] = cfg.api_key || ''
       }
       setKeys(initial)
       setSaved(false)
+      window.api?.app?.getVersion?.()
+        .then((info) => setAppVersion(info.version))
+        .catch(() => {})
     }
-  }, [open, config])
+  }, [open, config, initialTab])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -75,7 +84,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="relative w-full max-w-lg bg-surface-1 border border-border rounded-xl shadow-2xl overflow-hidden"
+            className="relative w-full max-w-xl bg-surface-1 border border-border rounded-xl shadow-2xl overflow-hidden"
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <h2 className="text-sm font-semibold text-text-primary">Settings</h2>
@@ -87,7 +96,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
             </div>
 
             <div className="flex border-b border-border">
-              {(['providers', 'general', 'about'] as const).map((tab) => (
+              {(['providers', 'general', 'updates', 'about'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -102,7 +111,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
               ))}
             </div>
 
-            <div className="p-4 max-h-80 overflow-y-auto">
+            <div className="p-4 max-h-[28rem] overflow-y-auto">
               {activeTab === 'providers' && (
                 <div className="space-y-3">
                   {Object.entries(PROVIDER_META).map(([name, meta]) => (
@@ -221,13 +230,21 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </div>
               )}
 
+              {activeTab === 'updates' && <UpdatesPanel />}
+
               {activeTab === 'about' && (
                 <div className="text-center py-4">
                   <div className="text-lg font-semibold text-text-primary mb-1">PollenForge</div>
-                  <div className="text-xs text-text-muted mb-4">Version 1.0.0</div>
+                  <div className="text-xs text-text-muted mb-4 font-mono">Version {appVersion}</div>
                   <p className="text-xs text-text-secondary leading-relaxed max-w-xs mx-auto">
                     AI-powered coding assistant with multi-provider support. Built with Electron, React, and Python.
                   </p>
+                  <button
+                    onClick={() => setActiveTab('updates')}
+                    className="mt-4 text-[11px] text-accent hover:underline"
+                  >
+                    Check for updates
+                  </button>
                 </div>
               )}
             </div>

@@ -1,4 +1,6 @@
 import { ChildProcess, spawn } from 'child_process';
+import { app } from 'electron';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
 
@@ -13,24 +15,27 @@ export class BackendManager {
     this.port = port;
   }
 
+  private getBackendRoot(): string {
+    if (app.isPackaged) {
+      return path.join(process.resourcesPath, 'backend');
+    }
+    return path.join(__dirname, '..', '..', 'backend');
+  }
+
   private getBackendPath(): string {
-    // __dirname is dist-electron/electron/ — go up to project root
-    return path.join(__dirname, '..', '..', 'backend', 'server.py');
+    return path.join(this.getBackendRoot(), 'server.py');
   }
 
   private getPythonCommand(): string {
-    // Use the bundled venv if available, otherwise fall back to system python
-    const venvPython = path.join(__dirname, '..', '..', 'backend', '.venv', 'bin', 'python');
-    try {
-      const fs = require('fs');
-      if (fs.existsSync(venvPython)) {
-        return venvPython;
-      }
-    } catch {}
-    if (process.platform === 'win32') {
-      return 'python';
+    const root = this.getBackendRoot();
+    const venvPython = process.platform === 'win32'
+      ? path.join(root, '.venv', 'Scripts', 'python.exe')
+      : path.join(root, '.venv', 'bin', 'python');
+
+    if (fs.existsSync(venvPython)) {
+      return venvPython;
     }
-    return 'python3';
+    return process.platform === 'win32' ? 'python' : 'python3';
   }
 
   async start(): Promise<void> {
@@ -47,6 +52,7 @@ export class BackendManager {
 
     try {
       this.process = spawn(this.getPythonCommand(), [serverScript], {
+        cwd: this.getBackendRoot(),
         env: {
           ...process.env,
           PORT: String(this.port),

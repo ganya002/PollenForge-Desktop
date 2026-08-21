@@ -10,12 +10,14 @@
     "dev:frontend": "vite",
     "dev:electron": "wait-on http://localhost:5173 && electron .",
     "dev:backend": "cd backend && python3 -m uvicorn server:app --port 8765 --reload",
-    "build": "vite build && tsc -p electron/tsconfig.json",
-    "dist": "npm run build && electron-builder",
-    "dist:mac": "npm run build && electron-builder --mac",
+    "build": "vite build && tsc -p tsconfig.node.json",
+    "dist": "npm run build && electron-builder --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "dist:win": "npm run build && electron-builder --win --publish never",
     "start": "electron ."
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "framer-motion": "^11.11.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -44,9 +46,15 @@
   "build": {
     "appId": "com.pollenforge.desktop",
     "productName": "PollenForge",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ganya002",
+        "repo": "PollenForge-Desktop"
+      }
+    ],
     "mac": {
       "category": "public.app-category.developer-tools",
-      "icon": "build/icon.icns",
       "target": [
         "dmg",
         "zip"
@@ -69,15 +77,43 @@
         }
       ]
     },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*",
-      "backend/**/*"
+      "dist-electron/**/*"
     ],
     "extraResources": [
       {
         "from": "backend",
-        "to": "backend"
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!.venv/**",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!.pytest_cache/**"
+        ]
       }
     ]
   }
