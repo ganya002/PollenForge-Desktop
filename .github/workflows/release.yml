@@ -2,30 +2,77 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  version:
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip release]')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Bump version if this tag already exists
+        id: bump
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --tags --force
+          CURRENT="$(node -p "require('./package.json').version")"
+          if git rev-parse "v${CURRENT}" >/dev/null 2>&1; then
+            npm version patch --no-git-tag-version
+          fi
+          VERSION="$(node -p "require('./package.json').version")"
+          if [ "$(git status --porcelain)" != "" ]; then
+            git add package.json package-lock.json
+            git commit -m "chore: release v${VERSION}"
+            git push origin HEAD:main
+          fi
+          if ! git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            git tag "v${VERSION}"
+            git push origin "v${VERSION}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
             args: --mac
+            artifact: mac
           - os: windows-latest
             args: --win
+            artifact: win
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - uses: actions/setup-python@v5
@@ -38,8 +85,37 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Package and publish
+      - name: Package ${{ matrix.artifact }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder ${{ matrix.args }} --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          if-no-files-found: error
+          path: |
+            release/*.yml
+            release/*.exe
+            release/*.zip
+            release/*.dmg
+            release/*.blockmap
+
+  publish:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npx electron-builder ${{ matrix.args }} --publish always
+        run: |
+          set -euo pipefail
+          gh release create "${{ needs.version.outputs.tag }}" \
+            artifacts/mac/* artifacts/win/* \
+            --repo "${{ github.repository }}" \
+            --title "PollenForge ${{ needs.version.outputs.version }}" \
+            --generate-notes

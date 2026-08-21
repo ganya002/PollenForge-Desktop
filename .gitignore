@@ -9,6 +9,7 @@ backend/.pytest_cache/
 # Build outputs
 dist/
 dist-electron/
+release/
 build/
 out/
 *.dmg
