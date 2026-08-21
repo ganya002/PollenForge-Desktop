@@ -2,7 +2,7 @@ import { BrowserWindowConstructorOptions, Rectangle } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const BACKGROUND = '#1a1a1a';
+const BACKGROUND = '#171614';
 
 /** Chromium switches that must be applied before app.ready(). */
 export function windowsChromiumSwitches(): Array<[string, string?]> {

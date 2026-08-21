@@ -19,6 +19,7 @@ module.exports = {
           DEFAULT: 'var(--accent)',
           hover: 'var(--accent-hover)',
           muted: 'var(--accent-muted)',
+          ink: 'var(--accent-ink)',
         },
         border: 'var(--border)',
         success: 'var(--success)',

@@ -34,8 +34,8 @@ export default function StatusBar({ onOpenUpdates }: StatusBarProps) {
         </div>
         <UpdateBadge variant="pill" onClick={onOpenUpdates} />
         {isStreaming && (
-          <div className="flex items-center gap-1.5 text-violet-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+          <div className="flex items-center gap-1.5 text-accent">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
             <span>Generating…</span>
           </div>
         )}

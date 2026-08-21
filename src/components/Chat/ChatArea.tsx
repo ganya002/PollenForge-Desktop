@@ -11,64 +11,44 @@ interface ChatAreaProps {
 
 function WelcomeScreen() {
   const suggestions = [
-    { icon: 'folder', text: 'What\'s in my Downloads folder?' },
+    { icon: 'folder', text: "What's in my Downloads folder?" },
     { icon: 'chip', text: 'Check my RAM usage' },
     { icon: 'window', text: 'Open VS Code' },
     { icon: 'code', text: 'Create a todo app' },
   ]
 
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center max-w-lg">
-        <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-accent-muted flex items-center justify-center">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="text-accent">
-            <path d="M16 4L4 10v12l12 6 12-6V10L16 4z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-            <path d="M4 10l12 6m0 0l12-6m-12 6v12" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    <div className="flex-1 flex items-center justify-center px-6 py-10 min-h-0">
+      <div className="w-full max-w-xl text-center">
+        <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-accent-muted border border-accent/20 flex items-center justify-center">
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="text-accent">
+            <path d="M16 4L4 10v12l12 6 12-6V10L16 4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M4 10l12 6m0 0l12-6m-12 6v12" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
           </svg>
         </div>
-        <h1 className="text-2xl font-semibold text-text-primary mb-2">Nexum</h1>
-        <p className="text-text-secondary text-sm leading-relaxed mb-6">
-          AI coding assistant with full computer access. I can read, write, and execute anything on your machine.
+        <h1 className="text-[28px] font-semibold tracking-tight text-text-primary mb-2">Nexum</h1>
+        <p className="text-text-secondary text-[14px] leading-relaxed mb-8 max-w-md mx-auto">
+          Local coding assistant with full computer access. Read, write, and run things on this machine.
         </p>
 
-        <div className="grid grid-cols-2 gap-2 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
           {suggestions.map((s) => (
             <button
               key={s.text}
-              className="text-left px-3 py-2 bg-surface-2 hover:bg-surface-3 rounded-lg text-xs text-text-secondary hover:text-text-primary transition-smooth border border-border hover:border-border-hover flex items-center gap-2"
+              className="px-3.5 py-3 bg-surface-2/80 hover:bg-surface-3 rounded-xl text-[13px] text-text-secondary hover:text-text-primary transition-smooth border border-border hover:border-border-hover flex items-center gap-2.5"
               onClick={() => {
                 document.dispatchEvent(new CustomEvent('send-message', { detail: s.text }))
               }}
             >
-              <span className="shrink-0 text-text-muted">
-                {s.icon === 'folder' && <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M1.5 3.5A1.5 1.5 0 013 2h4l2 2h5a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0114 14H3a1.5 1.5 0 01-1.5-1.5v-9z" fill="currentColor" /></svg>}
-                {s.icon === 'chip' && <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M6 3v2M10 3v2M6 11v2M10 11v2M3 6h2M3 10h2M11 6h2M11 10h2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" /></svg>}
-                {s.icon === 'window' && <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M2 5.5h12" stroke="currentColor" strokeWidth="1.1" /></svg>}
-                {s.icon === 'code' && <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3L3 8l3 5M10 3l3 5-3 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+              <span className="shrink-0 text-accent/80">
+                {s.icon === 'folder' && <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M1.5 3.5A1.5 1.5 0 013 2h4l2 2h5a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0114 14H3a1.5 1.5 0 01-1.5-1.5v-9z" fill="currentColor" /></svg>}
+                {s.icon === 'chip' && <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M6 3v2M10 3v2M6 11v2M10 11v2M3 6h2M3 10h2M11 6h2M11 10h2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" /></svg>}
+                {s.icon === 'window' && <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M2 5.5h12" stroke="currentColor" strokeWidth="1.1" /></svg>}
+                {s.icon === 'code' && <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M6 3L3 8l3 5M10 3l3 5-3 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
               </span>
               {s.text}
             </button>
           ))}
-        </div>
-
-        <div className="flex flex-col gap-1.5 text-xs text-text-muted">
-          <div className="flex items-center gap-2 justify-center">
-            <kbd className="px-1.5 py-0.5 bg-surface-2 rounded border border-border font-mono">Enter</kbd>
-            <span>send</span>
-            <span className="mx-1">·</span>
-            <kbd className="px-1.5 py-0.5 bg-surface-2 rounded border border-border font-mono">Shift+Enter</kbd>
-            <span>newline</span>
-          </div>
-          <div className="flex items-center gap-2 justify-center">
-            <kbd className="px-1.5 py-0.5 bg-surface-2 rounded border border-border font-mono">/</kbd>
-            <span>commands</span>
-            <span className="mx-1">·</span>
-            <kbd className="px-1.5 py-0.5 bg-surface-2 rounded border border-border font-mono">@</kbd>
-            <span>files</span>
-            <span className="mx-1">·</span>
-            <kbd className="px-1.5 py-0.5 bg-surface-2 rounded border border-border font-mono">Cmd+K</kbd>
-            <span>palette</span>
-          </div>
         </div>
       </div>
     </div>
@@ -76,12 +56,25 @@ function WelcomeScreen() {
 }
 
 export default function ChatArea({ messages, scrollRef, onRetry }: ChatAreaProps) {
+  const empty = messages.length === 0
+
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0">
-      {messages.length === 0 ? (
+    <div
+      ref={scrollRef}
+      className={`flex-1 min-h-0 ${empty ? 'flex flex-col' : 'overflow-y-auto'}`}
+      style={
+        empty
+          ? {
+              background:
+                'radial-gradient(ellipse 70% 55% at 50% 42%, #2a241e 0%, var(--surface-0) 72%)',
+            }
+          : undefined
+      }
+    >
+      {empty ? (
         <WelcomeScreen />
       ) : (
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="w-full max-w-2xl mx-auto px-5 py-6">
           <AnimatePresence initial={false}>
             {messages.map((msg) => (
               <motion.div

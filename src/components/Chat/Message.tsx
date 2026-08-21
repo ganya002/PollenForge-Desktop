@@ -23,7 +23,7 @@ export default function Message({ message, onRetry, onEdit }: Props) {
     return (
       <div className="flex justify-end mb-5 group">
         <div className="max-w-[78%]">
-          <div className="bg-[#2a2a3a] text-text-primary rounded-2xl rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap break-words border border-white/5">
+          <div className="bg-[#2a2723] text-text-primary rounded-2xl rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap break-words border border-white/5">
             {message.content}
           </div>
           <div className="flex items-center gap-2 mt-1.5 justify-end">

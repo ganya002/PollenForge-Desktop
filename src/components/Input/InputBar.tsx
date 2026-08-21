@@ -218,8 +218,8 @@ export default function InputBar({ onSend, isStreaming }: Props) {
   }
 
   return (
-    <div className="border-t border-border/60 bg-surface-1 p-3">
-      <div className="max-w-4xl mx-auto relative">
+    <div className="bg-surface-0/80 px-4 pt-3 pb-3">
+      <div className="w-full max-w-2xl mx-auto relative">
         {showCommands && (
           <CommandMenu filter={value.slice(1)} onSelect={handleCommandSelect} onClose={() => setShowCommands(false)} />
         )}
@@ -242,7 +242,7 @@ export default function InputBar({ onSend, isStreaming }: Props) {
         )}
 
         <div
-          className={`flex items-end gap-2 bg-surface-0 rounded-2xl border shadow-sm transition-smooth ${isDragging ? 'border-accent bg-accent-muted/10' : 'border-border focus-within:border-accent/50 focus-within:shadow-md'}`}
+          className={`flex items-end gap-2 bg-surface-2 rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition-smooth ${isDragging ? 'border-accent bg-accent-muted/20' : 'border-border focus-within:border-accent/55'}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -271,7 +271,7 @@ export default function InputBar({ onSend, isStreaming }: Props) {
             <button
               onClick={handleSend}
               disabled={!canSend}
-              className="p-2.5 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-smooth text-white shadow-sm"
+              className="p-2.5 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-smooth text-accent-ink shadow-sm"
               aria-label={isStreaming ? 'Stop' : 'Send'}
             >
               {isStreaming ? (
@@ -283,18 +283,19 @@ export default function InputBar({ onSend, isStreaming }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-2 px-1">
-          <div className="flex items-center gap-2 text-[11px] text-text-muted">
+          <div className="flex items-center justify-center gap-3 mt-2.5 px-1 text-[11px] text-text-muted">
+          <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full shadow-sm" style={{ background: ({ pollinations: '#ff3b30', openai: '#00c950', anthropic: '#ff7a00', google: '#0091ff', ollama: '#ffcc00', openrouter: '#00e6ff' } as any)[currentProvider] || '#f0f0f0' }} />
+              <span className="w-2 h-2 rounded-full shadow-sm" style={{ background: ({ pollinations: '#e07064', openai: '#7dba7a', anthropic: '#e0a85c', google: '#7aa2d4', ollama: '#d4b896', openrouter: '#8fc9c4' } as any)[currentProvider] || '#d4b896' }} />
               {currentModel}
             </span>
-            <span className="opacity-50">·</span>
+            <span className="opacity-40">·</span>
             <span>{currentProvider}</span>
             {isDragging && <span className="text-accent">Drop files to attach</span>}
           </div>
-          <div className="text-[10px] text-text-muted hidden sm:block">
-            <span className="hidden md:inline">Enter to send · Shift+Enter for newline · / commands · @ files</span>
+          <span className="opacity-30 hidden sm:inline">·</span>
+          <div className="hidden sm:block">
+            Enter to send · Shift+Enter newline
           </div>
         </div>
       </div>
