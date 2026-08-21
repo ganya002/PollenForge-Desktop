@@ -112,6 +112,12 @@ contextBridge.exposeInMainWorld('api', {
     nativeFrame: process.platform === 'win32',
   },
 
+  debug: {
+    log: (line: string): void => {
+      ipcRenderer.send('debug:log', line);
+    },
+  },
+
   updates: {
     check: (): Promise<{ ok: boolean; packaged?: boolean; error?: string; updateInfo?: unknown }> => {
       return ipcRenderer.invoke('updates:check');

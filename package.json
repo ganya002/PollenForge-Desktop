@@ -119,6 +119,9 @@
       "dist/**/*",
       "dist-electron/**/*"
     ],
+    "asarUnpack": [
+      "dist/**"
+    ],
     "extraResources": [
       {
         "from": "backend",

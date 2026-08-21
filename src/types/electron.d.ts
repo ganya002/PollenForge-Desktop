@@ -50,6 +50,9 @@ declare global {
         platform: string
         nativeFrame: boolean
       }
+      debug?: {
+        log: (line: string) => void
+      }
       updates: {
         check: () => Promise<{ ok: boolean; packaged?: boolean; error?: string; updateInfo?: unknown }>
         download: () => Promise<{ ok: boolean; error?: string }>

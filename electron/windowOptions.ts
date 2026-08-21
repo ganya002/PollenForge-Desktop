@@ -1,21 +1,31 @@
 import { BrowserWindowConstructorOptions, Rectangle } from 'electron';
+import * as fs from 'fs';
 import * as path from 'path';
 
-const BACKGROUND = '#0a0a0a';
+const BACKGROUND = '#1a1a1a';
 
 /** Chromium switches that must be applied before app.ready(). */
 export function windowsChromiumSwitches(): Array<[string, string?]> {
   return [
     ['disable-features', 'CalculateNativeWinOcclusion'],
+    ['disable-gpu-sandbox'],
+    ['in-process-gpu'],
   ];
 }
 
 export function resolveRenderer(
   isPackaged: boolean,
-  appPath: string
+  appPath: string,
+  resourcesPath?: string
 ): { kind: 'url'; url: string } | { kind: 'file'; file: string } {
   if (!isPackaged) {
     return { kind: 'url', url: 'http://localhost:5173' };
+  }
+  const unpacked = resourcesPath
+    ? path.join(resourcesPath, 'app.asar.unpacked', 'dist', 'index.html')
+    : '';
+  if (unpacked && fs.existsSync(unpacked)) {
+    return { kind: 'file', file: unpacked };
   }
   return { kind: 'file', file: path.join(appPath, 'dist', 'index.html') };
 }
@@ -50,7 +60,7 @@ export function browserWindowOptions(
     minWidth: 800,
     minHeight: 600,
     backgroundColor: BACKGROUND,
-    show: false,
+    show: platform === 'win32',
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
@@ -63,14 +73,13 @@ export function browserWindowOptions(
   if (platform === 'darwin') {
     return {
       ...base,
+      show: false,
       frame: false,
       titleBarStyle: 'hiddenInset',
       trafficLightPosition: { x: 12, y: 12 },
     };
   }
 
-  // Native Windows chrome so the window can still be moved/maximized
-  // if the GPU compositor fails.
   return {
     ...base,
     frame: true,

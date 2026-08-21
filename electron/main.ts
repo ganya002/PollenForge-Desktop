@@ -78,7 +78,7 @@ function createWindow(): void {
 
   mainWindow = new BrowserWindow(opts);
 
-  const renderer = resolveRenderer(app.isPackaged, app.getAppPath());
+  const renderer = resolveRenderer(app.isPackaged, app.getAppPath(), process.resourcesPath);
   const debugLog = path.join(app.getPath('userData'), 'startup.log');
   const log = (line: string) => {
     try {
@@ -200,6 +200,17 @@ function setupIpcHandlers(): void {
   }
 
   // Window controls
+  ipcMain.on('debug:log', (_event, line: string) => {
+    try {
+      fs.appendFileSync(
+        path.join(app.getPath('userData'), 'startup.log'),
+        `${new Date().toISOString()} renderer ${String(line)}\n`
+      );
+    } catch {
+      console.error('renderer', line);
+    }
+  });
+
   ipcMain.on('app:quit', () => {
     app.quit();
   });
