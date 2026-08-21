@@ -82,6 +82,10 @@ html, body, #root {
 .no-drag {
   -webkit-app-region: no-drag;
 }
+.composer-col {
+  width: min(100%, 36rem);
+  margin-inline: auto;
+}
 
 /* Code blocks — JetBrains Mono for code, Geist for prose */
 pre {

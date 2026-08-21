@@ -32,7 +32,7 @@ export default function InputBar({ onSend, isStreaming }: Props) {
     const ta = textareaRef.current
     if (ta) {
       ta.style.height = 'auto'
-      ta.style.height = Math.min(ta.scrollHeight, 200) + 'px'
+      ta.style.height = `${Math.min(Math.max(ta.scrollHeight, 48), 200)}px`
     }
   }, [value])
 
@@ -247,7 +247,7 @@ export default function InputBar({ onSend, isStreaming }: Props) {
 
   return (
     <div className="bg-surface-0 px-4 pt-3 pb-3">
-      <div className="w-full max-w-2xl mx-auto relative">
+      <div className="composer-col relative">
         {showCommands && (
           <CommandMenu filter={value.slice(1)} onSelect={handleCommandSelect} onClose={() => setShowCommands(false)} />
         )}
@@ -256,7 +256,7 @@ export default function InputBar({ onSend, isStreaming }: Props) {
         )}
 
         {(activePluginIds(config).length > 0 || pluginNotice) && (
-          <div className="flex flex-wrap items-center gap-2 mb-2 px-4 min-h-6">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-2 min-h-6">
             {activePluginIds(config).map((id) => (
               <button
                 key={id}
@@ -265,17 +265,17 @@ export default function InputBar({ onSend, isStreaming }: Props) {
                   setConfig(next)
                   persistConfig(next)
                 }}
-                className="h-6 px-2 rounded-md border border-border bg-surface-2 text-[11px] text-text-secondary hover:text-text-primary"
+                className="h-6 px-2.5 rounded-md border border-border bg-surface-2 text-[11px] leading-6 text-text-secondary hover:text-text-primary"
               >
                 {PLUGIN_CATALOG_MAP[id]?.name || id} · on
               </button>
             ))}
-            {pluginNotice && <span className="text-[11px] text-text-muted">{pluginNotice}</span>}
+            {pluginNotice && <span className="text-[11px] leading-6 text-text-muted">{pluginNotice}</span>}
           </div>
         )}
 
         {attachedFiles.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-2.5">
+          <div className="flex flex-wrap justify-center gap-2 mb-2.5">
             {attachedFiles.map((file, i) => (
               <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-2 border border-border rounded-lg text-xs text-text-secondary max-w-[240px]">
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-accent shrink-0"><path d="M7 1H3a1 1 0 00-1 1v8a1 1 0 001 1h6a1 1 0 001-1V4L7 1z" stroke="currentColor" strokeWidth="1" /></svg>
@@ -289,7 +289,7 @@ export default function InputBar({ onSend, isStreaming }: Props) {
         )}
 
         <div
-          className={`flex items-center gap-2 bg-surface-1 rounded-xl border transition-smooth ${isDragging ? 'border-accent' : 'border-border focus-within:border-border-hover'}`}
+          className={`grid grid-cols-[1fr_auto] items-center min-h-12 bg-surface-1 rounded-xl border transition-smooth ${isDragging ? 'border-accent' : 'border-border focus-within:border-border-hover'}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -302,10 +302,10 @@ export default function InputBar({ onSend, isStreaming }: Props) {
             onPaste={handlePaste}
             placeholder={attachedFiles.length > 0 ? `${attachedFiles.length} file(s) attached — add a message…` : "Ask anything… (@ files, / commands)"}
             rows={1}
-            className="flex-1 bg-transparent px-4 py-3 text-[14px] leading-5 text-text-primary resize-none focus:outline-none placeholder:text-text-muted min-h-[44px] max-h-[200px]"
+            className="w-full bg-transparent px-4 text-[14px] leading-6 text-text-primary resize-none focus:outline-none placeholder:text-text-muted min-h-12 max-h-[200px] py-3 box-border"
           />
 
-          <div className="flex items-center gap-1.5 pr-3 shrink-0">
+          <div className="flex items-center justify-center gap-1.5 pr-3 pl-1 h-12 shrink-0">
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.c,.cpp,.h,.css,.html,.json,.yaml,.yml,.md,.sh,.zsh,.bash,.sql,.xml,.toml,.cfg,.ini,.env,.log,.csv" />
             <button onClick={() => fileInputRef.current?.click()} className="h-8 w-8 flex items-center justify-center rounded-md bg-surface-2 hover:bg-surface-3 text-text-muted hover:text-text-primary transition-smooth" title="Attach files">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 7l-5 5a3 3 0 01-4.24-4.24l5-5A2 2 0 0111 4.5l-5 5a1 1 0 01-1.42-1.42l5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -330,19 +330,16 @@ export default function InputBar({ onSend, isStreaming }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-2 px-4 h-5 text-[11px] leading-5 text-text-muted">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: catalogEntry(currentProvider)?.color || '#888' }} />
-              <span className="truncate">{currentModel}</span>
-              <span className="opacity-40">·</span>
-              <span className="truncate">{catalogEntry(currentProvider)?.label || currentProvider}</span>
-            </span>
-            {isDragging && <span className="text-text-secondary">Drop files to attach</span>}
-          </div>
-          <div className="shrink-0 hidden sm:block">
-            Enter to send · Shift+Enter newline
-          </div>
+        <div className="flex items-center justify-center gap-2 mt-2 h-5 text-[11px] leading-5 text-text-muted">
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: catalogEntry(currentProvider)?.color || '#888' }} />
+            <span className="truncate">{currentModel}</span>
+            <span className="opacity-40">·</span>
+            <span className="truncate">{catalogEntry(currentProvider)?.label || currentProvider}</span>
+          </span>
+          {isDragging && <span className="text-text-secondary">Drop files to attach</span>}
+          <span className="opacity-30">·</span>
+          <span className="hidden sm:inline">Enter to send · Shift+Enter newline</span>
         </div>
       </div>
     </div>

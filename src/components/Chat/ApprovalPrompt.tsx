@@ -40,7 +40,7 @@ export default function ApprovalPrompt() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 8 }}
-        className="mx-4 mb-3"
+        className="composer-col mb-3 px-4"
       >
         <div className={`rounded-xl border overflow-hidden ${isDangerous ? 'border-warning/40 bg-warning/5' : 'border-border bg-surface-2'}`}>
           <div className="flex items-center gap-2 px-4 py-2.5">
