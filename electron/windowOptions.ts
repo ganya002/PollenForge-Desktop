@@ -1,4 +1,5 @@
 import { BrowserWindowConstructorOptions, Rectangle } from 'electron';
+import * as path from 'path';
 
 const BACKGROUND = '#0a0a0a';
 
@@ -10,8 +11,20 @@ export function shouldDisableHardwareAcceleration(platform: NodeJS.Platform): bo
 export function windowsChromiumSwitches(): Array<[string, string?]> {
   return [
     ['disable-features', 'CalculateNativeWinOcclusion'],
-    ['disable-gpu-compositing'],
+    // Windows 11 DWM often leaves a live title bar and a black client area.
+    ['disable-direct-composition'],
+    ['use-angle', 'swiftshader'],
   ];
+}
+
+export function resolveRenderer(
+  isPackaged: boolean,
+  appPath: string
+): { kind: 'url'; url: string } | { kind: 'file'; file: string } {
+  if (!isPackaged) {
+    return { kind: 'url', url: 'http://localhost:5173' };
+  }
+  return { kind: 'file', file: path.join(appPath, 'dist', 'index.html') };
 }
 
 export function clampWindowBounds(

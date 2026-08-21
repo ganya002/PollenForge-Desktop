@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import WebSocket from 'ws';
 import { BackendManager } from './backend';
 import { checkForUpdatesOnStartup, setupUpdater } from './updater';
-import { browserWindowOptions, shouldDisableHardwareAcceleration, windowsChromiumSwitches, clampWindowBounds } from './windowOptions';
+import { browserWindowOptions, shouldDisableHardwareAcceleration, windowsChromiumSwitches, clampWindowBounds, resolveRenderer } from './windowOptions';
 
 if (shouldDisableHardwareAcceleration(process.platform)) {
   app.disableHardwareAcceleration();
@@ -80,13 +80,42 @@ function createWindow(): void {
 
   mainWindow = new BrowserWindow(opts);
 
-  // In dev mode, load from Vite dev server; in production, load from dist
-  const isDev = !fs.existsSync(path.join(__dirname, '../../dist/index.html'));
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+  const renderer = resolveRenderer(app.isPackaged, app.getAppPath());
+  const debugLog = path.join(app.getPath('userData'), 'startup.log');
+  const log = (line: string) => {
+    try {
+      fs.appendFileSync(debugLog, `${new Date().toISOString()} ${line}\n`);
+    } catch {
+      console.error(line);
+    }
+  };
+  log(`packaged=${app.isPackaged} renderer=${JSON.stringify(renderer)} appPath=${app.getAppPath()}`);
+
+  if (renderer.kind === 'url') {
+    mainWindow.loadURL(renderer.url);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
+    if (!fs.existsSync(renderer.file)) {
+      log(`missing UI file: ${renderer.file}`);
+    }
+    mainWindow.loadFile(renderer.file);
   }
+
+  let showedLoadError = false;
+  mainWindow.webContents.on('did-fail-load', (_event, code, desc, url) => {
+    log(`did-fail-load ${code} ${desc} ${url}`);
+    if (showedLoadError || url.startsWith('data:')) return;
+    showedLoadError = true;
+    const html = `<!doctype html><html><body style="margin:0;background:#141414;color:#f0f0f0;font-family:Segoe UI,sans-serif;padding:40px">
+      <h1 style="font-size:20px">Nexum could not open the UI</h1>
+      <p style="color:#a8a8a8;line-height:1.5">${code}: ${desc}</p>
+      <p style="color:#6e6e6e;word-break:break-all">${url}</p>
+    </body></html>`;
+    mainWindow?.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    log('did-finish-load');
+  });
 
   mainWindow.once('ready-to-show', () => {
     if (savedState.isMaximized) {
