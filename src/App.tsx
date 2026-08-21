@@ -13,6 +13,7 @@ import CommandPalette from './components/CommandPalette'
 import KeyboardHelp from './components/KeyboardHelp'
 import UpdateBadge from './components/UpdateBadge'
 import { useAvailableUpdate } from './hooks/useAvailableUpdate'
+import { mergeFetchedConfig } from './lib/appConfig'
 
 export default function App() {
   const sidebarOpen = useStore((s) => s.sidebarOpen)
@@ -65,7 +66,9 @@ export default function App() {
     fetch(`${API}/config`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        if (data?.providers) useStore.getState().setConfig(data)
+        if (!data?.providers) return
+        const state = useStore.getState()
+        state.setConfig(mergeFetchedConfig(state.config, data))
       })
       .catch(() => {})
 

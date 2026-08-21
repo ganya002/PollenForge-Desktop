@@ -1,5 +1,6 @@
 import { useCallback, useRef, useEffect } from 'react'
 import { useStore, Message, ToolCall } from '../store/store'
+import { findProviderModel } from '../lib/appConfig'
 import { useWebSocket } from './useWebSocket'
 
 function genId(): string {
@@ -113,7 +114,7 @@ export function useChat() {
         })
       }
       if (s?.tokens) {
-        const costPer1k = state.config.providers[state.currentProvider]?.models.find(m => m.id === state.currentModel)?.cost_per_1k || 0
+        const costPer1k = findProviderModel(state.config, state.currentProvider, state.currentModel)?.cost_per_1k || 0
         const cost = (s.tokens / 1000) * costPer1k
         state.addTokensUsed(s.tokens, cost)
       }

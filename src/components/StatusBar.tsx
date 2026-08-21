@@ -1,4 +1,5 @@
 import { useStore } from '../store/store'
+import { findProviderModel } from '../lib/appConfig'
 import UpdateBadge from './UpdateBadge'
 
 interface StatusBarProps {
@@ -18,7 +19,7 @@ export default function StatusBar({ onOpenUpdates }: StatusBarProps) {
 
   const totalChars = messages.reduce((acc, m) => acc + m.content.length + (m.toolCalls?.reduce((a, tc) => a + JSON.stringify(tc.args).length, 0) || 0), 0)
   const estimatedTokens = Math.ceil(totalChars / 4)
-  const modelInfo = config.providers[currentProvider]?.models.find(m => m.id === currentModel)
+  const modelInfo = findProviderModel(config, currentProvider, currentModel)
   const maxTokens = modelInfo?.context_length || 128000
   const contextPercent = Math.min(100, Math.round((estimatedTokens / maxTokens) * 100))
 
