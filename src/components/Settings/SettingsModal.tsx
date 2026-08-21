@@ -9,8 +9,9 @@ import {
   persistConfig,
   removeEnabledProvider,
 } from '../../lib/appConfig'
+import { marketplaceSearch, installPlugin, uninstallPlugin, installedPluginIds } from '../../lib/plugins'
 
-export type SettingsTab = 'providers' | 'general' | 'updates' | 'about'
+export type SettingsTab = 'providers' | 'plugins' | 'general' | 'updates' | 'about'
 
 interface SettingsModalProps {
   open: boolean
@@ -28,6 +29,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
   const [saved, setSaved] = useState(false)
   const [appVersion, setAppVersion] = useState('…')
   const [providerSearch, setProviderSearch] = useState('')
+  const [pluginSearch, setPluginSearch] = useState('')
 
   useEffect(() => {
     if (open) {
@@ -39,6 +41,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
       setKeys(initial)
       setSaved(false)
       setProviderSearch('')
+      setPluginSearch('')
       window.api?.app?.getVersion?.()
         .then((info) => setAppVersion(info.version))
         .catch(() => {})
@@ -94,7 +97,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
             </div>
 
             <div className="flex border-b border-border">
-              {(['providers', 'general', 'updates', 'about'] as const).map((tab) => (
+              {(['providers', 'plugins', 'general', 'updates', 'about'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -224,6 +227,43 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                   >
                     {saved ? 'Saved' : 'Save API keys'}
                   </button>
+                </div>
+              )}
+
+              {activeTab === 'plugins' && (
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={pluginSearch}
+                    onChange={(e) => setPluginSearch(e.target.value)}
+                    placeholder="Search marketplace…"
+                    className="h-9 w-full px-3 text-[13px] bg-surface-2 border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-hover"
+                  />
+                  <p className="text-[12px] text-text-muted">
+                    Installed plugins add instructions to the next prompt. Use /caveman or /goal in the chat box.
+                  </p>
+                  {marketplaceSearch(pluginSearch).map((plugin) => {
+                    const installed = installedPluginIds(config).includes(plugin.id)
+                    return (
+                      <div key={plugin.id} className="bg-surface-2 rounded-lg p-3">
+                        <div className="h-7 flex items-center gap-2">
+                          <span className="text-[13px] font-medium text-text-primary">{plugin.name}</span>
+                          <span className="font-mono text-[12px] text-text-muted">{plugin.command}</span>
+                          <button
+                            onClick={() => {
+                              const next = installed ? uninstallPlugin(config, plugin.id) : installPlugin(config, plugin.id)
+                              setConfig(next)
+                              persistConfig(next)
+                            }}
+                            className="ml-auto h-7 px-3 rounded-md border border-border text-[12px] text-text-secondary hover:text-text-primary hover:bg-surface-3"
+                          >
+                            {installed ? 'Uninstall' : 'Install'}
+                          </button>
+                        </div>
+                        <p className="text-[12px] text-text-muted mt-1.5 leading-5">{plugin.description}</p>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
 

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useEffect } from 'react'
 import { useStore, Message, ToolCall } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
+import { applyActivePlugins } from '../lib/plugins'
 import { useWebSocket } from './useWebSocket'
 
 function genId(): string {
@@ -179,7 +180,13 @@ export function useChat() {
 
     const allMessages = useStore.getState().messages
       .filter(m => m.role !== 'system')
-      .map(m => ({ role: m.role, content: m.content }))
+      .map((m, i, arr) => {
+        const isLastUser = m.role === 'user' && !arr.slice(i + 1).some((x) => x.role === 'user')
+        return {
+          role: m.role,
+          content: isLastUser ? applyActivePlugins(m.content, state.config) : m.content,
+        }
+      })
 
     const sent = ws.send({
       type: 'chat',

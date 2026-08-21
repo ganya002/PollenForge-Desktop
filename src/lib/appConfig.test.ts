@@ -11,6 +11,8 @@ const current: Config = {
     },
   },
   enabled_providers: ['pollinations'],
+  installed_plugins: [],
+  active_plugins: [],
   model: 'gpt-5.6-sol',
   provider: 'pollinations',
   temperature: 0.4,

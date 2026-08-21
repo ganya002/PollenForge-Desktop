@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, KeyboardEvent } from 'react'
+import { PLUGIN_CATALOG } from '../../lib/pluginCatalog'
 
 interface CommandMenuProps {
   filter: string
@@ -6,7 +7,7 @@ interface CommandMenuProps {
   onClose: () => void
 }
 
-const COMMANDS = [
+const BUILTINS = [
   { name: '/help', description: 'Show help and commands' },
   { name: '/clear', description: 'Clear conversation' },
   { name: '/compact', description: 'Summarize conversation' },
@@ -23,9 +24,11 @@ export default function CommandMenu({ filter, onSelect, onClose }: CommandMenuPr
   const [selected, setSelected] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
 
-  const filtered = COMMANDS.filter((c) =>
-    c.name.toLowerCase().includes(filter.toLowerCase())
-  )
+  const commands = [
+    ...BUILTINS,
+    ...PLUGIN_CATALOG.map((p) => ({ name: p.command, description: p.description })),
+  ]
+  const filtered = commands.filter((c) => c.name.toLowerCase().includes(filter.toLowerCase()))
 
   useEffect(() => {
     setSelected(0)
@@ -43,10 +46,10 @@ export default function CommandMenu({ filter, onSelect, onClose }: CommandMenuPr
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setSelected((s) => filtered.length ? (s + 1) % filtered.length : 0)
+        setSelected((s) => (filtered.length ? (s + 1) % filtered.length : 0))
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
-        setSelected((s) => filtered.length ? (s - 1 + filtered.length) % filtered.length : 0)
+        setSelected((s) => (filtered.length ? (s - 1 + filtered.length) % filtered.length : 0))
       } else if (e.key === 'Enter' || e.key === 'Tab') {
         if (filtered[selected]) {
           e.preventDefault()
@@ -65,20 +68,20 @@ export default function CommandMenu({ filter, onSelect, onClose }: CommandMenuPr
   return (
     <div
       ref={ref}
-      className="absolute bottom-full left-0 right-0 mb-2 bg-surface-2 border border-border rounded-lg shadow-xl overflow-hidden z-50"
+      className="absolute bottom-full left-0 right-0 mb-2 bg-surface-2 border border-border rounded-lg overflow-hidden z-50"
     >
       {filtered.map((cmd, i) => (
         <button
           key={cmd.name}
           onClick={() => onSelect(cmd.name)}
-          className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-smooth ${
+          className={`w-full h-9 flex items-center gap-3 px-3 text-left ${
             i === selected
-              ? 'bg-accent-muted text-accent'
+              ? 'bg-surface-3 text-text-primary'
               : 'text-text-secondary hover:bg-surface-3 hover:text-text-primary'
           }`}
         >
-          <span className="text-sm font-mono font-medium">{cmd.name}</span>
-          <span className="text-xs text-text-muted">{cmd.description}</span>
+          <span className="text-[13px] font-mono font-medium">{cmd.name}</span>
+          <span className="text-[12px] text-text-muted truncate">{cmd.description}</span>
         </button>
       ))}
     </div>

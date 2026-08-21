@@ -42,6 +42,9 @@ export interface Session {
 export interface Config {
   providers: Record<string, ProviderConfig>
   enabled_providers: string[]
+  installed_plugins: string[]
+  active_plugins: string[]
+  plugin_options?: Record<string, string>
   model: string
   provider: string
   temperature: number
@@ -163,6 +166,8 @@ export const useStore = create<AppState>((set, get) => ({
       pollinations: emptyProviderConfig('pollinations'),
     },
     enabled_providers: ['pollinations'],
+    installed_plugins: [],
+    active_plugins: [],
     model: 'gpt-5.6-sol',
     provider: 'pollinations',
     temperature: 0.4,

@@ -3,6 +3,9 @@ import { useStore } from '../../store/store'
 import CommandMenu from './CommandMenu'
 import FileMentionMenu from './FileMentionMenu'
 import { catalogEntry } from '../../lib/providerCatalog'
+import { persistConfig } from '../../lib/appConfig'
+import { PLUGIN_CATALOG_MAP, pluginByCommand } from '../../lib/pluginCatalog'
+import { activePluginIds, handlePluginSlash, setPluginActive } from '../../lib/plugins'
 
 interface Props { onSend: (content: string) => void; isStreaming: boolean }
 
@@ -16,10 +19,12 @@ export default function InputBar({ onSend, isStreaming }: Props) {
   const [cursorPos, setCursorPos] = useState(0)
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; content: string }[]>([])
   const [isDragging, setIsDragging] = useState(false)
+  const [pluginNotice, setPluginNotice] = useState('')
   const autoApprove = useStore((s) => s.config.auto_approve)
   const setConfig = useStore((s) => s.setConfig)
   const currentModel = useStore((s) => s.currentModel)
   const currentProvider = useStore((s) => s.currentProvider)
+  const config = useStore((s) => s.config)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -94,15 +99,31 @@ export default function InputBar({ onSend, isStreaming }: Props) {
   const handleSend = () => {
     if (!canSend) return
     let message = value
+    if (message.trim().startsWith('/')) {
+      const { result, config: next } = handlePluginSlash(message, useStore.getState().config)
+      if (result.kind !== 'ignore') {
+        setConfig(next)
+        persistConfig(next)
+        setShowCommands(false)
+        if (result.kind === 'consumed') {
+          setValue('')
+          setPluginNotice(result.notice)
+          return
+        }
+        message = result.text
+      }
+    }
     if (attachedFiles.length > 0) {
       const fileContext = attachedFiles.map(f => `[File: ${f.name}]\n${f.content.slice(0, 15000)}`).join('\n\n')
       message = message ? `${message}\n\n${fileContext}` : fileContext
     }
+    if (!message.trim()) return
     onSend(message)
     setValue('')
     setAttachedFiles([])
     setShowCommands(false)
     setShowFileMention(false)
+    setPluginNotice('')
   }
 
   const processFile = (file: File) => {
@@ -175,10 +196,16 @@ export default function InputBar({ onSend, isStreaming }: Props) {
       const s = useStore.getState()
       onSend(`Token usage: ${s.totalTokensUsed} total. Model ${s.currentModel} on ${s.currentProvider}.`)
     } else if (command === '/help') {
-      onSend('Show available commands: /clear, /compact, /cost, /help, @files, and all tools like git, run_command, etc')
+      onSend('Show available commands: /clear, /compact, /cost, /help, /caveman, /goal, /review, @files, and tools.')
     } else if (command === '/new') {
       useStore.getState().clearMessages()
       useStore.getState().setCurrentSessionId(null)
+    } else if (pluginByCommand(command)) {
+      const { result, config: next } = handlePluginSlash(command, useStore.getState().config)
+      setConfig(next)
+      persistConfig(next)
+      if (result.kind === 'consumed') setPluginNotice(result.notice)
+      else setValue(command + ' ')
     } else {
       setValue(command + ' ')
       textareaRef.current?.focus()
@@ -226,6 +253,25 @@ export default function InputBar({ onSend, isStreaming }: Props) {
         )}
         {showFileMention && (
           <FileMentionMenu query={fileMentionQuery} onSelect={handleFileSelect} onClose={() => setShowFileMention(false)} />
+        )}
+
+        {(activePluginIds(config).length > 0 || pluginNotice) && (
+          <div className="flex flex-wrap items-center gap-2 mb-2 px-4 min-h-6">
+            {activePluginIds(config).map((id) => (
+              <button
+                key={id}
+                onClick={() => {
+                  const next = setPluginActive(config, id, false)
+                  setConfig(next)
+                  persistConfig(next)
+                }}
+                className="h-6 px-2 rounded-md border border-border bg-surface-2 text-[11px] text-text-secondary hover:text-text-primary"
+              >
+                {PLUGIN_CATALOG_MAP[id]?.name || id} · on
+              </button>
+            ))}
+            {pluginNotice && <span className="text-[11px] text-text-muted">{pluginNotice}</span>}
+          </div>
         )}
 
         {attachedFiles.length > 0 && (

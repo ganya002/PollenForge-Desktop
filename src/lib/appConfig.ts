@@ -38,6 +38,21 @@ export function mergeFetchedConfig(current: Config, remote: unknown): Config {
   if (typeof data.model === 'string') next.model = data.model
   if (typeof data.provider === 'string') next.provider = data.provider
 
+  if (Array.isArray(data.installed_plugins)) {
+    next.installed_plugins = uniqueIds(data.installed_plugins.filter((id): id is string => typeof id === 'string'))
+  }
+  if (Array.isArray(data.active_plugins)) {
+    next.active_plugins = uniqueIds(data.active_plugins.filter((id): id is string => typeof id === 'string'))
+  }
+  const opts = asRecord(data.plugin_options)
+  if (opts) {
+    const plugin_options: Record<string, string> = {}
+    for (const [k, v] of Object.entries(opts)) {
+      if (typeof v === 'string') plugin_options[k] = v
+    }
+    next.plugin_options = plugin_options
+  }
+
   const remoteEnabled = Array.isArray(data.enabled_providers)
     ? data.enabled_providers.filter((id): id is string => typeof id === 'string')
     : null
