@@ -14,6 +14,7 @@ import KeyboardHelp from './components/KeyboardHelp'
 import UpdateBadge from './components/UpdateBadge'
 import { useAvailableUpdate } from './hooks/useAvailableUpdate'
 import { mergeFetchedConfig } from './lib/appConfig'
+import { refreshSessions } from './lib/sessions'
 
 export default function App() {
   const sidebarOpen = useStore((s) => s.sidebarOpen)
@@ -24,6 +25,7 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const nativeFrame = window.api?.app?.nativeFrame === true
+  const currentSession = useStore((s) => s.sessions.find((x) => x.id === s.currentSessionId))
   useAvailableUpdate()
 
   const handleNewChat = useCallback(() => {
@@ -56,12 +58,7 @@ export default function App() {
       })
       .catch(() => {})
 
-    fetch(`${API}/sessions`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (Array.isArray(data)) useStore.getState().setSessions(data)
-      })
-      .catch(() => {})
+    void refreshSessions()
 
     fetch(`${API}/config`)
       .then((r) => r.ok ? r.json() : null)
@@ -153,8 +150,8 @@ export default function App() {
             </svg>
           </button>
 
-          <span className="flex-1 text-xs text-text-muted font-medium select-none">
-            Nexum
+          <span className="flex-1 text-[13px] text-text-secondary font-medium select-none truncate px-2">
+            {currentSession?.name || 'New chat'}
           </span>
 
           <div className="no-drag flex items-center gap-1">

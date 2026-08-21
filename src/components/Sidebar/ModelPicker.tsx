@@ -105,10 +105,10 @@ export default function ModelPicker() {
   }
 
   return (
-    <div ref={ref} className="relative border-b border-border p-3">
+    <div ref={ref} className="relative border-b border-border px-3 py-2.5">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full h-12 flex items-center gap-3 px-3 rounded-lg bg-surface-2 hover:bg-surface-3 transition-smooth text-left"
+        className="w-full h-10 flex items-center gap-2.5 px-2.5 rounded-lg bg-surface-2 hover:bg-surface-3 transition-smooth text-left"
       >
         <span
           className="w-2 h-2 rounded-full shrink-0"

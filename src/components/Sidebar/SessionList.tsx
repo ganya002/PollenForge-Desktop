@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore, Session } from '../../store/store'
+import { refreshSessions, sessionTimestampMs } from '../../lib/sessions'
 
 function groupSessions(sessions: Session[]) {
   const now = new Date()
@@ -10,7 +11,8 @@ function groupSessions(sessions: Session[]) {
 
   const groups: Record<string, Session[]> = { Today: [], Yesterday: [], Earlier: [] }
   for (const s of sessions) {
-    const d = new Date(s.modified || s.updated_at || 0).toDateString()
+    const ts = sessionTimestampMs(s)
+    const d = ts ? new Date(ts).toDateString() : ''
     if (d === today) groups.Today.push(s)
     else if (d === yesterday) groups.Yesterday.push(s)
     else groups.Earlier.push(s)
@@ -41,8 +43,7 @@ export default function SessionList() {
       const data = await res.json()
       setCurrentSessionId(data.id)
       clearMessages()
-      const list = await fetch('http://127.0.0.1:8765/sessions').then(r => r.json()).catch(() => null)
-      if (Array.isArray(list)) useStore.getState().setSessions(list)
+      await refreshSessions()
     } catch (e) {
       console.error('Failed to create session:', e)
     }
@@ -106,8 +107,8 @@ export default function SessionList() {
 
   return (
     <div className="flex flex-col border-b border-border">
-      <div className="flex items-center justify-between px-3 py-2">
-        <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Sessions</span>
+      <div className="flex items-center justify-between px-3 h-9">
+        <span className="sidebar-label">Chats</span>
         <button
           onClick={handleNew}
           className="no-drag p-1 rounded hover:bg-surface-2 transition-smooth text-text-muted hover:text-accent"
@@ -124,7 +125,7 @@ export default function SessionList() {
         {Object.entries(grouped).map(([label, items]) =>
           items.length > 0 ? (
             <div key={label}>
-              <div className="px-3 py-1 text-[10px] font-medium text-text-muted uppercase tracking-wider">{label}</div>
+              <div className="px-3 pt-2 pb-1 sidebar-label">{label}</div>
               {items.map((s) => (
                 <div
                   key={s.id}
@@ -133,9 +134,9 @@ export default function SessionList() {
                     e.preventDefault()
                     setContextMenu({ x: e.clientX, y: e.clientY, id: s.id })
                   }}
-                  className={`w-full text-left px-3 py-1.5 text-sm cursor-pointer transition-smooth ${
+                  className={`w-full text-left px-3 py-2 text-[13px] cursor-pointer transition-smooth ${
                     currentSessionId === s.id
-                      ? 'bg-accent-muted text-accent'
+                      ? 'bg-surface-2 text-text-primary'
                       : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'
                   }`}
                 >
@@ -161,8 +162,10 @@ export default function SessionList() {
                     />
                   ) : (
                     <>
-                      <div className="truncate">{s.name}</div>
-                      <div className="text-[10px] text-text-muted">{s.message_count} messages</div>
+                      <div className="truncate leading-5">{s.name}</div>
+                      {s.message_count > 0 && (
+                        <div className="text-[11px] leading-4 text-text-muted mt-0.5">{s.message_count} messages</div>
+                      )}
                     </>
                   )}
                 </div>

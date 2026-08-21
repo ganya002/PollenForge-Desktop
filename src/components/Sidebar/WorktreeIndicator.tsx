@@ -22,7 +22,7 @@ export default function WorktreeIndicator() {
 
   return (
     <div className="px-3 py-2 border-b border-border">
-      <div className="text-[10px] font-semibold tracking-wider uppercase text-text-muted mb-1.5">Worktrees</div>
+      <div className="text-[11px] font-medium tracking-wider uppercase text-text-muted mb-1.5">Worktrees</div>
       <div className="space-y-1">
         {worktrees.map(w => (
           <div key={w.path} className="flex items-center gap-1.5 px-2 py-1 rounded bg-surface-2 border border-border text-xs">

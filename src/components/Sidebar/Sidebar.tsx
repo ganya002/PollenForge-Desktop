@@ -82,7 +82,7 @@ export default function Sidebar({ onSettings, overlayTitlebar = true }: SidebarP
           style={{ width }}
           className="h-full bg-surface-1 border-r border-border flex flex-col overflow-hidden shrink-0 relative"
         >
-          <div className={`flex flex-col h-full ${overlayTitlebar ? 'pt-[44px]' : 'pt-0'}`} style={{ width: '100%' }}>
+          <div className={`flex flex-col h-full ${overlayTitlebar ? 'pt-10' : 'pt-0'}`} style={{ width: '100%' }}>
             <ModelPicker />
             <SessionList />
             <WorktreeIndicator />
@@ -91,7 +91,7 @@ export default function Sidebar({ onSettings, overlayTitlebar = true }: SidebarP
             </div>
             <TaskPanel />
             {onSettings && (
-              <div className="h-12 shrink-0 border-t border-border px-3 flex items-center">
+              <div className="h-10 shrink-0 border-t border-border px-2 flex items-center">
                 <button
                   onClick={onSettings}
                   className="w-full h-8 flex items-center gap-2 px-2 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2 transition-smooth text-[13px]"

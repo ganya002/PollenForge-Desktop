@@ -2,35 +2,21 @@ import { useState, useEffect } from 'react'
 import { useStore, FileEntry } from '../../store/store'
 
 function FileTypeIcon({ name, isDirectory, isExpanded }: { name: string; isDirectory: boolean; isExpanded?: boolean }) {
-  const ext = name.split('.').pop()?.toLowerCase() || ''
   if (isDirectory) {
-    return isExpanded ? (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="shrink-0 text-sky-400">
-        <path d="M1.5 3.5A1.5 1.5 0 013 2h4l2 2h5a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0114 14H3a1.5 1.5 0 01-1.5-1.5v-9z" fill="currentColor" opacity="0.9" />
-        <path d="M2 6h12" stroke="white" strokeOpacity="0.2" strokeWidth="1" />
-      </svg>
-    ) : (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="shrink-0 text-sky-400">
-        <path d="M1.5 3.5A1.5 1.5 0 013 2h4l2 2h5a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0114 14H3a1.5 1.5 0 01-1.5-1.5v-9z" fill="currentColor" />
+    return (
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="shrink-0 text-text-muted">
+        <path
+          d="M1.5 3.5A1.5 1.5 0 013 2h4l2 2h5a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0114 14H3a1.5 1.5 0 01-1.5-1.5v-9z"
+          fill="currentColor"
+          opacity={isExpanded ? 0.9 : 0.7}
+        />
       </svg>
     )
   }
-  const colorMap: Record<string, string> = {
-    ts: 'text-sky-400', tsx: 'text-sky-400',
-    js: 'text-amber-400', jsx: 'text-amber-400',
-    py: 'text-emerald-400',
-    json: 'text-amber-300',
-    md: 'text-zinc-400',
-    css: 'text-pink-400',
-    html: 'text-orange-400',
-  }
-  const color = colorMap[ext] || 'text-zinc-400'
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className={`shrink-0 ${color}`}>
-      <path d="M3 2.5A1.5 1.5 0 014.5 1h5.38a1 1 0 01.7.29l2.83 2.83a1 1 0 01.29.7V13.5A1.5 1.5 0 0112 15H4.5A1.5 1.5 0 013 13.5v-11z" fill="currentColor" opacity="0.15" />
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="shrink-0 text-text-muted">
       <path d="M3 2.5A1.5 1.5 0 014.5 1h5.38a1 1 0 01.7.29l2.83 2.83a1 1 0 01.29.7V13.5A1.5 1.5 0 0112 15H4.5A1.5 1.5 0 013 13.5v-11z" stroke="currentColor" strokeWidth="1.1" />
       <path d="M9.5 1v3.5H13" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
-      <text x="8" y="10.5" textAnchor="middle" fontSize="5" fontWeight="600" fill="currentColor" fontFamily="monospace">{ext.slice(0,3).toUpperCase() || '·'}</text>
     </svg>
   )
 }
@@ -106,7 +92,7 @@ function TreeNode({ entry, depth = 0 }: { entry: FileEntry; depth?: number }) {
       <button
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        className="w-full flex items-center gap-1.5 px-2 py-1 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-smooth rounded group"
+        className="w-full flex items-center gap-1.5 px-2 py-[5px] text-[13px] text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-smooth rounded group"
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         title={entry.path}
       >
@@ -169,9 +155,9 @@ export default function FileTree() {
   }, [])
 
   return (
-    <div className="px-2 py-2">
-      <div className="flex items-center justify-between px-2 py-1">
-        <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Files</span>
+    <div className="px-2 py-1">
+      <div className="flex items-center justify-between px-2 h-8">
+        <span className="sidebar-label">Files</span>
         <button
           onClick={refreshTree}
           className="p-0.5 rounded hover:bg-surface-2 text-text-muted hover:text-text-secondary transition-smooth"

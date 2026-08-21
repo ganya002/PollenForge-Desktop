@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react'
 import { useStore } from '../../store/store'
 import CommandMenu from './CommandMenu'
 import FileMentionMenu from './FileMentionMenu'
-import { catalogEntry } from '../../lib/providerCatalog'
 import { persistConfig } from '../../lib/appConfig'
 import { PLUGIN_CATALOG_MAP, pluginByCommand } from '../../lib/pluginCatalog'
 import { activePluginIds, handlePluginSlash, setPluginActive } from '../../lib/plugins'
@@ -246,7 +245,7 @@ export default function InputBar({ onSend, isStreaming }: Props) {
   }
 
   return (
-    <div className="bg-surface-0 px-4 pt-3 pb-3">
+    <div className="bg-surface-0 px-4 pt-2 pb-2">
       <div className="composer-col relative">
         {showCommands && (
           <CommandMenu filter={value.slice(1)} onSelect={handleCommandSelect} onClose={() => setShowCommands(false)} />
@@ -330,16 +329,12 @@ export default function InputBar({ onSend, isStreaming }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-2 mt-2 h-5 text-[11px] leading-5 text-text-muted">
-          <span className="flex items-center gap-1.5 min-w-0">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: catalogEntry(currentProvider)?.color || '#888' }} />
-            <span className="truncate">{currentModel}</span>
-            <span className="opacity-40">·</span>
-            <span className="truncate">{catalogEntry(currentProvider)?.label || currentProvider}</span>
-          </span>
-          {isDragging && <span className="text-text-secondary">Drop files to attach</span>}
-          <span className="opacity-30">·</span>
-          <span className="hidden sm:inline">Enter to send · Shift+Enter newline</span>
+        <div className="flex items-center justify-center mt-2 h-5 text-[11px] leading-5 text-text-muted">
+          {isDragging ? (
+            <span className="text-text-secondary">Drop files to attach</span>
+          ) : (
+            <span>Enter to send · Shift+Enter newline</span>
+          )}
         </div>
       </div>
     </div>

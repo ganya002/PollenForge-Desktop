@@ -755,11 +755,19 @@ START OUTPUTTING TOOL BLOCKS NOW."""
         if session_id:
             try:
                 session = load_session(session_id)
-                msgs = session.get("messages", [])
+                meta = session.get("meta", {})
             except FileNotFoundError:
-                msgs = []
-            msgs.append({"role": "assistant", "content": full_response})
-            save_session(session_id, msgs, session.get("meta", {}))
+                meta = {}
+            visible = []
+            for m in data.get("messages", []):
+                if m.get("role") not in ("user", "assistant"):
+                    continue
+                content = m.get("content", "")
+                if m.get("role") == "user" and "\n---\nUser request:\n" in content:
+                    content = content.split("\n---\nUser request:\n", 1)[-1]
+                visible.append({"role": m.get("role"), "content": content})
+            visible.append({"role": "assistant", "content": full_response})
+            save_session(session_id, visible, meta)
 
         await websocket.send_json({"type": "done", "stats": stats})
 

@@ -2,6 +2,7 @@ import { useCallback, useRef, useEffect } from 'react'
 import { useStore, Message, ToolCall } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
 import { applyActivePlugins } from '../lib/plugins'
+import { refreshSessions } from '../lib/sessions'
 import { useWebSocket } from './useWebSocket'
 
 function genId(): string {
@@ -119,6 +120,7 @@ export function useChat() {
         const cost = (s.tokens / 1000) * costPer1k
         state.addTokensUsed(s.tokens, cost)
       }
+      void refreshSessions()
       scrollToBottom()
     }, [scrollToBottom]),
 

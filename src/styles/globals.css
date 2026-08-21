@@ -82,6 +82,13 @@ html, body, #root {
 .no-drag {
   -webkit-app-region: no-drag;
 }
+.sidebar-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
 .composer-col {
   width: min(100%, 36rem);
   margin-inline: auto;

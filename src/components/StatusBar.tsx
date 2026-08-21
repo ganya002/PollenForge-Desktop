@@ -27,7 +27,7 @@ export default function StatusBar({ onOpenUpdates }: StatusBarProps) {
   const runningTasks = tasks.filter(t => t.status === 'running' || t.status === 'queued').length
 
   return (
-    <div className="h-7 flex items-center justify-between px-4 bg-surface-1 border-t border-border text-[11px] text-text-muted select-none shrink-0">
+    <div className="h-7 flex items-center justify-between px-3 bg-surface-1 border-t border-border text-[11px] text-text-muted select-none shrink-0">
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">
           <span className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-500 shadow-sm' : 'bg-red-500 animate-pulse'}`} />
@@ -68,8 +68,6 @@ export default function StatusBar({ onOpenUpdates }: StatusBarProps) {
             {totalTokensUsed.toLocaleString()} total{totalCost > 0 && ` · $${totalCost.toFixed(3)}`}
           </span>
         )}
-        <span className="hidden md:inline font-mono text-text-secondary">{currentModel}</span>
-        <span className="opacity-40 hidden lg:inline">{currentProvider}</span>
       </div>
     </div>
   )
