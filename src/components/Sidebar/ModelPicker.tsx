@@ -1,23 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useStore } from '../../store/store'
-
-const PROVIDER_COLORS: Record<string, string> = {
-  pollinations: '#ff3b30',
-  openai: '#00c950',
-  anthropic: '#ff7a00',
-  google: '#0091ff',
-  ollama: '#ffcc00',
-  openrouter: '#00e6ff',
-}
-
-const PROVIDER_LABELS: Record<string, string> = {
-  pollinations: 'Pollinations (Free)',
-  openai: 'OpenAI',
-  anthropic: 'Anthropic',
-  google: 'Google',
-  ollama: 'Ollama (Local)',
-  openrouter: 'OpenRouter',
-}
+import { catalogEntry, PROVIDER_CATALOG } from '../../lib/providerCatalog'
+import {
+  addEnabledProvider,
+  enabledProviderIds,
+  persistConfig,
+} from '../../lib/appConfig'
 
 function PollenBalance() {
   const [balance, setBalance] = useState<number | null>(null)
@@ -37,27 +25,19 @@ function PollenBalance() {
   }, [])
 
   useEffect(() => {
-    if (currentProvider === 'pollinations') {
-      fetchBalance()
-      const interval = setInterval(fetchBalance, 30_000)
-      return () => clearInterval(interval)
-    }
+    if (currentProvider !== 'pollinations') return
+    fetchBalance()
+    const interval = setInterval(fetchBalance, 30_000)
+    return () => clearInterval(interval)
   }, [currentProvider, fetchBalance])
 
   if (currentProvider !== 'pollinations') return null
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 mx-3 mb-2 rounded-lg bg-surface-2/60 border border-border/50">
-      <div className="w-1.5 h-1.5 rounded-full bg-pollinations animate-pulse-dot shrink-0" />
-      <span className="text-[10px] text-text-muted uppercase tracking-wider">Pollen</span>
-      <span className="ml-auto text-sm font-mono text-text-primary font-medium tabular-nums">
-        {loading ? (
-          <span className="inline-block w-8 h-3 bg-surface-3 rounded animate-pulse" />
-        ) : balance !== null ? (
-          balance.toLocaleString()
-        ) : (
-          <span className="text-text-muted text-xs">—</span>
-        )}
+    <div className="h-8 px-2.5 shrink-0 flex items-center gap-2 rounded-md bg-surface-1 border border-border text-[11px] text-text-muted">
+      <span className="uppercase tracking-wide">Pollen</span>
+      <span className="font-mono text-text-primary tabular-nums">
+        {loading ? '…' : balance !== null ? balance.toLocaleString() : '—'}
       </span>
     </div>
   )
@@ -68,6 +48,7 @@ export default function ModelPicker() {
   const currentProvider = useStore((s) => s.currentProvider)
   const config = useStore((s) => s.config)
   const setModel = useStore((s) => s.setModel)
+  const setConfig = useStore((s) => s.setConfig)
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const ref = useRef<HTMLDivElement>(null)
@@ -80,50 +61,64 @@ export default function ModelPicker() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const allModels: { provider: string; model: { id: string; name: string; cost_per_1k: number } }[] = []
-  for (const [provider, cfg] of Object.entries(config.providers)) {
-    for (const m of cfg.models || []) {
-      allModels.push({ provider, model: m })
-    }
-  }
+  const enabled = enabledProviderIds(config)
+  const q = search.trim().toLowerCase()
 
-  const filtered = allModels.filter(
-    (m) =>
-      m.model.name.toLowerCase().includes(search.toLowerCase()) ||
-      m.provider.toLowerCase().includes(search.toLowerCase())
+  const allModels = enabled.flatMap((provider) =>
+    (config.providers[provider]?.models || []).map((model) => ({ provider, model })),
   )
 
-  const grouped: Record<string, typeof filtered> = {}
-  for (const m of filtered) {
-    if (!grouped[m.provider]) grouped[m.provider] = []
-    grouped[m.provider].push(m)
+  const filteredModels = allModels.filter(
+    (row) =>
+      !q ||
+      row.model.name.toLowerCase().includes(q) ||
+      row.model.id.toLowerCase().includes(q) ||
+      (catalogEntry(row.provider)?.label || row.provider).toLowerCase().includes(q),
+  )
+
+  const grouped: Record<string, typeof filteredModels> = {}
+  for (const row of filteredModels) {
+    if (!grouped[row.provider]) grouped[row.provider] = []
+    grouped[row.provider].push(row)
   }
 
-  const sortedProviders = Object.keys(grouped).sort((a, b) => {
-    if (a === 'pollinations') return -1
-    if (b === 'pollinations') return 1
-    return a.localeCompare(b)
-  })
+  const addable = q
+    ? PROVIDER_CATALOG.filter(
+        (p) =>
+          !enabled.includes(p.id) &&
+          (p.label.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)),
+      )
+    : []
 
+  const currentMeta = catalogEntry(currentProvider)
   const currentModelObj = allModels.find(
-    (m) => m.model.id === currentModel && m.provider === currentProvider
+    (row) => row.model.id === currentModel && row.provider === currentProvider,
   )
+
+  const addProvider = (id: string) => {
+    const next = addEnabledProvider(config, id)
+    setConfig(next)
+    persistConfig(next)
+    const first = next.providers[id]?.models[0]
+    if (first) setModel(first.id, id)
+    setSearch('')
+  }
 
   return (
     <div ref={ref} className="relative border-b border-border p-3">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-surface-2 hover:bg-surface-3 transition-smooth text-left"
+        className="w-full h-12 flex items-center gap-3 px-3 rounded-lg bg-surface-2 hover:bg-surface-3 transition-smooth text-left"
       >
         <span
-          className="w-2.5 h-2.5 rounded-full shrink-0"
-          style={{ background: PROVIDER_COLORS[currentProvider] || '#888' }}
+          className="w-2 h-2 rounded-full shrink-0"
+          style={{ background: currentMeta?.color || '#888' }}
         />
         <div className="flex-1 min-w-0">
-          <div className="text-xs text-text-muted uppercase tracking-wide">
-            {PROVIDER_LABELS[currentProvider] || currentProvider}
+          <div className="text-[11px] leading-4 text-text-muted truncate">
+            {currentMeta?.label || currentProvider}
           </div>
-          <div className="text-sm text-text-primary truncate mt-0.5">
+          <div className="text-[13px] leading-5 text-text-primary truncate">
             {currentModelObj?.model.name || currentModel}
           </div>
         </div>
@@ -139,63 +134,79 @@ export default function ModelPicker() {
       </button>
 
       {open && (
-        <div className="absolute top-full left-3 right-3 mt-2 bg-surface-2 border border-border rounded-lg shadow-xl overflow-hidden z-50">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+        <div className="absolute top-full left-3 right-3 mt-2 bg-surface-2 border border-border rounded-lg overflow-hidden z-50">
+          <div className="flex items-center gap-2 p-2 border-b border-border">
             <PollenBalance />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
-              className="w-32 px-2 py-1 text-sm bg-surface-1 border border-border rounded text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
+              placeholder="Search models or add a provider"
+              className="h-8 flex-1 min-w-0 px-2.5 text-[13px] bg-surface-1 border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-hover"
               autoFocus
             />
           </div>
           <div className="max-h-80 overflow-y-auto">
-            {sortedProviders.length === 0 && (
-              <div className="px-3 py-2 text-sm text-text-muted">No models found</div>
-            )}
-            {sortedProviders.map((provider) => (
-              <div key={provider}>
-                <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted bg-surface-1/50">
-                  {PROVIDER_LABELS[provider] || provider}
+            {addable.length > 0 && (
+              <div className="border-b border-border">
+                <div className="px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                  Add provider
                 </div>
-                {grouped[provider].map(({ model }) => (
+                {addable.map((p) => (
                   <button
-                    key={`${provider}/${model.id}`}
-                    onClick={() => {
-                      setModel(model.id, provider)
-                      setOpen(false)
-                      setSearch('')
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-smooth ${
-                      currentModel === model.id && currentProvider === provider
-                        ? 'bg-accent-muted text-accent'
-                        : 'text-text-secondary hover:bg-surface-3 hover:text-text-primary'
-                    }`}
-                    title={`${model.name} — ${model.cost_per_1k === 0 ? 'Free' : `$${model.cost_per_1k}/1k tokens`}`}
+                    key={p.id}
+                    onClick={() => addProvider(p.id)}
+                    className="w-full h-10 flex items-center gap-2.5 px-3 text-left text-[13px] text-text-secondary hover:bg-surface-3 hover:text-text-primary"
                   >
-                    <span
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ background: PROVIDER_COLORS[provider] || '#888' }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm truncate">{model.name}</div>
-                    </div>
-                    {model.cost_per_1k === 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/20 text-success font-medium shrink-0">
-                        FREE
-                      </span>
-                    )}
-                    {currentModel === model.id && currentProvider === provider && (
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" className="text-accent shrink-0">
-                        <path d="M5.5 9.5L2.5 6.5l1-1 2 2 5-5 1 1z" />
-                      </svg>
-                    )}
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
+                    <span className="flex-1 truncate">{p.label}</span>
+                    <span className="text-[11px] text-text-muted">Add</span>
                   </button>
                 ))}
               </div>
-            ))}
+            )}
+            {enabled.map((provider) => {
+              const rows = grouped[provider] || []
+              if (q && rows.length === 0) return null
+              const meta = catalogEntry(provider)
+              return (
+                <div key={provider}>
+                  <div className="px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                    {meta?.label || provider}
+                  </div>
+                  {rows.map(({ model }) => {
+                    const active = currentModel === model.id && currentProvider === provider
+                    return (
+                      <button
+                        key={`${provider}/${model.id}`}
+                        onClick={() => {
+                          setModel(model.id, provider)
+                          setOpen(false)
+                          setSearch('')
+                        }}
+                        className={`w-full h-10 flex items-center gap-2.5 px-3 text-left ${
+                          active ? 'bg-surface-3 text-text-primary' : 'text-text-secondary hover:bg-surface-3 hover:text-text-primary'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta?.color || '#888' }} />
+                        <span className="flex-1 min-w-0 text-[13px] truncate">{model.name}</span>
+                        {model.cost_per_1k === 0 && (
+                          <span className="text-[10px] text-text-muted shrink-0">Free</span>
+                        )}
+                        {active && (
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="shrink-0">
+                            <path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            })}
+            {filteredModels.length === 0 && addable.length === 0 && (
+              <div className="px-3 py-3 text-[13px] text-text-muted">No matches</div>
+            )}
           </div>
         </div>
       )}

@@ -15,6 +15,9 @@ def _discover_providers():
             if hasattr(mod, "PROVIDER"):
                 provider = mod.PROVIDER
                 PROVIDER_MAP[provider.name] = provider
+            if hasattr(mod, "PROVIDERS"):
+                for provider in mod.PROVIDERS:
+                    PROVIDER_MAP[provider.name] = provider
         except Exception:
             continue
 

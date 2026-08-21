@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../../store/store'
 import UpdatesPanel from './UpdatesPanel'
+import { PROVIDER_CATALOG, catalogEntry } from '../../lib/providerCatalog'
+import {
+  addEnabledProvider,
+  enabledProviderIds,
+  persistConfig,
+  removeEnabledProvider,
+} from '../../lib/appConfig'
 
 export type SettingsTab = 'providers' | 'general' | 'updates' | 'about'
 
@@ -11,22 +18,16 @@ interface SettingsModalProps {
   initialTab?: SettingsTab
 }
 
-const PROVIDER_META: Record<string, { label: string; placeholder: string; color: string; keyUrl?: string }> = {
-  pollinations: { label: 'Pollinations', placeholder: 'sk_...', color: '#ff3b30', keyUrl: 'https://enter.pollinations.ai/keys' },
-  openai: { label: 'OpenAI', placeholder: 'sk-...', color: '#00c950', keyUrl: 'https://platform.openai.com/api-keys' },
-  anthropic: { label: 'Anthropic', placeholder: 'sk-ant-...', color: '#ff7a00', keyUrl: 'https://console.anthropic.com/' },
-  google: { label: 'Google', placeholder: 'AIza...', color: '#0091ff', keyUrl: 'https://aistudio.google.com/apikey' },
-  ollama: { label: 'Ollama', placeholder: 'http://localhost:11434', color: '#ffcc00' },
-  openrouter: { label: 'OpenRouter', placeholder: 'sk-or-...', color: '#00e6ff', keyUrl: 'https://openrouter.ai/keys' },
-}
-
 export default function SettingsModal({ open, onClose, initialTab = 'providers' }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
   const config = useStore((s) => s.config)
   const setConfig = useStore((s) => s.setConfig)
+  const setModel = useStore((s) => s.setModel)
+  const currentProvider = useStore((s) => s.currentProvider)
   const [keys, setKeys] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
   const [appVersion, setAppVersion] = useState('…')
+  const [providerSearch, setProviderSearch] = useState('')
 
   useEffect(() => {
     if (open) {
@@ -37,6 +38,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
       }
       setKeys(initial)
       setSaved(false)
+      setProviderSearch('')
       window.api?.app?.getVersion?.()
         .then((info) => setAppVersion(info.version))
         .catch(() => {})
@@ -58,13 +60,9 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
         updatedProviders[name] = { ...updatedProviders[name], api_key: key }
       }
     }
-    setConfig({ ...config, providers: updatedProviders })
-
-    fetch('http://127.0.0.1:8765/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...config, providers: updatedProviders }),
-    }).catch(() => {})
+    const next = { ...config, providers: updatedProviders }
+    setConfig(next)
+    persistConfig(next)
 
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -86,9 +84,9 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
             exit={{ scale: 0.95, opacity: 0 }}
             className="relative w-full max-w-xl bg-surface-1 border border-border rounded-xl shadow-2xl overflow-hidden"
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h2 className="text-sm font-semibold text-text-primary">Settings</h2>
-              <button onClick={onClose} className="p-1 rounded hover:bg-surface-2 text-text-muted hover:text-text-primary transition-smooth">
+            <div className="flex items-center justify-between h-12 px-4 border-b border-border">
+              <h2 className="text-[15px] font-semibold text-text-primary">Settings</h2>
+              <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-surface-2 text-text-muted hover:text-text-primary transition-smooth">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
                   <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
                 </svg>
@@ -100,9 +98,9 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`flex-1 px-4 py-2 text-xs font-medium transition-smooth ${
+                  className={`flex-1 h-10 px-4 text-[13px] font-medium transition-smooth ${
                     activeTab === tab
-                      ? 'text-accent border-b-2 border-accent'
+                      ? 'text-text-primary border-b border-text-primary'
                       : 'text-text-muted hover:text-text-secondary'
                   }`}
                 >
@@ -114,37 +112,117 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
             <div className="p-4 max-h-[28rem] overflow-y-auto">
               {activeTab === 'providers' && (
                 <div className="space-y-3">
-                  {Object.entries(PROVIDER_META).map(([name, meta]) => (
-                    <div key={name} className="bg-surface-2 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2 h-2 rounded-full" style={{ background: meta.color }} />
-                        <span className="text-xs font-medium text-text-primary">{meta.label}</span>
-                        {meta.keyUrl && (
-                          <a
-                            href={meta.keyUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ml-auto text-[10px] text-accent hover:underline"
-                          >
-                            Get key
-                          </a>
-                        )}
+                  <input
+                    type="text"
+                    value={providerSearch}
+                    onChange={(e) => setProviderSearch(e.target.value)}
+                    placeholder="Search providers to add…"
+                    className="h-9 w-full px-3 text-[13px] bg-surface-2 border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-hover"
+                  />
+                  {(() => {
+                    const enabled = enabledProviderIds(config)
+                    const q = providerSearch.trim().toLowerCase()
+                    const matches = PROVIDER_CATALOG.filter(
+                      (p) =>
+                        !enabled.includes(p.id) &&
+                        (!q || p.label.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)),
+                    )
+                    if (!q) {
+                      return (
+                        <p className="text-[12px] text-text-muted px-0.5">
+                          Type a name (OpenAI, Groq, DeepSeek…) then add it. Only added providers show models.
+                        </p>
+                      )
+                    }
+                    if (matches.length === 0) {
+                      return <p className="text-[12px] text-text-muted">No providers match that search.</p>
+                    }
+                    return matches.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          const next = addEnabledProvider(config, p.id)
+                          setConfig(next)
+                          persistConfig(next)
+                          setKeys((prev) => ({ ...prev, [p.id]: next.providers[p.id]?.api_key || '' }))
+                          setProviderSearch('')
+                        }}
+                        className="w-full h-10 flex items-center gap-2.5 px-3 rounded-md bg-surface-2 border border-border hover:border-border-hover text-left"
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
+                        <span className="flex-1 text-[13px] text-text-primary">{p.label}</span>
+                        <span className="text-[12px] text-text-muted">Add</span>
+                      </button>
+                    ))
+                  })()}
+
+                  {enabledProviderIds(config).map((name) => {
+                    const meta = catalogEntry(name)
+                    if (!meta) return null
+                    return (
+                      <div key={name} className="bg-surface-2 rounded-lg p-3">
+                        <div className="h-6 flex items-center gap-2 mb-2">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.color }} />
+                          <span className="text-[13px] font-medium text-text-primary">{meta.label}</span>
+                          <span className="ml-auto flex items-center gap-3">
+                            {meta.keyUrl && (
+                              <a
+                                href={meta.keyUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[12px] leading-6 text-text-secondary hover:text-text-primary"
+                              >
+                                Get key
+                              </a>
+                            )}
+                            {name !== 'pollinations' && (
+                              <button
+                                onClick={() => {
+                                  const next = removeEnabledProvider(config, name)
+                                  setConfig(next)
+                                  persistConfig(next)
+                                  if (currentProvider === name) {
+                                    const fallback = next.providers.pollinations?.models[0]
+                                    setModel(fallback?.id || 'gpt-5.6-sol', 'pollinations')
+                                  }
+                                }}
+                                className="text-[12px] leading-6 text-text-muted hover:text-danger"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </span>
+                        </div>
+                        <input
+                          type={name === 'ollama' ? 'text' : 'password'}
+                          value={name === 'ollama' ? (config.providers[name]?.base_url || keys[name] || '') : (keys[name] || '')}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            if (name === 'ollama') {
+                              const next = {
+                                ...config,
+                                providers: {
+                                  ...config.providers,
+                                  [name]: { ...config.providers[name], base_url: value },
+                                },
+                              }
+                              setConfig(next)
+                            } else {
+                              setKeys((prev) => ({ ...prev, [name]: value }))
+                            }
+                          }}
+                          placeholder={meta.placeholder}
+                          className="h-9 w-full px-3 text-[13px] bg-surface-1 border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-hover"
+                        />
                       </div>
-                      <input
-                        type="password"
-                        value={keys[name] || ''}
-                        onChange={(e) => setKeys((prev) => ({ ...prev, [name]: e.target.value }))}
-                        placeholder={meta.placeholder}
-                        className="w-full px-3 py-1.5 text-xs bg-surface-1 border border-border rounded text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
-                      />
-                    </div>
-                  ))}
+                    )
+                  })}
 
                   <button
                     onClick={handleSave}
-                    className="w-full mt-2 px-3 py-2 text-xs font-medium rounded-lg bg-accent hover:bg-accent-hover text-white transition-smooth"
+                    className="w-full h-9 mt-1 text-[13px] font-medium rounded-md bg-accent hover:bg-accent-hover text-accent-ink transition-smooth"
                   >
-                    {saved ? 'Saved!' : 'Save API Keys'}
+                    {saved ? 'Saved' : 'Save API keys'}
                   </button>
                 </div>
               )}

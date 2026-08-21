@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { findProviderModel, mergeFetchedConfig } from './appConfig.ts'
+import { addEnabledProvider, findProviderModel, mergeFetchedConfig } from './appConfig.ts'
 import type { Config } from '../store/store.ts'
 
 const current: Config = {
@@ -10,6 +10,7 @@ const current: Config = {
       models: [{ id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', cost_per_1k: 0, context_length: 128000 }],
     },
   },
+  enabled_providers: ['pollinations'],
   model: 'gpt-5.6-sol',
   provider: 'pollinations',
   temperature: 0.4,
@@ -35,9 +36,26 @@ test('mergeFetchedConfig keeps models when backend omits them', () => {
   assert.equal(findProviderModel(merged, 'pollinations', 'gpt-5.6-sol')?.id, 'gpt-5.6-sol')
 })
 
+test('mergeFetchedConfig does not enable every catalog provider', () => {
+  const merged = mergeFetchedConfig(current, {
+    providers: {
+      pollinations: { enabled: true, api_key: '' },
+      openai: { enabled: false, api_key: null },
+    },
+  })
+  assert.deepEqual(merged.enabled_providers, ['pollinations'])
+})
+
+test('addEnabledProvider hydrates models from the catalog', () => {
+  const next = addEnabledProvider(current, 'groq')
+  assert.ok(next.enabled_providers.includes('groq'))
+  assert.ok(next.providers.groq.models.length > 0)
+})
+
 test('findProviderModel does not throw when models is missing', () => {
   const broken = {
     providers: { pollinations: { api_key: '' } },
+    enabled_providers: ['pollinations'],
     model: 'x',
     provider: 'pollinations',
     temperature: 0.4,

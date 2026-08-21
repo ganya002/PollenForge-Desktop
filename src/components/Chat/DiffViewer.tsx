@@ -25,11 +25,11 @@ export default function DiffViewer({ diff, fileName }: Props) {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setView('unified')}
-            className={`px-2 py-1 text-[10px] rounded ${view === 'unified' ? 'bg-accent text-white' : 'bg-surface-2 text-text-muted hover:text-text-primary'}`}
+            className={`px-2 py-1 text-[10px] rounded ${view === 'unified' ? 'bg-accent text-accent-ink' : 'bg-surface-2 text-text-muted hover:text-text-primary'}`}
           >Unified</button>
           <button
             onClick={() => setView('split')}
-            className={`px-2 py-1 text-[10px] rounded ${view === 'split' ? 'bg-accent text-white' : 'bg-surface-2 text-text-muted hover:text-text-primary'}`}
+            className={`px-2 py-1 text-[10px] rounded ${view === 'split' ? 'bg-accent text-accent-ink' : 'bg-surface-2 text-text-muted hover:text-text-primary'}`}
           >Split</button>
         </div>
       </div>

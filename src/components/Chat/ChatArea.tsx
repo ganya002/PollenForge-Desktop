@@ -31,11 +31,11 @@ function WelcomeScreen() {
           Local coding assistant with full computer access. Read, write, and run things on this machine.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+        <div className="grid grid-cols-2 gap-2.5 text-left">
           {suggestions.map((s) => (
             <button
               key={s.text}
-              className="px-3.5 py-3 bg-surface-2/80 hover:bg-surface-3 rounded-xl text-[13px] text-text-secondary hover:text-text-primary transition-smooth border border-border hover:border-border-hover flex items-center gap-2.5"
+              className="min-h-[48px] px-3.5 py-3 bg-surface-2 hover:bg-surface-3 rounded-lg text-[13px] text-text-secondary hover:text-text-primary transition-smooth border border-border hover:border-border-hover flex items-center gap-2.5"
               onClick={() => {
                 document.dispatchEvent(new CustomEvent('send-message', { detail: s.text }))
               }}
@@ -61,20 +61,12 @@ export default function ChatArea({ messages, scrollRef, onRetry }: ChatAreaProps
   return (
     <div
       ref={scrollRef}
-      className={`flex-1 min-h-0 ${empty ? 'flex flex-col' : 'overflow-y-auto'}`}
-      style={
-        empty
-          ? {
-              background:
-                'radial-gradient(ellipse 70% 55% at 50% 42%, #2a241e 0%, var(--surface-0) 72%)',
-            }
-          : undefined
-      }
+      className={`flex-1 min-h-0 bg-surface-0 ${empty ? 'flex flex-col' : 'overflow-y-auto'}`}
     >
       {empty ? (
         <WelcomeScreen />
       ) : (
-        <div className="w-full max-w-2xl mx-auto px-5 py-6">
+        <div className="w-full max-w-2xl mx-auto px-4 py-6">
           <AnimatePresence initial={false}>
             {messages.map((msg) => (
               <motion.div

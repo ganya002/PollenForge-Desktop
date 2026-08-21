@@ -1,3 +1,4 @@
+import json
 from app_paths import config_dir, config_file
 
 CONFIG_DIR = config_dir()
@@ -37,7 +38,15 @@ DEFAULT_CONFIG = {
             "api_key": None,
             "base_url": "https://openrouter.ai/api/v1",
             "default_model": "anthropic/claude-3.5-sonnet"
-        }
+        },
+        "groq": {"enabled": False, "api_key": None, "base_url": "https://api.groq.com/openai/v1"},
+        "deepseek": {"enabled": False, "api_key": None, "base_url": "https://api.deepseek.com"},
+        "xai": {"enabled": False, "api_key": None, "base_url": "https://api.x.ai/v1"},
+        "mistral": {"enabled": False, "api_key": None, "base_url": "https://api.mistral.ai/v1"},
+        "together": {"enabled": False, "api_key": None, "base_url": "https://api.together.xyz/v1"},
+        "fireworks": {"enabled": False, "api_key": None, "base_url": "https://api.fireworks.ai/inference/v1"},
+        "cerebras": {"enabled": False, "api_key": None, "base_url": "https://api.cerebras.ai/v1"},
+        "moonshot": {"enabled": False, "api_key": None, "base_url": "https://api.moonshot.ai/v1"},
     },
     "tools": {
         "filesystem": {"enabled": True, "base_dir": None},

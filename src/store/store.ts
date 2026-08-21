@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { emptyProviderConfig } from '../lib/providerCatalog'
 
 export interface Message {
   id: string
@@ -40,6 +41,7 @@ export interface Session {
 
 export interface Config {
   providers: Record<string, ProviderConfig>
+  enabled_providers: string[]
   model: string
   provider: string
   temperature: number
@@ -158,73 +160,10 @@ export const useStore = create<AppState>((set, get) => ({
   currentSessionId: null,
   config: {
     providers: {
-      pollinations: {
-        api_key: '',
-        models: [
-          { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', cost_per_1k: 0, context_length: 128000 },
-          { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna', cost_per_1k: 0, context_length: 128000 },
-          { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', cost_per_1k: 0, context_length: 128000 },
-          { id: 'openai-large', name: 'OpenAI Large', cost_per_1k: 0, context_length: 128000 },
-          { id: 'kimi-k3', name: 'Kimi K3', cost_per_1k: 0, context_length: 128000 },
-          { id: 'grok-large', name: 'Grok Large', cost_per_1k: 0, context_length: 128000 },
-          { id: 'deepseek-pro', name: 'DeepSeek Pro', cost_per_1k: 0, context_length: 128000 },
-          { id: 'glm', name: 'GLM', cost_per_1k: 0, context_length: 128000 },
-          { id: 'gpt-4o', name: 'GPT-4o', cost_per_1k: 0, context_length: 128000 },
-          { id: 'claude-hybridspace', name: 'Claude Hybridspace', cost_per_1k: 0, context_length: 200000 },
-          { id: 'mistral', name: 'Mistral', cost_per_1k: 0, context_length: 128000 },
-          { id: 'gemini', name: 'Gemini', cost_per_1k: 0, context_length: 1048576 },
-          { id: 'llama', name: 'Llama', cost_per_1k: 0, context_length: 128000 },
-          { id: 'qwen-coder', name: 'Qwen Coder', cost_per_1k: 0, context_length: 128000 },
-          { id: 'deepseek', name: 'DeepSeek', cost_per_1k: 0, context_length: 128000 },
-          { id: 'kimi-k2.6', name: 'Kimi K2.6', cost_per_1k: 0, context_length: 128000 },
-          { id: 'grok', name: 'Grok', cost_per_1k: 0, context_length: 128000 },
-        ],
-      },
-      openai: {
-        api_key: '',
-        models: [
-          { id: 'gpt-4o', name: 'GPT-4o', cost_per_1k: 0.005, context_length: 128000 },
-          { id: 'gpt-4o-mini', name: 'GPT-4o Mini', cost_per_1k: 0.00015, context_length: 128000 },
-          { id: 'o3', name: 'o3', cost_per_1k: 0.01, context_length: 200000 },
-        ],
-      },
-      anthropic: {
-        api_key: '',
-        models: [
-          { id: 'claude-sonnet-4-20250514', name: 'Claude 4 Sonnet', cost_per_1k: 0.003, context_length: 200000 },
-          { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', cost_per_1k: 0.003, context_length: 200000 },
-        ],
-      },
-      google: {
-        api_key: '',
-        models: [
-          { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', cost_per_1k: 0.0001, context_length: 1048576 },
-          { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', cost_per_1k: 0.00125, context_length: 1048576 },
-        ],
-      },
-      ollama: {
-        api_key: '',
-        base_url: 'http://localhost:11434',
-        models: [],
-      },
-      openrouter: {
-        api_key: '',
-        base_url: 'https://openrouter.ai/api/v1',
-        models: [
-          { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (OR)', cost_per_1k: 0.003, context_length: 200000 },
-          { id: 'openai/gpt-4o', name: 'GPT-4o (OR)', cost_per_1k: 0.005, context_length: 128000 },
-          { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini (OR)', cost_per_1k: 0.00015, context_length: 128000 },
-          { id: 'openai/o3-mini', name: 'o3-mini (OR)', cost_per_1k: 0.0011, context_length: 128000 },
-          { id: 'deepseek/deepseek-coder', name: 'DeepSeek Coder (OR)', cost_per_1k: 0.00014, context_length: 128000 },
-          { id: 'deepseek/deepseek-v3', name: 'DeepSeek V3 (OR)', cost_per_1k: 0.00027, context_length: 128000 },
-          { id: 'qwen/qwen-2.5-coder-32b-instruct', name: 'Qwen 2.5 Coder 32B (OR)', cost_per_1k: 0.0002, context_length: 128000 },
-          { id: 'meta-llama/llama-3.1-405b-instruct', name: 'Llama 3.1 405B (OR)', cost_per_1k: 0.003, context_length: 128000 },
-          { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (OR)', cost_per_1k: 0.0001, context_length: 1048576 },
-          { id: 'mistralai/codestral-latest', name: 'Codestral (OR)', cost_per_1k: 0.00025, context_length: 32000 },
-        ],
-      },
+      pollinations: emptyProviderConfig('pollinations'),
     },
-    model: 'pollinations',
+    enabled_providers: ['pollinations'],
+    model: 'gpt-5.6-sol',
     provider: 'pollinations',
     temperature: 0.4,
     max_tokens: 32768,

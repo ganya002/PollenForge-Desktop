@@ -70,7 +70,7 @@ export default function ApprovalPrompt() {
           <div className="flex items-center gap-2 px-4 pb-3">
             <button
               onClick={() => approveTool(true)}
-              className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-accent hover:bg-accent-hover text-white transition-smooth"
+              className="flex-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-accent hover:bg-accent-hover text-accent-ink transition-smooth"
             >
               Allow
             </button>

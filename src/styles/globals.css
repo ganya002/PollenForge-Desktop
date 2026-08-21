@@ -3,23 +3,23 @@
 @tailwind utilities;
 
 :root {
-  /* Warm graphite — dark, not dead black */
-  --surface-0: #171614;
-  --surface-1: #201e1b;
-  --surface-2: #2a2723;
-  --surface-3: #35322d;
-  --text-primary: #ece8e1;
-  --text-secondary: #b7b0a6;
-  --text-muted: #817970;
-  --accent: #d4b896;
-  --accent-hover: #e2c9ab;
-  --accent-ink: #1a1814;
-  --accent-muted: #d4b89622;
-  --border: #3d3933;
-  --border-hover: #524c44;
-  --success: #7dba7a;
-  --warning: #e0a85c;
-  --danger: #e07064;
+  /* Flat matte black */
+  --surface-0: #111111;
+  --surface-1: #161616;
+  --surface-2: #1c1c1c;
+  --surface-3: #252525;
+  --text-primary: #e8e8e8;
+  --text-secondary: #a8a8a8;
+  --text-muted: #737373;
+  --accent: #e8e8e8;
+  --accent-hover: #ffffff;
+  --accent-ink: #111111;
+  --accent-muted: #ffffff14;
+  --border: #2a2a2a;
+  --border-hover: #3d3d3d;
+  --success: #6fbf73;
+  --warning: #d4a05a;
+  --danger: #c45c54;
 }
 
 * {

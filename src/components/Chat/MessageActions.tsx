@@ -30,7 +30,7 @@ export default function MessageActions({ content, isUser, onRetry, onEdit }: Mes
         />
         <button
           onClick={() => { onEdit?.(editValue); setEditing(false) }}
-          className="px-2 py-1 text-[10px] rounded bg-accent text-white hover:bg-accent-hover transition-smooth"
+          className="px-2 py-1 text-[10px] rounded bg-accent text-accent-ink hover:bg-accent-hover transition-smooth"
         >
           Send
         </button>

@@ -91,17 +91,17 @@ export default function Sidebar({ onSettings, overlayTitlebar = true }: SidebarP
             </div>
             <TaskPanel />
             {onSettings && (
-              <div className="p-3 border-t border-border">
+              <div className="h-12 shrink-0 border-t border-border px-3 flex items-center">
                 <button
                   onClick={onSettings}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-text-muted hover:text-text-secondary hover:bg-surface-2 transition-smooth text-xs"
+                  className="w-full h-8 flex items-center gap-2 px-2 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2 transition-smooth text-[13px]"
                 >
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2">
                     <circle cx="7" cy="7" r="2" />
                     <path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.8 2.8l1.4 1.4M9.8 9.8l1.4 1.4M11.2 2.8l-1.4 1.4M4.2 9.8l-1.4 1.4" />
                   </svg>
-                  Settings
-                  <span className="ml-auto text-[10px] text-text-muted/60">Cmd+,</span>
+                  <span>Settings</span>
+                  <span className="ml-auto text-[11px] text-text-muted">⌘,</span>
                 </button>
               </div>
             )}
