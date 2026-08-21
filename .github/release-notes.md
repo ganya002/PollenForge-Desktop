@@ -29,7 +29,12 @@ Nexum needs **Python 3** on your PATH (the UI is packaged; the local tools backe
 
 1. Open the `.dmg`.
 2. Drag **Nexum** into **Applications**.
-3. First launch: right-click the app → **Open** (builds are unsigned until notarized).
+3. First launch often says **“Nexum is damaged”**. That is Gatekeeper on an unsigned build, not a bad file. In Terminal:
+
+```bash
+xattr -cr /Applications/Nexum.app
+open /Applications/Nexum.app
+```
 
 ### Windows install
 

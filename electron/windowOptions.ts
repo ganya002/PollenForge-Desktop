@@ -3,17 +3,10 @@ import * as path from 'path';
 
 const BACKGROUND = '#0a0a0a';
 
-export function shouldDisableHardwareAcceleration(platform: NodeJS.Platform): boolean {
-  return platform === 'win32';
-}
-
 /** Chromium switches that must be applied before app.ready(). */
 export function windowsChromiumSwitches(): Array<[string, string?]> {
   return [
     ['disable-features', 'CalculateNativeWinOcclusion'],
-    // Windows 11 DWM often leaves a live title bar and a black client area.
-    ['disable-direct-composition'],
-    ['use-angle', 'swiftshader'],
   ];
 }
 

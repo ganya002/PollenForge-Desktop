@@ -12,11 +12,8 @@ import * as fs from 'fs';
 import WebSocket from 'ws';
 import { BackendManager } from './backend';
 import { checkForUpdatesOnStartup, setupUpdater } from './updater';
-import { browserWindowOptions, shouldDisableHardwareAcceleration, windowsChromiumSwitches, clampWindowBounds, resolveRenderer } from './windowOptions';
+import { browserWindowOptions, windowsChromiumSwitches, clampWindowBounds, resolveRenderer } from './windowOptions';
 
-if (shouldDisableHardwareAcceleration(process.platform)) {
-  app.disableHardwareAcceleration();
-}
 if (process.platform === 'win32') {
   for (const [flag, value] of windowsChromiumSwitches()) {
     if (value === undefined) app.commandLine.appendSwitch(flag);
@@ -125,10 +122,7 @@ function createWindow(): void {
   });
 
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
-    console.error('Renderer gone:', details);
-    if (details.reason !== 'clean-exit' && mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.reload();
-    }
+    log(`render-process-gone ${JSON.stringify(details)}`);
   });
 
   mainWindow.on('maximize', () => {
@@ -417,9 +411,13 @@ app.whenReady().then(async () => {
   createTray();
 
   app.on('child-process-gone', (_event, details) => {
-    if (details.type === 'GPU' && mainWindow && !mainWindow.isDestroyed()) {
-      console.error('GPU process gone:', details);
-      mainWindow.reload();
+    try {
+      fs.appendFileSync(
+        path.join(app.getPath('userData'), 'startup.log'),
+        `${new Date().toISOString()} child-process-gone ${JSON.stringify(details)}\n`
+      );
+    } catch {
+      console.error('child-process-gone', details);
     }
   });
 

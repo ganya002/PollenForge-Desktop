@@ -41,19 +41,20 @@ Then run the installer. Open Nexum from the Start menu.
 
 The lasting fix is an Authenticode certificate in CI. Until then, use the steps above. Do not tell users to clone the repo to “avoid” this.
 
-## macOS: Gatekeeper is blocking it
+## macOS: “Nexum is damaged and can’t be opened”
+
+That message is Gatekeeper blocking an **unsigned** build. It is not a corrupt download.
 
 1. Open the `.dmg` (`Mac-arm64` for Apple Silicon, `Mac-x64` for Intel).
 2. Drag **Nexum** into **Applications**.
-3. Right-click the app → **Open** → **Open**.
-4. If it still blocks: **System Settings** → **Privacy & Security** → **Open Anyway**.
-
-Or in Terminal:
+3. In Terminal, run:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/Nexum.app
+xattr -cr /Applications/Nexum.app
 open /Applications/Nexum.app
 ```
+
+If it still blocks: **System Settings** → **Privacy & Security** → **Open Anyway**. Right-click → Open often is not enough for this specific “damaged” dialog.
 
 The lasting fix is Apple Developer ID signing + notarization.
 
