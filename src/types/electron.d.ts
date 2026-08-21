@@ -47,6 +47,7 @@ declare global {
         isMaximized: () => Promise<boolean>
         onMaximized: (cb: (maximized: boolean) => void) => () => void
         getVersion: () => Promise<{ version: string; packaged: boolean }>
+        pickDirectory: () => Promise<{ ok: boolean; path?: string }>
         platform: string
         nativeFrame: boolean
       }

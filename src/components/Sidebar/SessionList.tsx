@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useStore, Session } from '../../store/store'
 import { refreshSessions, sessionTimestampMs } from '../../lib/sessions'
 import { ChatIcon } from './fileIcons'
+import { currentWorkspace, folderName, pickAndSetProjectFolder, refreshFileTree } from '../../lib/workspace'
 
 function groupSessions(sessions: Session[]) {
   const now = new Date()
@@ -39,12 +40,17 @@ export default function SessionList() {
 
   const handleNew = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8765/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'New Chat' }) })
+      const res = await fetch('http://127.0.0.1:8765/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'New Chat', directory: currentWorkspace() || '' }),
+      })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setCurrentSessionId(data.id)
       clearMessages()
       await refreshSessions()
+      await refreshFileTree()
     } catch (e) {
       console.error('Failed to create session:', e)
     }
@@ -60,6 +66,7 @@ export default function SessionList() {
       if (data.messages) {
         useStore.getState().loadSessionMessages(data.messages)
       }
+      await refreshFileTree()
     } catch (e) {
       console.error('Failed to load session:', e)
     }
@@ -167,6 +174,11 @@ export default function SessionList() {
                         <ChatIcon className={currentSessionId === s.id ? 'text-text-secondary' : 'text-text-muted'} />
                         <div className="truncate leading-5">{s.name}</div>
                       </div>
+                      {s.directory && (
+                        <div className="text-[11px] leading-4 text-text-muted mt-0.5 pl-6 truncate" title={s.directory}>
+                          {folderName(s.directory)}
+                        </div>
+                      )}
                       {s.message_count > 0 && (
                         <div className="text-[11px] leading-4 text-text-muted mt-0.5 pl-6">{s.message_count} messages</div>
                       )}
@@ -191,6 +203,16 @@ export default function SessionList() {
               className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-smooth"
             >
               Rename
+            </button>
+            <button
+              onClick={() => {
+                setCurrentSessionId(contextMenu.id)
+                setContextMenu(null)
+                void pickAndSetProjectFolder()
+              }}
+              className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-smooth"
+            >
+              Project folder
             </button>
             <button
               onClick={() => handleDelete(contextMenu.id)}

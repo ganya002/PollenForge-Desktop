@@ -1,8 +1,10 @@
 import { useCallback, useRef, useEffect } from 'react'
 import { useStore, Message, ToolCall } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
-import { applyActivePlugins } from '../lib/plugins'
+import { applyActivePlugins, activePluginIds } from '../lib/plugins'
 import { refreshSessions } from '../lib/sessions'
+import { currentWorkspace, savePlanMarkdown } from '../lib/workspace'
+import { sanitizeAssistantContent } from '../lib/sanitizeAssistantContent'
 import { useWebSocket } from './useWebSocket'
 
 function genId(): string {
@@ -120,6 +122,10 @@ export function useChat() {
         const cost = (s.tokens / 1000) * costPer1k
         state.addTokensUsed(s.tokens, cost)
       }
+      if (activePluginIds(state.config).includes('planner') && last?.role === 'assistant') {
+        const plan = sanitizeAssistantContent(useStore.getState().messages.find((m) => m.id === last.id)?.content || last.content || '')
+        void savePlanMarkdown(plan)
+      }
       void refreshSessions()
       scrollToBottom()
     }, [scrollToBottom]),
@@ -158,15 +164,13 @@ export function useChat() {
         const res = await fetch('http://127.0.0.1:8765/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: preview }),
+          body: JSON.stringify({ name: preview, directory: currentWorkspace() || '' }),
         })
         if (res.ok) {
           const data = await res.json()
           sessionId = data.id
           state.setCurrentSessionId(sessionId)
-          fetch('http://127.0.0.1:8765/sessions').then(r => r.json()).then(d => {
-            if (Array.isArray(d)) useStore.getState().setSessions(d)
-          }).catch(() => {})
+          await refreshSessions()
         }
       } catch (e) {
         console.error('Failed to create session:', e)
@@ -196,6 +200,7 @@ export function useChat() {
       model: state.currentModel,
       provider: state.currentProvider,
       session_id: sessionId,
+      workspace: currentWorkspace() || '',
     })
     if (!sent) {
       state.updateMessage(assistantMsg.id, { content: '**Error:** Not connected. Reconnecting...', isError: true })

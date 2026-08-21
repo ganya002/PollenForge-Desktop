@@ -90,6 +90,10 @@ html, body, #root {
   color: var(--text-muted);
 }
 .composer-col {
+  width: min(100%, 64rem);
+  margin-inline: auto;
+}
+.welcome-col {
   width: min(100%, 36rem);
   margin-inline: auto;
 }

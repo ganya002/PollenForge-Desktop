@@ -4,20 +4,25 @@ function basename(path: string) {
   return path.replace(/\\/g, '/').split('/').pop() || path
 }
 
-export async function openWorkspaceFile(path: string) {
+export async function openWorkspaceFile(
+  path: string,
+  opts?: { root?: string | null; force?: boolean },
+) {
   const name = basename(path)
   const store = useStore.getState()
   const existing = store.openFiles.find((f) => f.path === path)
-  if (existing && existing.content && !existing.error) {
+  if (!opts?.force && existing && existing.content && !existing.error) {
     store.setActiveFile(path)
     return
   }
   store.upsertOpenFile({ path, name, content: existing?.content || '' })
   try {
+    const body: Record<string, string> = { path }
+    if (opts?.root) body.root = opts.root
     const res = await fetch('http://127.0.0.1:8765/files/read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path }),
+      body: JSON.stringify(body),
     })
     const data = await res.json()
     if (data?.error) {

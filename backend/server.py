@@ -12,6 +12,7 @@ from pathlib import Path
 
 from config import load_config, save_config
 from sessions import list_sessions, load_session, save_session, delete_session, create_session
+from workspace import apply_workspace
 from providers import get_provider, list_providers
 from tools import list_tools, execute_tool
 
@@ -107,7 +108,7 @@ async def get_sessions():
 @app.post("/sessions")
 async def post_create_session(body: dict = None):
     body = body or {}
-    sid = create_session(body.get("name", "Untitled"))
+    sid = create_session(body.get("name", "Untitled"), body.get("directory") or "")
     return {"id": sid}
 
 
@@ -127,6 +128,7 @@ async def delete_session_endpoint(session_id: str):
 
 class SessionUpdateBody(BaseModel):
     name: str = ""
+    directory: str | None = None
 
 @app.patch("/sessions/{session_id}")
 async def update_session(session_id: str, body: SessionUpdateBody):
@@ -135,8 +137,10 @@ async def update_session(session_id: str, body: SessionUpdateBody):
         meta = data.get("meta", {})
         if body.name:
             meta["name"] = body.name[:100]
+        if body.directory is not None:
+            meta["directory"] = body.directory
         save_session(session_id, data.get("messages", []), meta)
-        return {"success": True, "id": session_id, "name": meta.get("name")}
+        return {"success": True, "id": session_id, "name": meta.get("name"), "directory": meta.get("directory") or ""}
     except FileNotFoundError:
         return JSONResponse(status_code=404, content={"error": "Session not found"})
 
@@ -150,25 +154,36 @@ async def post_update_session(session_id: str, body: dict = None):
 
 
 @app.get("/files/list")
-async def files_list(path: str = "."):
-    return await execute_tool("list_dir", {"path": path})
+async def files_list(path: str = ".", root: str | None = None):
+    args = {"path": path}
+    if root:
+        args["root"] = root
+    return await execute_tool("list_dir", args)
 
 
 class FileReadBody(BaseModel):
     path: str
+    root: str | None = None
 
 @app.post("/files/read")
 async def files_read(body: FileReadBody):
-    return await execute_tool("read_file", {"path": body.path})
+    args = {"path": body.path}
+    if body.root:
+        args["root"] = body.root
+    return await execute_tool("read_file", args)
 
 
 class FileWriteBody(BaseModel):
     path: str
     content: str
+    root: str | None = None
 
 @app.post("/files/write")
 async def files_write(body: FileWriteBody):
-    return await execute_tool("write_file", {"path": body.path, "content": body.content})
+    args = {"path": body.path, "content": body.content}
+    if body.root:
+        args["root"] = body.root
+    return await execute_tool("write_file", args)
 
 
 class FileEditBody(BaseModel):
@@ -430,6 +445,12 @@ async def stream_chat(websocket: WebSocket, data: dict, conn_id: str):
     model = data.get("model", "openai")
     provider_name = data.get("provider", "pollinations")
     session_id = data.get("session_id")
+    workspace = (data.get("workspace") or "").strip()
+    if session_id and not workspace:
+        try:
+            workspace = (load_session(session_id).get("meta") or {}).get("directory") or ""
+        except FileNotFoundError:
+            workspace = ""
     config = load_config()
     provider_cfg = config.get("providers", {}).get(provider_name, {})
     auto_approve = config.get("auto_approve", False)
@@ -445,27 +466,46 @@ async def stream_chat(websocket: WebSocket, data: dict, conn_id: str):
         for t in tools
     ])
 
-    # Load AGENTS.md if it exists in the project
+    # Load AGENTS.md from the chat's project folder (not the Python backend cwd)
     agents_md = ""
     try:
         import os
-        cwd = os.getcwd()
-        for candidates in [
-            os.path.join(cwd, "AGENTS.md"),
-            os.path.join(cwd, ".opencode", "AGENTS.md"),
+        candidates = []
+        if workspace:
+            candidates.extend([
+                os.path.join(workspace, "AGENTS.md"),
+                os.path.join(workspace, ".opencode", "AGENTS.md"),
+            ])
+        else:
+            cwd = os.getcwd()
+            candidates.extend([
+                os.path.join(cwd, "AGENTS.md"),
+                os.path.join(cwd, ".opencode", "AGENTS.md"),
+            ])
+        candidates.extend([
             os.path.expanduser("~/.config/nexum/AGENTS.md"),
             os.path.expanduser("~/.config/pollenforge/AGENTS.md"),
-        ]:
-            if os.path.exists(candidates):
-                with open(candidates) as f:
+        ])
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                with open(candidate) as f:
                     agents_md = f.read()[:3000]
                 break
     except Exception:
         pass
 
     agents_section = f"\n\n## Project Conventions (from AGENTS.md)\n\n{agents_md}" if agents_md else ""
+    workspace_section = ""
+    if workspace:
+        workspace_section = f"""
+## Workspace
+The user's project folder is: {workspace}
+Relative paths resolve against this folder. list_dir with path "." lists this folder.
+run_command runs here unless you set cwd. Prefer this folder over any other working directory.
+"""
 
     system_prompt = f"""You are Nexum, a powerful autonomous coding agent with FULL access to the user's computer. You are comparable to Claude Code, Codex, Cursor, and OpenCode.
+{workspace_section}
 
 CRITICAL: You MUST use tools to fulfill requests. NEVER respond with just text. You HAVE the tools — USE THEM.
 
@@ -671,6 +711,8 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 tool_name = tc.get("name", "")
                 tool_args = dict(tc.get("args", {}))
                 was_truncated = tool_args.pop("_truncated", False)
+                if workspace:
+                    tool_args = apply_workspace(tool_name, tool_args, workspace)
                 is_dangerous = tool_name in DANGEROUS_TOOLS
 
                 if is_dangerous and not auto_approve:
@@ -758,6 +800,8 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 meta = session.get("meta", {})
             except FileNotFoundError:
                 meta = {}
+            if workspace and not meta.get("directory"):
+                meta["directory"] = workspace
             visible = []
             for m in data.get("messages", []):
                 if m.get("role") not in ("user", "assistant"):

@@ -37,6 +37,7 @@ export interface Session {
   modified: string
   message_count: number
   updated_at?: number
+  directory?: string
 }
 
 export interface Config {
@@ -49,7 +50,8 @@ export interface Config {
   provider: string
   temperature: number
   max_tokens: number
-  auto_approve: boolean
+    auto_approve: boolean
+  default_directory?: string
 }
 
 export interface ProviderConfig {
@@ -136,6 +138,7 @@ interface AppState {
   availableUpdate: string | null
   openFiles: OpenFile[]
   activeFilePath: string | null
+  pendingWorkspace: string | null
   _wsSend: ((data: Record<string, unknown>) => boolean) | null
 
   addMessage: (msg: Message) => void
@@ -164,6 +167,7 @@ interface AppState {
   upsertOpenFile: (file: OpenFile) => void
   closeFile: (path: string) => void
   setActiveFile: (path: string | null) => void
+  setPendingWorkspace: (path: string | null) => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -198,6 +202,7 @@ export const useStore = create<AppState>((set, get) => ({
   availableUpdate: null,
   openFiles: [],
   activeFilePath: null,
+  pendingWorkspace: null,
   _wsSend: null,
 
   addMessage: (msg) => set((s) => {
@@ -280,4 +285,5 @@ export const useStore = create<AppState>((set, get) => ({
     return { openFiles, activeFilePath }
   }),
   setActiveFile: (activeFilePath) => set({ activeFilePath }),
+  setPendingWorkspace: (pendingWorkspace) => set({ pendingWorkspace }),
 }))

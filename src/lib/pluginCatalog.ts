@@ -55,6 +55,8 @@ Severities: blocker, major, minor. Skip formatting nits unless they change meani
 
 Do not write, edit, or delete files. Do not run shell commands that change state. Read-only tools are OK if you need to inspect the repo.
 
+Write the plan as your message. The app saves it to plan.md in the project folder.
+
 Produce a concrete plan:
 1. Goal in one line.
 2. Files you would touch.

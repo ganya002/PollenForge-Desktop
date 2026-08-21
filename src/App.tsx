@@ -42,24 +42,6 @@ export default function App() {
 
   useEffect(() => {
     const API = 'http://127.0.0.1:8765'
-    fetch(`${API}/files/list?path=.`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (data && !data.error && data.entries) {
-          useStore.getState().setFileTree(
-            data.entries.map((item: Record<string, unknown>) => ({
-              name: item.name as string,
-              path: (item.path as string) || (item.name as string),
-              isDirectory: (item.is_dir as boolean) ?? (item.isDirectory as boolean) ?? false,
-              size: (item.size as number | null) ?? null,
-              modified: (item.modified as number) ?? 0,
-              git_status: item.git_status as string | undefined,
-            }))
-          )
-        }
-      })
-      .catch(() => {})
-
     void refreshSessions()
 
     fetch(`${API}/config`)

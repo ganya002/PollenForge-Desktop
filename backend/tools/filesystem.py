@@ -3,18 +3,30 @@ import os
 import fnmatch
 
 BASE_DIR = Path.cwd()
+SKIP_NAMES = {".git", "node_modules", "__pycache__", ".venv", "dist-electron"}
 
 
-def _resolve(path_str: str) -> Path:
+def _base(root: str | None = None) -> Path:
+    if root:
+        p = Path(root).expanduser()
+        try:
+            resolved = p.resolve()
+            if resolved.is_dir():
+                return resolved
+        except OSError:
+            pass
+    return BASE_DIR
+
+
+def _resolve(path_str: str, root: str | None = None) -> Path:
     p = Path(path_str).expanduser()
     if not p.is_absolute():
-        p = BASE_DIR / p
-    resolved = p.resolve()
-    return resolved
+        p = _base(root) / p
+    return p.resolve()
 
 
-def read_file(path: str, max_chars: int = 50000) -> dict:
-    target = _resolve(path)
+def read_file(path: str, max_chars: int = 50000, root: str | None = None) -> dict:
+    target = _resolve(path, root)
     if not target.exists():
         return {"error": f"File not found: {target}"}
     if not target.is_file():
@@ -33,12 +45,12 @@ def read_file(path: str, max_chars: int = 50000) -> dict:
         return {"error": str(e)}
 
 
-def write_file(path: str, content: str) -> dict:
+def write_file(path: str, content: str, root: str | None = None) -> dict:
     if not path or "\x00" in path:
         return {"error": "Invalid path"}
     if len(content) > 10_000_000:
         return {"error": "Content too large (max 10MB)"}
-    target = _resolve(path)
+    target = _resolve(path, root)
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
@@ -47,12 +59,12 @@ def write_file(path: str, content: str) -> dict:
         return {"error": str(e)}
 
 
-def edit_file(path: str, old: str, new: str, replace_all: bool = False) -> dict:
+def edit_file(path: str, old: str, new: str, replace_all: bool = False, root: str | None = None) -> dict:
     if not path or "\x00" in path:
         return {"error": "Invalid path"}
     if old == "":
         return {"error": "Old text cannot be empty"}
-    target = _resolve(path)
+    target = _resolve(path, root)
     if not target.exists():
         return {"error": f"File not found: {target}"}
     try:
@@ -71,8 +83,8 @@ def edit_file(path: str, old: str, new: str, replace_all: bool = False) -> dict:
         return {"error": str(e)}
 
 
-def list_dir(path: str = ".", max_entries: int = 200) -> dict:
-    target = _resolve(path)
+def list_dir(path: str = ".", max_entries: int = 200, root: str | None = None) -> dict:
+    target = _resolve(path, root)
     if not target.exists():
         return {"error": f"Directory not found: {target}"}
     if not target.is_dir():
@@ -102,6 +114,8 @@ def list_dir(path: str = ".", max_entries: int = 200) -> dict:
             pass
 
         for i, item in enumerate(sorted(target.iterdir())):
+            if item.name in SKIP_NAMES:
+                continue
             if i >= max_entries:
                 break
             stat = item.stat()
@@ -126,8 +140,8 @@ def list_dir(path: str = ".", max_entries: int = 200) -> dict:
         return {"error": str(e)}
 
 
-def search_files(path: str, pattern: str) -> dict:
-    target = _resolve(path)
+def search_files(path: str, pattern: str, root: str | None = None) -> dict:
+    target = _resolve(path, root)
     if not target.exists():
         return {"error": f"Path not found: {target}"}
     matches = []
@@ -144,8 +158,8 @@ def search_files(path: str, pattern: str) -> dict:
     return {"matches": matches, "count": len(matches)}
 
 
-def read_folder(path: str = ".", max_files: int = 50) -> dict:
-    target = _resolve(path)
+def read_folder(path: str = ".", max_files: int = 50, root: str | None = None) -> dict:
+    target = _resolve(path, root)
     if not target.exists():
         return {"error": f"Folder not found: {target}"}
     files = []

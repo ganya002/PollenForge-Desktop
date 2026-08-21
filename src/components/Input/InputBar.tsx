@@ -5,6 +5,7 @@ import FileMentionMenu from './FileMentionMenu'
 import { persistConfig } from '../../lib/appConfig'
 import { PLUGIN_CATALOG_MAP, pluginByCommand } from '../../lib/pluginCatalog'
 import { activePluginIds, handlePluginSlash, setPluginActive } from '../../lib/plugins'
+import { ensurePlanFile } from '../../lib/workspace'
 
 interface Props { onSend: (content: string) => void; isStreaming: boolean }
 
@@ -185,7 +186,7 @@ export default function InputBar({ onSend, isStreaming }: Props) {
     Array.from(files).forEach(processFile)
   }
 
-  const handleCommandSelect = (command: string) => {
+  const handleCommandSelect = async (command: string) => {
     setShowCommands(false)
     if (command === '/clear') {
       useStore.getState().clearMessages()
@@ -200,7 +201,15 @@ export default function InputBar({ onSend, isStreaming }: Props) {
       useStore.getState().clearMessages()
       useStore.getState().setCurrentSessionId(null)
     } else if (pluginByCommand(command)) {
+      const plugin = pluginByCommand(command)
       const { result, config: next } = handlePluginSlash(command, useStore.getState().config)
+      if (plugin?.id === 'planner' && (next.active_plugins || []).includes('planner')) {
+        const path = await ensurePlanFile()
+        if (!path) {
+          setPluginNotice('Pick a project folder to save plan.md')
+          return
+        }
+      }
       setConfig(next)
       persistConfig(next)
       if (result.kind === 'consumed') setPluginNotice(result.notice)
@@ -315,13 +324,20 @@ export default function InputBar({ onSend, isStreaming }: Props) {
             </button>
 
             <button
-              onClick={() => {
+              onClick={async () => {
                 const cfg = useStore.getState().config
                 const on = !activePluginIds(cfg).includes('planner')
+                if (on) {
+                  const path = await ensurePlanFile()
+                  if (!path) {
+                    setPluginNotice('Pick a project folder to save plan.md')
+                    return
+                  }
+                }
                 const next = setPluginActive(cfg, 'planner', on)
                 setConfig(next)
                 persistConfig(next)
-                setPluginNotice(on ? 'Plan on. Next prompt writes a plan.' : 'Plan off')
+                setPluginNotice(on ? 'Plan on. Replies save to plan.md' : 'Plan off')
               }}
               className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 ${
                 activePluginIds(config).includes('planner')

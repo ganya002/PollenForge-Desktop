@@ -19,7 +19,7 @@ function WelcomeScreen() {
 
   return (
     <div className="flex-1 flex items-center justify-center px-4 py-8 min-h-0 overflow-y-auto">
-      <div className="composer-col text-center my-auto">
+      <div className="welcome-col text-center my-auto">
         <div className="w-11 h-11 mx-auto mb-4 rounded-xl bg-surface-2 border border-border flex items-center justify-center">
           <svg width="22" height="22" viewBox="0 0 32 32" fill="none" className="text-text-secondary">
             <path d="M16 4L4 10v12l12 6 12-6V10L16 4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -68,7 +68,7 @@ export default function ChatArea({ messages, scrollRef, onRetry }: ChatAreaProps
       {empty ? (
         <WelcomeScreen />
       ) : (
-        <div className="composer-col px-0 py-6">
+        <div className="composer-col px-4 py-6">
           <AnimatePresence initial={false}>
             {messages.map((msg) => (
               <motion.div

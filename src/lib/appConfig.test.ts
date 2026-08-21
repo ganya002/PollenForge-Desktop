@@ -66,3 +66,11 @@ test('findProviderModel does not throw when models is missing', () => {
   } as unknown as Config
   assert.equal(findProviderModel(broken, 'pollinations', 'gpt-5.6-sol'), undefined)
 })
+
+test('mergeFetchedConfig keeps default_directory', () => {
+  const merged = mergeFetchedConfig(current, {
+    providers: { pollinations: { enabled: true, api_key: '' } },
+    default_directory: 'C:\\Users\\me\\project',
+  })
+  assert.equal(merged.default_directory, 'C:\\Users\\me\\project')
+})

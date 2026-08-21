@@ -1,6 +1,7 @@
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   Tray,
   Menu,
@@ -229,6 +230,17 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('app:is-maximized', () => {
     return mainWindow?.isMaximized() ?? false;
+  });
+
+  ipcMain.handle('app:pick-directory', async () => {
+    const win = mainWindow;
+    if (!win) return { ok: false };
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Select project folder',
+      properties: ['openDirectory'],
+    });
+    if (result.canceled || !result.filePaths[0]) return { ok: false };
+    return { ok: true, path: result.filePaths[0] };
   });
 
   // Chat - streaming via WebSocket

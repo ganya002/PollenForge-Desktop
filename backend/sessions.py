@@ -47,7 +47,8 @@ def list_sessions() -> list[dict]:
                 "id": f.stem,
                 "name": meta.get("name", "Untitled"),
                 "message_count": len(data.get("messages", [])),
-                "updated_at": meta.get("updated_at", 0)
+                "updated_at": meta.get("updated_at", 0),
+                "directory": meta.get("directory") or "",
             })
         except Exception:
             continue
@@ -81,7 +82,10 @@ def delete_session(session_id: str):
             path.unlink()
 
 
-def create_session(name: str = "Untitled") -> str:
+def create_session(name: str = "Untitled", directory: str = "") -> str:
     session_id = uuid.uuid4().hex[:12]
-    save_session(session_id, [], {"name": name, "created_at": time.time()})
+    meta = {"name": name, "created_at": time.time()}
+    if directory:
+        meta["directory"] = directory
+    save_session(session_id, [], meta)
     return session_id

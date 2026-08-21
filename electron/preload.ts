@@ -108,6 +108,9 @@ contextBridge.exposeInMainWorld('api', {
     getVersion: (): Promise<{ version: string; packaged: boolean }> => {
       return ipcRenderer.invoke('app:get-version');
     },
+    pickDirectory: (): Promise<{ ok: boolean; path?: string }> => {
+      return ipcRenderer.invoke('app:pick-directory');
+    },
     platform: process.platform,
     nativeFrame: process.platform === 'win32',
   },

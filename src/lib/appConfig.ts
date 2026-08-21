@@ -37,6 +37,7 @@ export function mergeFetchedConfig(current: Config, remote: unknown): Config {
   if (typeof data.auto_approve === 'boolean') next.auto_approve = data.auto_approve
   if (typeof data.model === 'string') next.model = data.model
   if (typeof data.provider === 'string') next.provider = data.provider
+  if (typeof data.default_directory === 'string') next.default_directory = data.default_directory
 
   if (Array.isArray(data.installed_plugins)) {
     next.installed_plugins = uniqueIds(data.installed_plugins.filter((id): id is string => typeof id === 'string'))
