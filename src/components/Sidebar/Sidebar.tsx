@@ -9,6 +9,7 @@ import TaskPanel from './TaskPanel'
 
 interface SidebarProps {
   onSettings?: () => void
+  overlayTitlebar?: boolean
 }
 
 const MIN_W = 200
@@ -26,7 +27,7 @@ function readSavedWidth(): number {
   }
 }
 
-export default function Sidebar({ onSettings }: SidebarProps) {
+export default function Sidebar({ onSettings, overlayTitlebar = true }: SidebarProps) {
   const sidebarOpen = useStore((s) => s.sidebarOpen)
   const [width, setWidth] = useState(readSavedWidth)
   const [isDragging, setIsDragging] = useState(false)
@@ -81,7 +82,7 @@ export default function Sidebar({ onSettings }: SidebarProps) {
           style={{ width }}
           className="h-full bg-surface-1 border-r border-border flex flex-col overflow-hidden shrink-0 relative"
         >
-          <div className="flex flex-col h-full pt-[44px]" style={{ width: '100%' }}>
+          <div className={`flex flex-col h-full ${overlayTitlebar ? 'pt-[44px]' : 'pt-0'}`} style={{ width: '100%' }}>
             <ModelPicker />
             <SessionList />
             <WorktreeIndicator />

@@ -108,6 +108,8 @@ contextBridge.exposeInMainWorld('api', {
     getVersion: (): Promise<{ version: string; packaged: boolean }> => {
       return ipcRenderer.invoke('app:get-version');
     },
+    platform: process.platform,
+    nativeFrame: process.platform === 'win32',
   },
 
   updates: {

@@ -12,6 +12,17 @@ import * as fs from 'fs';
 import WebSocket from 'ws';
 import { BackendManager } from './backend';
 import { checkForUpdatesOnStartup, setupUpdater } from './updater';
+import { browserWindowOptions, shouldDisableHardwareAcceleration, windowsChromiumSwitches, clampWindowBounds } from './windowOptions';
+
+if (shouldDisableHardwareAcceleration(process.platform)) {
+  app.disableHardwareAcceleration();
+}
+if (process.platform === 'win32') {
+  for (const [flag, value] of windowsChromiumSwitches()) {
+    if (value === undefined) app.commandLine.appendSwitch(flag);
+    else app.commandLine.appendSwitch(flag, value);
+  }
+}
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -50,36 +61,24 @@ function saveWindowState(state: WindowState): void {
 
 function createWindow(): void {
   const savedState = loadWindowState();
-  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-
-  const windowWidth = savedState.width || 1200;
-  const windowHeight = savedState.height || 800;
-  const windowX = savedState.x !== undefined
-    ? Math.min(savedState.x, screenWidth - windowWidth)
-    : undefined;
-  const windowY = savedState.y !== undefined
-    ? Math.min(savedState.y, screenHeight - windowHeight)
-    : undefined;
-
-  mainWindow = new BrowserWindow({
-    width: windowWidth,
-    height: windowHeight,
-    x: windowX,
-    y: windowY,
-    minWidth: 800,
-    minHeight: 600,
-    backgroundColor: '#0d1117',
-    frame: false,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 12, y: 12 },
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
+  const displays = screen.getAllDisplays();
+  const clamped = clampWindowBounds(
+    {
+      x: savedState.x,
+      y: savedState.y,
+      width: savedState.width || 1200,
+      height: savedState.height || 800,
     },
-    show: false,
-  });
+    displays
+  );
+
+  const opts = browserWindowOptions(process.platform, clamped);
+  opts.webPreferences = {
+    ...opts.webPreferences,
+    preload: path.join(__dirname, 'preload.js'),
+  };
+
+  mainWindow = new BrowserWindow(opts);
 
   // In dev mode, load from Vite dev server; in production, load from dist
   const isDev = !fs.existsSync(path.join(__dirname, '../../dist/index.html'));
@@ -90,7 +89,17 @@ function createWindow(): void {
   }
 
   mainWindow.once('ready-to-show', () => {
+    if (savedState.isMaximized) {
+      mainWindow?.maximize();
+    }
     mainWindow?.show();
+  });
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('Renderer gone:', details);
+    if (details.reason !== 'clean-exit' && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.reload();
+    }
   });
 
   mainWindow.on('maximize', () => {
@@ -377,6 +386,14 @@ app.whenReady().then(async () => {
   setupUpdater(() => mainWindow);
   createWindow();
   createTray();
+
+  app.on('child-process-gone', (_event, details) => {
+    if (details.type === 'GPU' && mainWindow && !mainWindow.isDestroyed()) {
+      console.error('GPU process gone:', details);
+      mainWindow.reload();
+    }
+  });
+
   await startBackend();
   checkForUpdatesOnStartup();
 });

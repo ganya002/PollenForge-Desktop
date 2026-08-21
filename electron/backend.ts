@@ -44,6 +44,12 @@ export class BackendManager {
       return;
     }
 
+    if (await this.checkHealth()) {
+      console.log(`Backend already listening on port ${this.port}; not starting another.`);
+      this.startHealthPolling();
+      return;
+    }
+
     this.isStarting = true;
     const serverScript = this.getBackendPath();
 
@@ -68,7 +74,13 @@ export class BackendManager {
       this.process.on('exit', (code, signal) => {
         console.error(`Backend exited with code ${code}, signal ${signal}`);
         this.process = null;
-        this.handleCrash();
+        this.checkHealth().then((healthy) => {
+          if (healthy) {
+            console.log(`Port ${this.port} is still served; leaving it alone.`);
+            return;
+          }
+          this.handleCrash();
+        });
       });
 
       this.process.stdout?.on('data', (data: Buffer) => {
@@ -158,9 +170,10 @@ export class BackendManager {
   }
 
   private startHealthPolling(): void {
+    if (this.healthCheckInterval) return;
     this.healthCheckInterval = setInterval(async () => {
       const healthy = await this.checkHealth();
-      if (!healthy && this.process) {
+      if (!healthy) {
         console.warn('Backend health check failed, attempting restart...');
         this.handleCrash();
       }

@@ -22,6 +22,7 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('providers')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const nativeFrame = window.api?.app?.nativeFrame === true
   useAvailableUpdate()
 
   const handleNewChat = useCallback(() => {
@@ -119,11 +120,24 @@ export default function App() {
 
   return (
     <div className="flex h-full bg-surface-0">
-      <Sidebar onSettings={() => openSettings('providers')} />
+      <Sidebar onSettings={() => openSettings('providers')} overlayTitlebar={!nativeFrame} />
 
       <div className="flex flex-col flex-1 min-w-0">
         {/* Title bar */}
-        <div className="drag-region flex items-center h-10 pl-20 pr-4 bg-surface-1 border-b border-border shrink-0">
+        <div
+          className={`flex items-center h-10 bg-surface-1 border-b border-border shrink-0 px-3 ${
+            nativeFrame ? '' : 'drag-region'
+          }`}
+          style={
+            nativeFrame
+              ? undefined
+              : {
+                  paddingLeft: 'max(12px, env(titlebar-area-x, 80px))',
+                  paddingRight: 'max(12px, calc(100% - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100%)))',
+                  height: 'env(titlebar-area-height, 40px)',
+                }
+          }
+        >
           <button
             onClick={toggleSidebar}
             className="no-drag p-1.5 rounded hover:bg-surface-2 transition-smooth text-text-secondary hover:text-text-primary"
