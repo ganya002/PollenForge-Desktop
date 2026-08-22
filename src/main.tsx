@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import { useStore } from './store/store'
 import './styles/globals.css'
 
 function logDebug(message: string) {
@@ -26,12 +27,21 @@ function showCrash(message: string) {
     </div>`
 }
 
+function toastOrCrash(message: string) {
+  logDebug(message)
+  try {
+    useStore.getState().pushToast({ kind: 'error', text: message.slice(0, 280) })
+  } catch {
+    showCrash(message)
+  }
+}
+
 window.addEventListener('error', (event) => {
-  showCrash(event.error?.stack || event.message || 'Unknown window error')
+  toastOrCrash(event.error?.stack || event.message || 'Unknown window error')
 })
 window.addEventListener('unhandledrejection', (event) => {
   const reason = event.reason
-  showCrash(reason instanceof Error ? reason.stack || reason.message : String(reason))
+  toastOrCrash(reason instanceof Error ? reason.stack || reason.message : String(reason))
 })
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: string | null }> {
@@ -41,6 +51,11 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
   }
   componentDidCatch(error: Error) {
     logDebug(error.stack || error.message)
+    try {
+      useStore.getState().pushToast({ kind: 'error', text: (error.message || 'UI error').slice(0, 280) })
+    } catch {
+      /* ignore */
+    }
   }
   render() {
     if (this.state.error) {
@@ -48,8 +63,15 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
         <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, background: '#111111', color: '#e8e8e8', fontFamily: 'Segoe UI, sans-serif' }}>
           <div style={{ width: '100%', maxWidth: 560, background: '#161616', border: '1px solid #2a2a2a', borderRadius: 16, padding: '28px 32px' }}>
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 8px' }}>Nexum hit an error</h1>
-            <p style={{ margin: '0 0 16px', color: '#a8a8a8', fontSize: 13, lineHeight: 1.5 }}>The window loaded, but the UI crashed. Restart the app after you update from GitHub Releases.</p>
-            <pre style={{ whiteSpace: 'pre-wrap', color: '#c45c54', fontSize: 12, lineHeight: 1.5, margin: 0, maxHeight: '40vh', overflow: 'auto' }}>{this.state.error}</pre>
+            <p style={{ margin: '0 0 16px', color: '#a8a8a8', fontSize: 13, lineHeight: 1.5 }}>The window loaded, but this panel crashed. Dismiss to keep working, or restart if it keeps happening.</p>
+            <pre style={{ whiteSpace: 'pre-wrap', color: '#c45c54', fontSize: 12, lineHeight: 1.5, margin: '0 0 16px', maxHeight: '40vh', overflow: 'auto' }}>{this.state.error}</pre>
+            <button
+              type="button"
+              onClick={() => this.setState({ error: null })}
+              style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid #2a2a2a', background: '#1c1c1c', color: '#e8e8e8', cursor: 'pointer' }}
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       )

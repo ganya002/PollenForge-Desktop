@@ -45,6 +45,21 @@ def read_file(path: str, max_chars: int = 50000, root: str | None = None) -> dic
         return {"error": str(e)}
 
 
+def delete_file(path: str, root: str | None = None) -> dict:
+    if not path or "\x00" in path:
+        return {"error": "Invalid path"}
+    target = _resolve(path, root)
+    try:
+        if not target.exists():
+            return {"error": f"File not found: {target}"}
+        if target.is_dir():
+            return {"error": "Use a file path, not a folder"}
+        target.unlink()
+        return {"success": True, "path": str(target)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def write_file(path: str, content: str, root: str | None = None) -> dict:
     if not path or "\x00" in path:
         return {"error": "Invalid path"}
@@ -186,6 +201,8 @@ TOOLS = [
      "params": {"path": "string", "max_chars": "number (optional, default 50000)"}},
     {"name": "write_file", "description": "Write content to file", "handler": write_file,
      "params": {"path": "string", "content": "string"}},
+    {"name": "delete_file", "description": "Delete a file", "handler": delete_file,
+     "params": {"path": "string"}},
     {"name": "edit_file", "description": "Find and replace in file", "handler": edit_file,
      "params": {"path": "string", "old": "string", "new": "string", "replace_all": "boolean (optional)"}},
     {"name": "list_dir", "description": "List directory contents", "handler": list_dir,

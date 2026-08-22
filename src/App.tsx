@@ -14,9 +14,12 @@ import type { SettingsTab } from './components/Settings/SettingsModal'
 import CommandPalette from './components/CommandPalette'
 import KeyboardHelp from './components/KeyboardHelp'
 import UpdateBadge from './components/UpdateBadge'
+import ToastHost from './components/ToastHost'
 import { useAvailableUpdate } from './hooks/useAvailableUpdate'
-import { mergeFetchedConfig, mergeProviderModels } from './lib/appConfig'
+import { mergeFetchedConfig, mergeProviderModels, persistConfig } from './lib/appConfig'
+import { applyTheme, normalizeTheme } from './lib/qol'
 import { refreshSessions } from './lib/sessions'
+import { writeWorkspaceFile } from './lib/workspace'
 import FilePanel from './components/Files/FilePanel'
 import BrowserPanel from './components/Browser/BrowserPanel'
 
@@ -24,15 +27,40 @@ export default function App() {
   const toggleSidebar = useStore((s) => s.toggleSidebar)
   const toggleBrowser = useStore((s) => s.toggleBrowser)
   const browserOpen = useStore((s) => s.browserOpen)
-  const { messages, isStreaming, sendMessage, stopGeneration, editAndResend, compactChat, retryLastMessage, scrollRef } = useChat()
+  const { messages, isStreaming, sendMessage, continueChat, stopGeneration, editAndResend, compactChat, retryLastMessage, reconnect, scrollRef } = useChat()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('providers')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [findOpen, setFindOpen] = useState(false)
   const nativeFrame = window.api?.app?.nativeFrame === true
   const currentSession = useStore((s) => s.sessions.find((x) => x.id === s.currentSessionId))
   const hasOpenFiles = useStore((s) => s.openFiles.length > 0)
+  const wsConnected = useStore((s) => s.wsConnected)
+  const agentMode = useStore((s) => s.config.agent_mode) || 'agent'
+  const theme = useStore((s) => s.config.theme)
+  const undoWrite = useStore((s) => s.undoWrite)
+  const checkpoints = useStore((s) => s.checkpoints)
+  const chatFind = useStore((s) => s.chatFind)
   useAvailableUpdate()
+
+  useEffect(() => {
+    try {
+      applyTheme(normalizeTheme(localStorage.getItem('nx-theme') || theme))
+    } catch {
+      applyTheme(normalizeTheme(theme))
+    }
+  }, [])
+
+  useEffect(() => {
+    const next = normalizeTheme(theme)
+    applyTheme(next)
+    try {
+      localStorage.setItem('nx-theme', next)
+    } catch {
+      /* ignore */
+    }
+  }, [theme])
 
   const handleNewChat = useCallback(() => {
     useStore.getState().clearMessages()
@@ -111,14 +139,51 @@ export default function App() {
         e.preventDefault()
         handleNewChat()
       }
-      if (e.key === 'Escape' && useStore.getState().isStreaming) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
         e.preventDefault()
-        stopGeneration()
+        setFindOpen(true)
+      }
+      if (e.key === 'Escape') {
+        if (findOpen) {
+          e.preventDefault()
+          setFindOpen(false)
+          useStore.getState().setChatFind('')
+          return
+        }
+        if (useStore.getState().isStreaming) {
+          e.preventDefault()
+          stopGeneration()
+        }
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [toggleSidebar, toggleBrowser, handleNewChat, stopGeneration])
+  }, [toggleSidebar, toggleBrowser, handleNewChat, stopGeneration, findOpen])
+
+  useEffect(() => {
+    const openFind = () => setFindOpen(true)
+    document.addEventListener('open-find', openFind)
+    return () => document.removeEventListener('open-find', openFind)
+  }, [])
+
+  const setAgentMode = useCallback((mode: 'ask' | 'agent') => {
+    const cfg = useStore.getState().config
+    const next = { ...cfg, agent_mode: mode }
+    useStore.getState().setConfig(next)
+    persistConfig(next)
+  }, [])
+
+  const undoLastWrite = useCallback(async () => {
+    const undo = useStore.getState().undoWrite
+    if (!undo) return
+    try {
+      await writeWorkspaceFile(undo.path, undo.content, undo.root)
+      useStore.getState().setUndoWrite(null)
+      useStore.getState().pushToast({ kind: 'info', text: `Restored ${undo.path}` })
+    } catch {
+      useStore.getState().pushToast({ kind: 'error', text: 'Could not undo that write.' })
+    }
+  }, [])
 
   return (
     <div className="flex h-full bg-surface-0">
@@ -168,6 +233,52 @@ export default function App() {
           </span>
 
           <div className="no-drag flex items-center gap-1">
+            <div className="flex items-center rounded-md border border-border overflow-hidden mr-1">
+              <button
+                onClick={() => setAgentMode('ask')}
+                className={`h-6 px-2 text-[11px] ${agentMode === 'ask' ? 'bg-surface-3 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+                title="Ask — inspect only, no writes"
+              >
+                Ask
+              </button>
+              <button
+                onClick={() => setAgentMode('agent')}
+                className={`h-6 px-2 text-[11px] ${agentMode === 'agent' ? 'bg-surface-3 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+                title="Agent — can write files and run commands"
+              >
+                Agent
+              </button>
+            </div>
+            {messages.length > 0 && !isStreaming && (
+              <button
+                onClick={() => continueChat()}
+                className="h-6 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary hover:bg-surface-2"
+                title="Continue this task"
+              >
+                Continue
+              </button>
+            )}
+            {undoWrite && (
+              <button
+                onClick={() => void undoLastWrite()}
+                className="h-6 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary hover:bg-surface-2"
+                title={`Undo write to ${undoWrite.path}`}
+              >
+                Undo
+              </button>
+            )}
+            {checkpoints.length > 0 && (
+              <button
+                onClick={() => {
+                  const last = checkpoints[checkpoints.length - 1]
+                  if (last) useStore.getState().restoreCheckpoint(last.id)
+                }}
+                className="h-6 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary hover:bg-surface-2"
+                title={checkpoints[checkpoints.length - 1]?.label || 'Restore checkpoint'}
+              >
+                Restore
+              </button>
+            )}
             <UpdateBadge variant="icon" onClick={() => openSettings('updates')} />
             <button
               onClick={toggleBrowser}
@@ -188,6 +299,37 @@ export default function App() {
         {/* Main content */}
         <div className="flex flex-1 min-h-0">
           <div className="flex flex-col flex-1 min-w-0">
+            {!wsConnected && (
+              <div className="flex items-center justify-between gap-3 px-4 py-2 bg-danger/10 border-b border-danger/20 text-[12px] text-text-secondary shrink-0">
+                <span>Backend is disconnected. Chat will retry automatically.</span>
+                <button
+                  onClick={() => reconnect()}
+                  className="h-6 px-2 rounded-md border border-border bg-surface-2 text-text-primary hover:bg-surface-3"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            {findOpen && (
+              <div className="flex items-center gap-2 px-3 h-9 border-b border-border bg-surface-1 shrink-0">
+                <input
+                  autoFocus
+                  value={chatFind}
+                  onChange={(e) => useStore.getState().setChatFind(e.target.value)}
+                  placeholder="Find in this thread"
+                  className="flex-1 h-7 px-2 rounded-md bg-surface-2 border border-border text-[12px] text-text-primary placeholder:text-text-muted focus:outline-none"
+                />
+                <button
+                  onClick={() => {
+                    setFindOpen(false)
+                    useStore.getState().setChatFind('')
+                  }}
+                  className="h-6 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary"
+                >
+                  Close
+                </button>
+              </div>
+            )}
             <ChatArea messages={messages} scrollRef={scrollRef} onRetry={retryLastMessage} onEdit={editAndResend} />
             <ApprovalPrompt />
             <InputBar onSend={sendMessage} onStop={stopGeneration} onCompact={compactChat} isStreaming={isStreaming} />
@@ -209,14 +351,15 @@ export default function App() {
         </div>
 
         {/* Status bar */}
-        <StatusBar onOpenUpdates={() => openSettings('updates')} />
+        <StatusBar onOpenUpdates={() => openSettings('updates')} onRetry={reconnect} />
       </div>
 
       <BrowserPanel />
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} initialTab={settingsTab} />
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onNewChat={handleNewChat} onCompact={compactChat} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onNewChat={handleNewChat} onCompact={compactChat} onContinue={continueChat} />
       <KeyboardHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <ToastHost />
     </div>
   )
 }

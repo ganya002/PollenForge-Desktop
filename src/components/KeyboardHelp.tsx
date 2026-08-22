@@ -18,11 +18,13 @@ const shortcuts = [
     { keys: ['Cmd', 'Shift', 'K'], description: 'Clear chat' },
     { keys: ['Cmd', 'N'], description: 'New chat' },
     { keys: ['Cmd', ','], description: 'Open settings' },
+    { keys: ['Cmd', 'F'], description: 'Find in this thread' },
   ]},
   { category: 'Chat', items: [
     { keys: ['/'], description: 'Show commands' },
     { keys: ['@'], description: 'Mention file' },
     { keys: ['Tab'], description: 'Accept suggestion' },
+    { keys: ['↑', '↓'], description: 'Prompt history' },
   ]},
 ]
 

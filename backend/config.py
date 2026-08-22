@@ -54,6 +54,7 @@ DEFAULT_CONFIG = {
         "apps": {"enabled": True}
     },
     "theme": "dark",
+    "agent_mode": "agent",
     "font_size": 14,
     "max_tokens": 4096,
     "temperature": 0.7

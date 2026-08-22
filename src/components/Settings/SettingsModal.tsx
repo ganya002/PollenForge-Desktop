@@ -11,6 +11,7 @@ import {
 } from '../../lib/appConfig'
 import { marketplaceSearch, installPlugin, uninstallPlugin, installedPluginIds } from '../../lib/plugins'
 import { isFreeModel, resolveModelList, type ModelListMode } from '../../lib/modelFilter'
+import { applyTheme, THEME_IDS, type ThemeId } from '../../lib/qol'
 
 export type SettingsTab = 'providers' | 'plugins' | 'general' | 'updates' | 'about'
 
@@ -272,6 +273,63 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
 
               {activeTab === 'general' && (
                 <div className="h-full overflow-y-auto p-4 space-y-4">
+                  <div className="bg-surface-2 rounded-lg p-4">
+                    <div className="text-xs font-medium text-text-primary">Theme</div>
+                    <div className="text-[10px] text-text-muted mt-0.5 mb-3">Dark is default. Light and Slate change the whole window.</div>
+                    <div className="flex gap-1">
+                      {THEME_IDS.map((id) => {
+                        const on = (config.theme || 'dark') === id
+                        return (
+                          <button
+                            key={id}
+                            onClick={() => {
+                              const cfg = useStore.getState().config
+                              const next = { ...cfg, theme: id as ThemeId }
+                              setConfig(next)
+                              persistConfig(next)
+                              applyTheme(id)
+                            }}
+                            className={`h-8 px-3 text-[12px] rounded-md border capitalize transition-smooth ${
+                              on
+                                ? 'bg-surface-3 text-text-primary border-border'
+                                : 'bg-surface-1 text-text-muted border-border hover:text-text-primary'
+                            }`}
+                          >
+                            {id}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="bg-surface-2 rounded-lg p-4">
+                    <div className="text-xs font-medium text-text-primary">Ask vs Agent</div>
+                    <div className="text-[10px] text-text-muted mt-0.5 mb-3">Ask answers and inspects. Agent can write files and run commands.</div>
+                    <div className="flex gap-1">
+                      {(['ask', 'agent'] as const).map((id) => {
+                        const on = (config.agent_mode || 'agent') === id
+                        return (
+                          <button
+                            key={id}
+                            onClick={() => {
+                              const cfg = useStore.getState().config
+                              const next = { ...cfg, agent_mode: id }
+                              setConfig(next)
+                              persistConfig(next)
+                            }}
+                            className={`h-8 px-3 text-[12px] rounded-md border capitalize transition-smooth ${
+                              on
+                                ? 'bg-surface-3 text-text-primary border-border'
+                                : 'bg-surface-1 text-text-muted border-border hover:text-text-primary'
+                            }`}
+                          >
+                            {id}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
                   <div className="bg-surface-2 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>

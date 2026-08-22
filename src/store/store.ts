@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { emptyProviderConfig } from '../lib/providerCatalog'
+import type { AgentMode, ThemeId } from '../lib/qol'
 
 export interface Message {
   id: string
@@ -40,6 +41,7 @@ export interface Session {
   directory?: string
   preview?: string
   pinned?: boolean
+  archived?: boolean
 }
 
 export interface Config {
@@ -56,6 +58,8 @@ export interface Config {
   default_directory?: string
   free_models_only?: boolean
   model_list?: 'popular' | 'all' | 'free'
+  theme?: ThemeId
+  agent_mode?: AgentMode
 }
 
 export interface ProviderConfig {
@@ -126,6 +130,25 @@ export interface DiffEntry {
   has_changes: boolean
 }
 
+export interface ToastItem {
+  id: string
+  kind: 'error' | 'info'
+  text: string
+}
+
+export interface UndoWrite {
+  path: string
+  content: string
+  root?: string | null
+}
+
+export interface Checkpoint {
+  id: string
+  label: string
+  at: number
+  messages: Message[]
+}
+
 interface AppState {
   messages: Message[]
   currentModel: string
@@ -152,6 +175,13 @@ interface AppState {
   pendingWorkspace: string | null
   queuedMessage: string | null
   previewOffer: { url: string; label: string } | null
+  browserTick: number
+  toasts: ToastItem[]
+  agentStep: string | null
+  undoWrite: UndoWrite | null
+  chatFind: string
+  checkpoints: Checkpoint[]
+  showArchived: boolean
   _wsSend: ((data: Record<string, unknown>) => boolean) | null
 
   addMessage: (msg: Message) => void
@@ -187,6 +217,15 @@ interface AppState {
   setPendingWorkspace: (path: string | null) => void
   setQueuedMessage: (content: string | null) => void
   setPreviewOffer: (offer: { url: string; label: string } | null) => void
+  bumpBrowser: () => void
+  pushToast: (toast: Omit<ToastItem, 'id'> & { id?: string }) => void
+  dismissToast: (id: string) => void
+  setAgentStep: (step: string | null) => void
+  setUndoWrite: (undo: UndoWrite | null) => void
+  setChatFind: (query: string) => void
+  addCheckpoint: (label?: string) => void
+  restoreCheckpoint: (id: string) => void
+  setShowArchived: (on: boolean) => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -214,6 +253,8 @@ export const useStore = create<AppState>((set, get) => ({
     auto_approve: true,
     model_list: 'popular',
     free_models_only: false,
+    theme: 'dark',
+    agent_mode: 'agent',
   },
   fileTree: [],
   pendingApproval: null,
@@ -229,6 +270,13 @@ export const useStore = create<AppState>((set, get) => ({
   pendingWorkspace: null,
   queuedMessage: null,
   previewOffer: null,
+  browserTick: 0,
+  toasts: [],
+  agentStep: null,
+  undoWrite: null,
+  chatFind: '',
+  checkpoints: [],
+  showArchived: false,
   _wsSend: null,
 
   addMessage: (msg) => set((s) => {
@@ -261,14 +309,18 @@ export const useStore = create<AppState>((set, get) => ({
   setModel: (model, provider) => set({ currentModel: model, currentProvider: provider }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, browserFullscreen: s.browserOpen ? false : s.browserFullscreen })),
-  openInBrowser: (url) => set({ browserOpen: true, browserUrl: url }),
+  openInBrowser: (url) => set((s) => ({
+    browserOpen: true,
+    browserUrl: url,
+    browserTick: s.browserUrl === url ? s.browserTick + 1 : s.browserTick,
+  })),
   setBrowserUrl: (browserUrl) => set({ browserUrl }),
   setBrowserFullscreen: (browserFullscreen) => set({ browserFullscreen }),
   setSessions: (sessions) => set({ sessions }),
   setConfig: (config) => set({ config }),
   setFileTree: (tree) => set({ fileTree: tree }),
-  clearMessages: () => set({ messages: [] }),
-  setCurrentSessionId: (id) => set({ currentSessionId: id }),
+  clearMessages: () => set({ messages: [], checkpoints: [], undoWrite: null, agentStep: null }),
+  setCurrentSessionId: (id) => set({ currentSessionId: id, checkpoints: [], undoWrite: null }),
   loadSessionMessages: (msgs) => set({
     messages: msgs.map((m, i) => ({
       id: `loaded-${Date.now()}-${i}`,
@@ -318,4 +370,28 @@ export const useStore = create<AppState>((set, get) => ({
   setPendingWorkspace: (pendingWorkspace) => set({ pendingWorkspace }),
   setQueuedMessage: (queuedMessage) => set({ queuedMessage }),
   setPreviewOffer: (previewOffer) => set({ previewOffer }),
+  bumpBrowser: () => set((s) => ({ browserTick: s.browserTick + 1 })),
+  pushToast: (toast) => set((s) => ({
+    toasts: [...s.toasts.slice(-4), { id: toast.id || `${Date.now()}-${s.toasts.length}`, kind: toast.kind, text: toast.text }],
+  })),
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  setAgentStep: (agentStep) => set({ agentStep }),
+  setUndoWrite: (undoWrite) => set({ undoWrite }),
+  setChatFind: (chatFind) => set({ chatFind }),
+  addCheckpoint: (label) => set((s) => {
+    if (s.messages.length === 0) return s
+    const item: Checkpoint = {
+      id: `cp-${Date.now()}`,
+      label: label || `Before turn ${s.messages.filter((m) => m.role === 'user').length}`,
+      at: Date.now(),
+      messages: s.messages.map((m) => ({ ...m })),
+    }
+    return { checkpoints: [...s.checkpoints.slice(-7), item] }
+  }),
+  restoreCheckpoint: (id) => set((s) => {
+    const hit = s.checkpoints.find((c) => c.id === id)
+    if (!hit) return s
+    return { messages: hit.messages.map((m) => ({ ...m })), agentStep: null }
+  }),
+  setShowArchived: (showArchived) => set({ showArchived }),
 }))

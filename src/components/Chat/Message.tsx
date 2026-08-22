@@ -6,6 +6,7 @@ import MarkdownRenderer from './MarkdownRenderer'
 import { sanitizeAssistantContent } from '../../lib/sanitizeAssistantContent'
 import { currentWorkspace } from '../../lib/workspace'
 import { extractBrowserTargets } from '../../lib/browserTargets'
+import { messageMatchesFind } from '../../lib/qol'
 import { useStore } from '../../store/store'
 
 interface Props { message: MessageType; onRetry?: () => void; onEdit?: (c: string) => void }
@@ -17,6 +18,8 @@ function formatTime(ts: number): string {
 export default function Message({ message, onRetry, onEdit }: Props) {
   const isUser = message.role === 'user'
   const hasTools = !!message.toolCalls?.length
+  const chatFind = useStore((s) => s.chatFind)
+  const findHit = !!chatFind.trim() && messageMatchesFind(message.content, chatFind)
   const displayContent = isUser ? message.content : sanitizeAssistantContent(message.content || '')
   const browserLinks = !isUser ? extractBrowserTargets(displayContent, currentWorkspace()) : []
   const isThinking = !isUser && !displayContent && !hasTools
@@ -25,7 +28,7 @@ export default function Message({ message, onRetry, onEdit }: Props) {
 
   if (isUser) {
     return (
-      <div className="flex justify-end mb-5 group">
+      <div id={`msg-${message.id}`} className={`flex justify-end mb-5 group ${findHit ? 'chat-find-hit' : ''}`}>
         <div className="max-w-[78%]">
           <div className="bg-surface-2 text-text-primary rounded-2xl rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap break-words border border-border transition-smooth">
             {message.content}
@@ -41,7 +44,7 @@ export default function Message({ message, onRetry, onEdit }: Props) {
 
   // Assistant - Codex style: no bubble, timeline then markdown
   return (
-    <div className="mb-6 group">
+    <div id={`msg-${message.id}`} className={`mb-6 group ${findHit ? 'chat-find-hit' : ''}`}>
       {isThinking && (
         <div className="flex items-center gap-2.5 py-2 text-text-muted">
           <StreamingText />

@@ -26,5 +26,6 @@ export function normalizeSession(raw: Record<string, unknown>) {
     directory: typeof raw.directory === 'string' ? raw.directory : '',
     preview: typeof raw.preview === 'string' ? raw.preview : '',
     pinned: !!raw.pinned,
+    archived: !!raw.archived,
   }
 }

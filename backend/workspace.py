@@ -4,6 +4,7 @@ FS_ROOT_TOOLS = {
     "read_file",
     "write_file",
     "edit_file",
+    "delete_file",
     "list_dir",
     "search_files",
     "read_folder",

@@ -3,6 +3,7 @@ import { useStore, Message, ToolCall } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
 import { applyActivePlugins, activePluginIds } from '../lib/plugins'
 import { compactMessages, htmlUrlFromTool, messagesThroughUser } from '../lib/chatActions'
+import { ASK_PROMPT, isHtmlWriteTool, toolPath } from '../lib/qol'
 import { refreshSessions, nameSessionFromPrompt } from '../lib/sessions'
 import { currentWorkspace, savePlanMarkdown, scheduleFileTreeRefresh } from '../lib/workspace'
 import { titleFromPrompt } from '../lib/chatTitle'
@@ -62,7 +63,28 @@ export function useChat() {
         startedAt: Date.now(),
       }
       state.addToolCall(last.id, toolCall)
-      const htmlUrl = htmlUrlFromTool(tool, args, currentWorkspace())
+      const path = toolPath(args)
+      state.setAgentStep(path ? `${tool} ${path}` : tool)
+      const root = currentWorkspace()
+      if ((tool === 'write_file' || tool === 'edit_file') && path) {
+        void fetch('http://127.0.0.1:8765/files/read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path, root: root || undefined }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => {
+            useStore.getState().setUndoWrite({
+              path,
+              content: typeof data?.content === 'string' ? data.content : '',
+              root,
+            })
+          })
+          .catch(() => {
+            useStore.getState().setUndoWrite({ path, content: '', root })
+          })
+      }
+      const htmlUrl = htmlUrlFromTool(tool, args, root)
       if (htmlUrl) {
         const name = String(args.path || args.file || htmlUrl).replace(/\\/g, '/').split('/').pop() || 'page'
         state.setPreviewOffer({ url: htmlUrl, label: name })
@@ -84,6 +106,15 @@ export function useChat() {
         durationMs: running?.startedAt ? Date.now() - running.startedAt : undefined
       })
       if (shouldRefreshFileTree(tool, result)) scheduleFileTreeRefresh()
+      if (!isError && isHtmlWriteTool(tool, running?.args || last.toolCalls.find((t) => t.id === targetId)?.args)) {
+        const htmlUrl = htmlUrlFromTool(tool, running?.args || {}, currentWorkspace())
+        if (htmlUrl) {
+          if (state.browserOpen && state.browserUrl === htmlUrl) state.bumpBrowser()
+          else state.openInBrowser(htmlUrl)
+        }
+      }
+      const still = useStore.getState().messages.at(-1)?.toolCalls?.some((t) => t.status === 'running')
+      if (!still) useStore.getState().setAgentStep(null)
       scrollToBottom()
     }, [scrollToBottom]),
 
@@ -137,6 +168,7 @@ export function useChat() {
         const plan = sanitizeAssistantContent(useStore.getState().messages.find((m) => m.id === last.id)?.content || last.content || '')
         void savePlanMarkdown(plan)
       }
+      useStore.getState().setAgentStep(null)
       void refreshSessions()
       scrollToBottom()
       const queued = useStore.getState().queuedMessage
@@ -159,6 +191,7 @@ export function useChat() {
       } else {
         state.addMessage({ id: genId(), role: 'assistant', content: `**Error:** ${message}`, timestamp: Date.now(), isError: true })
       }
+      state.pushToast({ kind: 'error', text: message })
       scrollToBottom()
     }, [scrollToBottom]),
   })
@@ -175,6 +208,7 @@ export function useChat() {
       state.setQueuedMessage(content.trim())
       return
     }
+    if (state.messages.length > 0) state.addCheckpoint()
 
     let sessionId = state.currentSessionId
     if (!sessionId) {
@@ -209,10 +243,9 @@ export function useChat() {
       .filter(m => m.role !== 'system')
       .map((m, i, arr) => {
         const isLastUser = m.role === 'user' && !arr.slice(i + 1).some((x) => x.role === 'user')
-        return {
-          role: m.role,
-          content: isLastUser ? applyActivePlugins(m.content, state.config) : m.content,
-        }
+        let text = isLastUser ? applyActivePlugins(m.content, state.config) : m.content
+        if (isLastUser && state.config.agent_mode === 'ask') text = `${ASK_PROMPT}\n\n${text}`
+        return { role: m.role, content: text }
       })
 
     const sent = ws.send({
@@ -226,6 +259,7 @@ export function useChat() {
     if (!sent) {
       state.updateMessage(assistantMsg.id, { content: '**Error:** Not connected. Reconnecting...', isError: true })
       state.setStreaming(false)
+      state.pushToast({ kind: 'error', text: 'Backend is disconnected. Retrying…' })
     }
     scrollToBottom()
   }, [ws, scrollToBottom])
@@ -283,16 +317,22 @@ export function useChat() {
     sendMessage(lastUser.content)
   }, [sendMessage])
 
+  const continueChat = useCallback(() => {
+    void sendMessage('Continue from where you left off and finish the task.')
+  }, [sendMessage])
+
   return {
     messages,
     isStreaming,
     queuedMessage,
     sendMessage,
+    continueChat,
     stopGeneration,
     editAndResend,
     compactChat,
     approveTool,
     retryLastMessage,
+    reconnect: ws.connect,
     scrollRef,
     scrollToBottom,
   }

@@ -4,9 +4,10 @@ import UpdateBadge from './UpdateBadge'
 
 interface StatusBarProps {
   onOpenUpdates?: () => void
+  onRetry?: () => void
 }
 
-export default function StatusBar({ onOpenUpdates }: StatusBarProps) {
+export default function StatusBar({ onOpenUpdates, onRetry }: StatusBarProps) {
   const wsConnected = useStore((s) => s.wsConnected)
   const currentModel = useStore((s) => s.currentModel)
   const currentProvider = useStore((s) => s.currentProvider)
@@ -16,6 +17,7 @@ export default function StatusBar({ onOpenUpdates }: StatusBarProps) {
   const messages = useStore((s) => s.messages)
   const config = useStore((s) => s.config)
   const tasks = useStore((s) => s.tasks)
+  const agentStep = useStore((s) => s.agentStep)
 
   const totalChars = messages.reduce((acc, m) => acc + m.content.length + (m.toolCalls?.reduce((a, tc) => a + JSON.stringify(tc.args).length, 0) || 0), 0)
   const estimatedTokens = Math.ceil(totalChars / 4)
@@ -32,12 +34,15 @@ export default function StatusBar({ onOpenUpdates }: StatusBarProps) {
         <div className="flex items-center gap-1.5">
           <span className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-500 shadow-sm' : 'bg-red-500 animate-pulse'}`} />
           <span className={wsConnected ? '' : 'text-red-400'}>{wsConnected ? 'Connected' : 'Disconnected'}</span>
+          {!wsConnected && onRetry && (
+            <button onClick={onRetry} className="ml-1 text-text-secondary hover:text-text-primary">Retry</button>
+          )}
         </div>
         <UpdateBadge variant="pill" onClick={onOpenUpdates} />
         {isStreaming && (
-          <div className="flex items-center gap-1.5 text-accent">
+          <div className="flex items-center gap-1.5 text-accent min-w-0">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-            <span>Generating…</span>
+            <span className="truncate max-w-[22rem]">{agentStep || 'Generating…'}</span>
           </div>
         )}
         {runningTasks > 0 && (

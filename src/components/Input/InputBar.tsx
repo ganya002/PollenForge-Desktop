@@ -5,6 +5,8 @@ import FileMentionMenu from './FileMentionMenu'
 import { persistConfig } from '../../lib/appConfig'
 import { projectPathFromDrop } from '../../lib/chatActions'
 import { PLUGIN_CATALOG_MAP, pluginByCommand } from '../../lib/pluginCatalog'
+import { pushPromptHistory, speechSupported } from '../../lib/qol'
+import { addFileToChat } from '../../lib/workspaceFiles'
 import { activePluginIds, handlePluginSlash, installedPluginCommands, installedPluginIds, setPluginActive } from '../../lib/plugins'
 import { ensurePlanFile, setChatDirectory } from '../../lib/workspace'
 
@@ -16,6 +18,27 @@ interface Props {
 }
 
 const MAX_ATTACH_SIZE = 2_000_000 // 2MB
+const HISTORY_KEY = 'nx-prompt-history'
+
+function readPromptHistory(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')
+    return Array.isArray(raw) ? raw.filter((item) => typeof item === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+type SpeechRec = {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null
+  onerror: (() => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
 
 export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Props) {
   const [value, setValue] = useState('')
@@ -35,6 +58,12 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
   const previewOffer = useStore((s) => s.previewOffer)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [listening, setListening] = useState(false)
+  const recRef = useRef<SpeechRec | null>(null)
+  const voiceBaseRef = useRef('')
+  const historyIndex = useRef(-1)
+  const draftBeforeHistory = useRef('')
+  const canVoice = speechSupported()
 
   useEffect(() => {
     const ta = textareaRef.current
@@ -43,6 +72,10 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
       ta.style.height = `${Math.min(Math.max(ta.scrollHeight, 48), 200)}px`
     }
   }, [value])
+
+  useEffect(() => () => {
+    recRef.current?.stop()
+  }, [])
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -92,6 +125,28 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
         if (e.key === 'Enter' && (showCommands || showFileMention)) return
       }
     }
+    if (!showCommands && !showFileMention && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      const ta = textareaRef.current
+      const atStart = !!ta && ta.selectionStart === 0 && ta.selectionEnd === 0
+      const atEnd = !!ta && ta.selectionStart === value.length && ta.selectionEnd === value.length
+      if (e.key === 'ArrowUp' && (atStart || !value.trim())) {
+        e.preventDefault()
+        const hist = readPromptHistory()
+        if (!hist.length) return
+        if (historyIndex.current === -1) draftBeforeHistory.current = value
+        const next = Math.min(hist.length - 1, historyIndex.current + 1)
+        historyIndex.current = next
+        handleChange(hist[next])
+        return
+      }
+      if (e.key === 'ArrowDown' && historyIndex.current >= 0 && (atEnd || true)) {
+        e.preventDefault()
+        const next = historyIndex.current - 1
+        historyIndex.current = next
+        handleChange(next < 0 ? draftBeforeHistory.current : readPromptHistory()[next])
+        return
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -99,6 +154,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
     if (e.key === 'Escape') {
       setShowCommands(false)
       setShowFileMention(false)
+      if (listening) recRef.current?.stop()
     }
   }
 
@@ -126,12 +182,56 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
       message = message ? `${message}\n\n${fileContext}` : fileContext
     }
     if (!message.trim()) return
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(pushPromptHistory(readPromptHistory(), message)))
+    } catch {
+      /* ignore */
+    }
+    historyIndex.current = -1
     onSend(message)
     setValue('')
     setAttachedFiles([])
     setShowCommands(false)
     setShowFileMention(false)
     setPluginNotice('')
+  }
+
+  const toggleVoice = () => {
+    if (!canVoice) {
+      useStore.getState().pushToast({ kind: 'error', text: 'Voice input is not available in this window.' })
+      return
+    }
+    if (listening) {
+      recRef.current?.stop()
+      return
+    }
+    const w = window as Window & { SpeechRecognition?: new () => SpeechRec; webkitSpeechRecognition?: new () => SpeechRec }
+    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition
+    if (!Ctor) return
+    const rec = new Ctor()
+    rec.continuous = false
+    rec.interimResults = true
+    rec.lang = navigator.language || 'en-US'
+    voiceBaseRef.current = value
+    rec.onresult = (event) => {
+      let text = ''
+      for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript
+      const base = voiceBaseRef.current
+      handleChange(base ? `${base}${base.endsWith(' ') ? '' : ' '}${text}` : text)
+    }
+    rec.onerror = () => {
+      setListening(false)
+      useStore.getState().pushToast({ kind: 'error', text: 'Could not hear you. Try again.' })
+    }
+    rec.onend = () => setListening(false)
+    recRef.current = rec
+    setListening(true)
+    try {
+      rec.start()
+    } catch {
+      setListening(false)
+      useStore.getState().pushToast({ kind: 'error', text: 'Microphone could not start.' })
+    }
   }
 
   const processFile = (file: File) => {
@@ -189,6 +289,11 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
   const handleDragLeave = () => setIsDragging(false)
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault(); setIsDragging(false)
+    const droppedPath = e.dataTransfer.getData('application/x-nexum-path') || e.dataTransfer.getData('text/plain')
+    if (droppedPath && !e.dataTransfer.files.length) {
+      addFileToChat(droppedPath)
+      return
+    }
     const files = e.dataTransfer.files
     if (!files?.length) return
     const folder = projectPathFromDrop(Array.from(files).map((file) => ({
@@ -371,6 +476,22 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
             <button onClick={() => fileInputRef.current?.click()} className="h-8 w-8 flex items-center justify-center rounded-md bg-surface-2 hover:bg-surface-3 text-text-muted hover:text-text-primary transition-smooth" title="Attach files">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 7l-5 5a3 3 0 01-4.24-4.24l5-5A2 2 0 0111 4.5l-5 5a1 1 0 01-1.42-1.42l5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
+            <button
+              onClick={toggleVoice}
+              className={`h-8 w-8 flex items-center justify-center rounded-md border transition-smooth ${
+                listening
+                  ? 'bg-danger/15 text-danger border-danger/40'
+                  : 'bg-surface-2 hover:bg-surface-3 text-text-muted hover:text-text-primary border-transparent'
+              }`}
+              title={listening ? 'Stop listening' : canVoice ? 'Voice input' : 'Voice input is unavailable'}
+              aria-label={listening ? 'Stop voice input' : 'Voice input'}
+              aria-pressed={listening}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="6" y="2" width="4" height="7" rx="2" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M4 8a4 4 0 008 0M8 12v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              </svg>
+            </button>
 
             <button onClick={toggleAutoApprove} className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 ${autoApprove ? 'bg-surface-3 text-success border-border' : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'}`} title="Auto-approve tool execution">
               Auto {autoApprove && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
@@ -456,7 +577,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
           {isDragging ? (
             <span className="text-text-secondary">Drop files to attach</span>
           ) : (
-            <span>{isStreaming ? 'Enter queues the next message · Esc stops' : 'Enter to send · Shift+Enter newline'}</span>
+            <span>{listening ? 'Listening… click the mic to stop' : isStreaming ? 'Enter queues the next message · Esc stops' : 'Enter to send · ↑↓ prompt history · mic to talk'}</span>
           )}
         </div>
       </div>

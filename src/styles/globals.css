@@ -24,6 +24,41 @@
   --duration: 180ms;
 }
 
+[data-theme="light"] {
+  --surface-0: #f4f4f5;
+  --surface-1: #ffffff;
+  --surface-2: #ececee;
+  --surface-3: #e4e4e7;
+  --text-primary: #18181b;
+  --text-secondary: #3f3f46;
+  --text-muted: #71717a;
+  --accent: #18181b;
+  --accent-hover: #000000;
+  --accent-ink: #ffffff;
+  --accent-muted: #18181b14;
+  --border: #d4d4d8;
+  --border-hover: #a1a1aa;
+  --success: #3f8f46;
+  --warning: #b45309;
+  --danger: #b42318;
+}
+
+[data-theme="slate"] {
+  --surface-0: #0f1419;
+  --surface-1: #151b22;
+  --surface-2: #1c242d;
+  --surface-3: #25303b;
+  --text-primary: #e7ecf1;
+  --text-secondary: #9aa8b4;
+  --text-muted: #6d7b88;
+  --accent: #c5d4e0;
+  --accent-hover: #ffffff;
+  --accent-ink: #0f1419;
+  --accent-muted: #c5d4e014;
+  --border: #2a3540;
+  --border-hover: #3d4b59;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -73,6 +108,12 @@ html, body, #root {
 }
 
 /* Smooth transitions */
+.chat-find-hit {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
 .transition-smooth {
   transition:
     color var(--duration) var(--ease-out),

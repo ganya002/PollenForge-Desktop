@@ -6,12 +6,15 @@ import { projectPathFromDrop } from '../../lib/chatActions'
 import {
   clearDefaultDirectory,
   currentWorkspace,
+  deleteWorkspaceFile,
   folderName,
   persistDefaultFromCurrent,
   pickAndSetProjectFolder,
   refreshFileTree,
+  renameWorkspaceFile,
   scheduleFileTreeRefresh,
   setChatDirectory,
+  writeWorkspaceFile,
 } from '../../lib/workspace'
 
 function GitBadge({ status }: { status?: string }) {
@@ -78,14 +81,22 @@ function TreeNode({ entry, depth = 0, root }: { entry: FileEntry; depth?: number
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
-    if (!entry.isDirectory) setMenu({ x: e.clientX, y: e.clientY })
+    setMenu({ x: e.clientX, y: e.clientY })
   }
+
+  const parentDir = entry.path.replace(/\\/g, '/').replace(/\/?[^/]+$/, '') || '.'
 
   return (
     <div>
       <button
         onClick={handleClick}
         onContextMenu={handleContextMenu}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('application/x-nexum-path', entry.path)
+          e.dataTransfer.setData('text/plain', entry.path)
+          e.dataTransfer.effectAllowed = 'copy'
+        }}
         className={`w-full flex items-center gap-1.5 px-2 h-7 text-[13px] hover:bg-surface-2 hover:text-text-primary transition-smooth rounded group ${
           active ? 'bg-surface-2 text-text-primary' : 'text-text-secondary'
         }`}
@@ -105,31 +116,70 @@ function TreeNode({ entry, depth = 0, root }: { entry: FileEntry; depth?: number
         <span className="truncate flex-1 text-left">{entry.name}</span>
         <GitBadge status={entry.git_status} />
       </button>
-      {menu && !entry.isDirectory && (
+      {menu && (
         <>
           <div className="fixed inset-0 z-50" onClick={() => setMenu(null)} />
           <div
             className="fixed z-50 bg-surface-3 border border-border rounded-lg shadow-xl py-1 min-w-[140px]"
             style={{ left: menu.x, top: menu.y }}
           >
+            {!entry.isDirectory && (
+              <>
+                <button
+                  onClick={() => {
+                    void openWorkspaceFile(entry.path, { root })
+                    setMenu(null)
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary"
+                >
+                  Open
+                </button>
+                <button
+                  onClick={() => {
+                    addFileToChat(entry.path)
+                    setMenu(null)
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary"
+                >
+                  Add to chat
+                </button>
+              </>
+            )}
             <button
-              onClick={() => {
-                void openWorkspaceFile(entry.path, { root })
+              onClick={async () => {
+                const name = window.prompt('New file name', entry.isDirectory ? `${entry.path}/untitled.txt` : `${parentDir}/untitled.txt`)
                 setMenu(null)
+                if (!name?.trim()) return
+                try {
+                  await writeWorkspaceFile(name.trim(), '', root)
+                  await refreshFileTree()
+                } catch (err) {
+                  useStore.getState().pushToast({ kind: 'error', text: err instanceof Error ? err.message : 'Could not create file' })
+                }
               }}
               className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary"
             >
-              Open
+              New file
             </button>
-            <button
-              onClick={() => {
-                addFileToChat(entry.path)
-                setMenu(null)
-              }}
-              className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary"
-            >
-              Add to chat
-            </button>
+            {!entry.isDirectory && (
+              <button
+                onClick={async () => {
+                  const name = window.prompt('Rename', entry.name)
+                  setMenu(null)
+                  if (!name?.trim() || name.trim() === entry.name) return
+                  const dest = `${parentDir === '.' ? '' : `${parentDir}/`}${name.trim()}`
+                  try {
+                    await renameWorkspaceFile(entry.path, dest, root)
+                    await refreshFileTree()
+                  } catch (err) {
+                    useStore.getState().pushToast({ kind: 'error', text: err instanceof Error ? err.message : 'Could not rename' })
+                  }
+                }}
+                className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary"
+              >
+                Rename
+              </button>
+            )}
             <button
               onClick={() => {
                 void navigator.clipboard.writeText(entry.path)
@@ -139,6 +189,23 @@ function TreeNode({ entry, depth = 0, root }: { entry: FileEntry; depth?: number
             >
               Copy path
             </button>
+            {!entry.isDirectory && (
+              <button
+                onClick={async () => {
+                  setMenu(null)
+                  if (!window.confirm(`Delete ${entry.name}?`)) return
+                  try {
+                    await deleteWorkspaceFile(entry.path, root)
+                    await refreshFileTree()
+                  } catch (err) {
+                    useStore.getState().pushToast({ kind: 'error', text: err instanceof Error ? err.message : 'Could not delete' })
+                  }
+                }}
+                className="w-full text-left px-3 py-1.5 text-sm text-danger hover:bg-danger/10"
+              >
+                Delete
+              </button>
+            )}
           </div>
         </>
       )}
@@ -203,6 +270,24 @@ export default function FileTree() {
       <div className="flex items-center justify-between px-2 h-8">
         <span className="sidebar-label">Files</span>
         <div className="flex items-center gap-0.5">
+          <button
+            onClick={async () => {
+              const name = window.prompt('New file (relative path)')
+              if (!name?.trim()) return
+              try {
+                await writeWorkspaceFile(name.trim(), '')
+                await refreshFileTree()
+              } catch (err) {
+                useStore.getState().pushToast({ kind: 'error', text: err instanceof Error ? err.message : 'Could not create file' })
+              }
+            }}
+            className="p-0.5 rounded hover:bg-surface-2 text-text-muted hover:text-text-secondary transition-smooth"
+            title="New file"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
+              <path d="M5 1.5v7M1.5 5h7" />
+            </svg>
+          </button>
           <button
             onClick={() => void pickAndSetProjectFolder()}
             className="p-0.5 rounded hover:bg-surface-2 text-text-muted hover:text-text-secondary transition-smooth"

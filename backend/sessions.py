@@ -61,6 +61,7 @@ def list_sessions() -> list[dict]:
                 "directory": meta.get("directory") or "",
                 "preview": _user_preview(data.get("messages", [])),
                 "pinned": bool(meta.get("pinned")),
+                "archived": bool(meta.get("archived")),
             })
         except Exception:
             continue

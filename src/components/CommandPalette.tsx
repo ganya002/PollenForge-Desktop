@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { persistConfig } from '../lib/appConfig'
+import { applyTheme, type ThemeId } from '../lib/qol'
 import { useStore } from '../store/store'
 
 interface CommandPaletteProps {
@@ -7,6 +9,7 @@ interface CommandPaletteProps {
   onClose: () => void
   onNewChat: () => void
   onCompact?: () => void
+  onContinue?: () => void
 }
 
 const COMMANDS = [
@@ -20,6 +23,13 @@ const COMMANDS = [
   { id: 'export-chat', label: 'Export Chat', description: 'Save conversation as markdown', icon: 'export' },
   { id: 'copy-last', label: 'Copy Last Response', description: 'Copy the last assistant message', icon: 'copy' },
   { id: 'run-command', label: 'Run Command', description: 'Execute a shell command', icon: 'terminal' },
+  { id: 'find', label: 'Find in Thread', description: 'Search this chat', shortcut: 'Cmd+F', icon: 'search' },
+  { id: 'continue', label: 'Continue', description: 'Ask the agent to keep going', icon: 'play' },
+  { id: 'restore-checkpoint', label: 'Restore Last Checkpoint', description: 'Undo the last sent turn', icon: 'undo' },
+  { id: 'toggle-mode', label: 'Toggle Ask / Agent', description: 'Switch inspect-only vs write mode', icon: 'settings' },
+  { id: 'theme-dark', label: 'Theme: Dark', description: 'Matte black', icon: 'theme' },
+  { id: 'theme-light', label: 'Theme: Light', description: 'Light window', icon: 'theme' },
+  { id: 'theme-slate', label: 'Theme: Slate', description: 'Blue-gray dark', icon: 'theme' },
 ]
 
 const ICONS: Record<string, JSX.Element> = {
@@ -30,10 +40,14 @@ const ICONS: Record<string, JSX.Element> = {
   download: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v7M4.5 6.5L7 9l2.5-2.5M3 11.5h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
   export: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v7M4 6l3 3 3-3M3 11h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>,
   copy: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4" y="4" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1" /><path d="M3 10V3h7" stroke="currentColor" strokeWidth="1" strokeLinecap="round" /></svg>,
-  terminal: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1" /><path d="M4 6l2 1.5L4 9M7.5 9h2.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+  terminal: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1" /><path d="M4 6l2 1.5L4 9M7.5 9h2.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" /></svg>,
+  search: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.2" /><path d="M9 9l3 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>,
+  play: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 3l8 4-8 4V3z" fill="currentColor" /></svg>,
+  undo: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 6H2l2.5-3M2 6c1.2-2.4 4-4 7-3.2A5 5 0 1113 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>,
+  theme: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.2" /><path d="M7 1.5v1.5M7 11v1.5M1.5 7H3M11 7h1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>,
 }
 
-export default function CommandPalette({ open, onClose, onNewChat, onCompact }: CommandPaletteProps) {
+export default function CommandPalette({ open, onClose, onNewChat, onCompact, onContinue }: CommandPaletteProps) {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -99,6 +113,36 @@ export default function CommandPalette({ open, onClose, onNewChat, onCompact }: 
         const msgs = useStore.getState().messages
         const last = [...msgs].reverse().find((m) => m.role === 'assistant' && m.content)
         if (last) navigator.clipboard.writeText(last.content)
+        break
+      }
+      case 'find':
+        document.dispatchEvent(new CustomEvent('open-find'))
+        break
+      case 'continue':
+        onContinue?.()
+        break
+      case 'restore-checkpoint': {
+        const cps = useStore.getState().checkpoints
+        const last = cps[cps.length - 1]
+        if (last) useStore.getState().restoreCheckpoint(last.id)
+        break
+      }
+      case 'toggle-mode': {
+        const cfg = useStore.getState().config
+        const updated = { ...cfg, agent_mode: cfg.agent_mode === 'ask' ? 'agent' : 'ask' as const }
+        useStore.getState().setConfig(updated)
+        persistConfig(updated)
+        break
+      }
+      case 'theme-dark':
+      case 'theme-light':
+      case 'theme-slate': {
+        const theme = id.replace('theme-', '') as ThemeId
+        const cfg = useStore.getState().config
+        const next = { ...cfg, theme }
+        useStore.getState().setConfig(next)
+        persistConfig(next)
+        applyTheme(theme)
         break
       }
     }

@@ -1,5 +1,8 @@
 import { useState, useMemo } from 'react'
 import { ToolCall } from '../../store/store'
+import { toolPath } from '../../lib/qol'
+import { currentWorkspace } from '../../lib/workspace'
+import { openWorkspaceFile } from '../../lib/workspaceFiles'
 
 interface Props { toolCall: ToolCall }
 
@@ -102,20 +105,33 @@ export default function ToolResult({ toolCall }: Props) {
   return (
     <div className={`group relative rounded-lg border bg-surface-1 overflow-hidden animate-fade-in ${isError ? 'border-red-500/20' : isRunning ? 'border-amber-500/20' : 'border-border'}`}>
       <div className={`absolute left-0 top-0 bottom-0 w-px ${isRunning ? 'running-sheen bg-amber-400/70' : isError ? 'bg-red-400/50' : 'bg-white/15'}`} />
-      <button
-        onClick={() => setExpanded(!shouldExpand)}
-        className="w-full flex items-center gap-2.5 pl-3 pr-2 py-2 text-left hover:bg-surface-2/40 transition-smooth"
-      >
-        <span className="w-4 h-4 flex items-center justify-center shrink-0"><StatusIcon status={toolCall.status} running={isRunning} /></span>
-        <span className="text-xs font-medium text-text-primary capitalize">{label}</span>
-        {preview && (
-          <span className="text-[11px] text-text-muted font-mono truncate max-w-[320px] hidden sm:inline">{preview}</span>
+      <div className="w-full flex items-center gap-2.5 pl-3 pr-2 py-2 hover:bg-surface-2/40 transition-smooth">
+        <button
+          onClick={() => setExpanded(!shouldExpand)}
+          className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+        >
+          <span className="w-4 h-4 flex items-center justify-center shrink-0"><StatusIcon status={toolCall.status} running={isRunning} /></span>
+          <span className="text-xs font-medium text-text-primary capitalize">{label}</span>
+          {preview && !toolPath(toolCall.args) && (
+            <span className="text-[11px] text-text-muted font-mono truncate max-w-[320px] hidden sm:inline">{preview}</span>
+          )}
+        </button>
+        {preview && !!toolPath(toolCall.args) && (
+          <button
+            type="button"
+            onClick={() => void openWorkspaceFile(toolPath(toolCall.args), { root: currentWorkspace() })}
+            className="text-[11px] text-text-muted font-mono truncate max-w-[320px] hidden sm:inline hover:text-text-primary underline-offset-2 hover:underline"
+            title="Open file"
+          >
+            {preview}
+          </button>
         )}
-        <span className="flex-1" />
         {duration && <span className="text-[10px] text-text-muted tabular-nums">{duration}</span>}
-        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isError ? 'bg-red-500/10 text-red-400' : isRunning ? 'bg-amber-500/10 text-amber-400' : 'bg-surface-2 text-text-muted'}`}>{status.label}</span>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" className={`text-text-muted shrink-0 transition-transform ${shouldExpand ? 'rotate-180' : ''}`}><path d="M3 4.5l3 3 3-3z" /></svg>
-      </button>
+        <button onClick={() => setExpanded(!shouldExpand)} className="flex items-center gap-1.5 shrink-0">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isError ? 'bg-red-500/10 text-red-400' : isRunning ? 'bg-amber-500/10 text-amber-400' : 'bg-surface-2 text-text-muted'}`}>{status.label}</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" className={`text-text-muted shrink-0 transition-transform ${shouldExpand ? 'rotate-180' : ''}`}><path d="M3 4.5l3 3 3-3z" /></svg>
+        </button>
+      </div>
 
       {shouldExpand && (
         <div className="border-t border-border bg-surface-1">

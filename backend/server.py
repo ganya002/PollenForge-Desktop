@@ -132,6 +132,7 @@ class SessionUpdateBody(BaseModel):
     name: str = ""
     directory: str | None = None
     pinned: bool | None = None
+    archived: bool | None = None
 
 @app.patch("/sessions/{session_id}")
 async def update_session(session_id: str, body: SessionUpdateBody):
@@ -144,6 +145,8 @@ async def update_session(session_id: str, body: SessionUpdateBody):
             meta["directory"] = body.directory
         if body.pinned is not None:
             meta["pinned"] = body.pinned
+        if body.archived is not None:
+            meta["archived"] = body.archived
         save_session(session_id, data.get("messages", []), meta)
         return {
             "success": True,
@@ -151,6 +154,7 @@ async def update_session(session_id: str, body: SessionUpdateBody):
             "name": meta.get("name"),
             "directory": meta.get("directory") or "",
             "pinned": bool(meta.get("pinned")),
+            "archived": bool(meta.get("archived")),
         }
     except FileNotFoundError:
         return JSONResponse(status_code=404, content={"error": "Session not found"})
@@ -195,6 +199,18 @@ async def files_write(body: FileWriteBody):
     if body.root:
         args["root"] = body.root
     return await execute_tool("write_file", args)
+
+
+class FileDeleteBody(BaseModel):
+    path: str
+    root: str | None = None
+
+@app.post("/files/delete")
+async def files_delete(body: FileDeleteBody):
+    args = {"path": body.path}
+    if body.root:
+        args["root"] = body.root
+    return await execute_tool("delete_file", args)
 
 
 class FileEditBody(BaseModel):
@@ -465,6 +481,7 @@ async def stream_chat(websocket: WebSocket, data: dict, conn_id: str):
     config = load_config()
     provider_cfg = config.get("providers", {}).get(provider_name, {})
     auto_approve = config.get("auto_approve", False)
+    ask_mode = config.get("agent_mode") == "ask"
 
     provider = get_provider(provider_name)
     if not provider:
@@ -757,6 +774,17 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 was_truncated = tool_args.pop("_truncated", False)
                 if workspace:
                     tool_args = apply_workspace(tool_name, tool_args, workspace)
+                if ask_mode and tool_name in {
+                    "write_file", "edit_file", "run_command", "close_app",
+                    "git_commit", "git_add", "git_push", "git_checkout",
+                    "run_build", "start_background_task", "delete_file",
+                }:
+                    await websocket.send_json({
+                        "type": "tool_result",
+                        "tool": tool_name,
+                        "result": {"success": False, "error": "Ask mode: writes and shell are blocked. Switch to Agent to change files."},
+                    })
+                    continue
                 is_dangerous = tool_name in DANGEROUS_TOOLS
 
                 if is_dangerous and not auto_approve:

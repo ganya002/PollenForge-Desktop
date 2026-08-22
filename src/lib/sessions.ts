@@ -38,6 +38,21 @@ export async function nameSessionFromPrompt(sessionId: string, content: string):
   }
 }
 
+export async function setSessionArchived(sessionId: string, archived: boolean): Promise<void> {
+  if (!sessionId) return
+  try {
+    await fetch(`http://127.0.0.1:8765/sessions/${sessionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived }),
+    })
+    const sessions = useStore.getState().sessions
+    useStore.getState().setSessions(sortSessions(sessions.map((s) => (s.id === sessionId ? { ...s, archived } : s))))
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
   if (!sessionId) return
   try {

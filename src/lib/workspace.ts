@@ -105,6 +105,43 @@ export function scheduleFileTreeRefresh(root?: string | null, delay = 250): void
   }, delay)
 }
 
+export async function deleteWorkspaceFile(
+  relativePath: string,
+  root?: string | null,
+): Promise<boolean> {
+  const dir = root ?? currentWorkspace()
+  if (!dir) return false
+  const res = await fetch(`${API}/files/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: relativePath, root: dir }),
+  })
+  const data = await res.json()
+  if (data?.error) throw new Error(String(data.error))
+  scheduleFileTreeRefresh(dir)
+  return true
+}
+
+export async function renameWorkspaceFile(
+  from: string,
+  to: string,
+  root?: string | null,
+): Promise<boolean> {
+  const dir = root ?? currentWorkspace()
+  if (!dir || !from.trim() || !to.trim() || from === to) return false
+  const res = await fetch(`${API}/files/read`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: from, root: dir }),
+  })
+  const data = await res.json()
+  if (data?.error) throw new Error(String(data.error))
+  const content = typeof data?.content === 'string' ? data.content : ''
+  await writeWorkspaceFile(to, content, dir)
+  await deleteWorkspaceFile(from, dir)
+  return true
+}
+
 export async function writeWorkspaceFile(
   relativePath: string,
   content: string,

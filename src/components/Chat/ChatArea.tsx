@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Ref } from 'react'
-import { Message as MessageType } from '../../store/store'
+import { Ref, useEffect } from 'react'
+import { Message as MessageType, useStore } from '../../store/store'
 import { easeOut, fadeUp } from '../../lib/motion'
+import { messageMatchesFind } from '../../lib/qol'
 import Message from './Message'
 
 interface ChatAreaProps {
@@ -69,6 +70,15 @@ function WelcomeScreen() {
 
 export default function ChatArea({ messages, scrollRef, onRetry, onEdit }: ChatAreaProps) {
   const empty = messages.length === 0
+  const chatFind = useStore((s) => s.chatFind)
+
+  useEffect(() => {
+    if (!chatFind.trim()) return
+    const first = messages.find((m) => messageMatchesFind(m.content, chatFind))
+    if (!first) return
+    const el = document.getElementById(`msg-${first.id}`)
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [chatFind, messages])
 
   return (
     <div

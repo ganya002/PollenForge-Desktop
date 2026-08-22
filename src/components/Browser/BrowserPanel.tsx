@@ -5,17 +5,9 @@ import { useStore } from '../../store/store'
 import { currentWorkspace } from '../../lib/workspace'
 import { isSafeBrowserUrl, resolveBrowserUrl } from '../../lib/browserTargets'
 import { pushBrowserHistory } from '../../lib/chatActions'
+import { callGuest, guestCurrentUrl, navigateGuest, type GuestLike } from '../../lib/guestView'
 
-type GuestView = HTMLElement & {
-  src: string
-  loadURL?: (url: string) => void
-  goBack: () => void
-  goForward: () => void
-  reload: () => void
-  canGoBack: () => boolean
-  canGoForward: () => boolean
-  getURL: () => string
-}
+type GuestView = HTMLElement & GuestLike
 
 const MIN_W = 280
 const MAX_W = 720
@@ -66,6 +58,7 @@ function navigateInput(raw: string): string {
 export default function BrowserPanel() {
   const open = useStore((s) => s.browserOpen)
   const url = useStore((s) => s.browserUrl)
+  const browserTick = useStore((s) => s.browserTick)
   const fullscreen = useStore((s) => s.browserFullscreen)
   const setUrl = useStore((s) => s.setBrowserUrl)
   const setFullscreen = useStore((s) => s.setBrowserFullscreen)
@@ -75,9 +68,17 @@ export default function BrowserPanel() {
   const [loading, setLoading] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [history, setHistory] = useState(readHistory)
+  const [mounted, setMounted] = useState(open)
+  const [ready, setReady] = useState(false)
   const widthRef = useRef(width)
+  const urlRef = useRef(url)
   const viewRef = useRef<GuestView | null>(null)
   const asideRef = useRef<HTMLElement | null>(null)
+  urlRef.current = url
+
+  useEffect(() => {
+    if (open) setMounted(true)
+  }, [open])
 
   useEffect(() => {
     setDraft(url)
@@ -90,43 +91,43 @@ export default function BrowserPanel() {
   }, [url])
 
   useEffect(() => {
-    const guest = viewRef.current
-    if (!guest || !url) return
-    const current = guest.getURL?.() || guest.src
-    if (current === url) return
-    if (typeof guest.loadURL === 'function') guest.loadURL(url)
-    else guest.src = url
-  }, [url])
-
-  useEffect(() => {
+    if (!mounted) return
     const guest = viewRef.current
     if (!guest) return
+    const onReady = () => {
+      setReady(true)
+      const next = urlRef.current
+      if (next && next !== 'about:blank') navigateGuest(guest, next)
+    }
     const onNav = () => {
-      try {
-        const next = guest.getURL?.() || guest.src
-        if (next && next !== 'about:blank') {
-          setDraft(next)
-          setUrl(next)
-        }
-      } catch {
-        /* ignore */
+      const next = guestCurrentUrl(guest)
+      if (next && next !== 'about:blank') {
+        setDraft(next)
+        setUrl(next)
       }
     }
     const start = () => setLoading(true)
     const stop = () => setLoading(false)
+    guest.addEventListener('dom-ready', onReady)
     guest.addEventListener('did-navigate', onNav)
     guest.addEventListener('did-navigate-in-page', onNav)
     guest.addEventListener('did-start-loading', start)
     guest.addEventListener('did-stop-loading', stop)
     guest.addEventListener('did-finish-load', stop)
     return () => {
+      guest.removeEventListener('dom-ready', onReady)
       guest.removeEventListener('did-navigate', onNav)
       guest.removeEventListener('did-navigate-in-page', onNav)
       guest.removeEventListener('did-start-loading', start)
       guest.removeEventListener('did-stop-loading', stop)
       guest.removeEventListener('did-finish-load', stop)
     }
-  }, [open, setUrl])
+  }, [mounted, setUrl])
+
+  useEffect(() => {
+    if (!ready || !url) return
+    navigateGuest(viewRef.current, url)
+  }, [url, ready, browserTick])
 
   useEffect(() => {
     if (!fullscreen) return
@@ -178,15 +179,18 @@ export default function BrowserPanel() {
     [setUrl],
   )
 
-  if (!open) return null
+  if (!mounted) return null
 
   return (
     <motion.aside
       ref={asideRef}
-      initial={fullscreen ? { opacity: 0 } : { opacity: 0, x: 16 }}
-      animate={{ opacity: 1, x: 0 }}
+      initial={false}
+      animate={open ? { opacity: 1, x: 0 } : { opacity: 0, x: 12 }}
       transition={{ duration: 0.22, ease: easeOut }}
-      style={fullscreen ? undefined : { width }}
+      style={{
+        ...(fullscreen && open ? undefined : { width }),
+        display: open ? undefined : 'none',
+      }}
       className={
         fullscreen
           ? 'fixed inset-0 z-[80] bg-surface-0 flex flex-col'
@@ -228,7 +232,7 @@ export default function BrowserPanel() {
           )}
         </button>
         <button
-          onClick={() => viewRef.current?.goBack()}
+          onClick={() => callGuest(viewRef.current, 'goBack')}
           className="h-7 w-7 shrink-0 flex items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2"
           title="Back"
         >
@@ -237,7 +241,7 @@ export default function BrowserPanel() {
           </svg>
         </button>
         <button
-          onClick={() => viewRef.current?.goForward()}
+          onClick={() => callGuest(viewRef.current, 'goForward')}
           className="h-7 w-7 shrink-0 flex items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2"
           title="Forward"
         >
@@ -246,7 +250,7 @@ export default function BrowserPanel() {
           </svg>
         </button>
         <button
-          onClick={() => viewRef.current?.reload()}
+          onClick={() => callGuest(viewRef.current, 'reload')}
           className="h-7 w-7 shrink-0 flex items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2"
           title="Reload"
         >
@@ -304,7 +308,7 @@ export default function BrowserPanel() {
       <div className="flex-1 min-h-0 bg-surface-0 relative">
         {createElement('webview', {
           ref: viewRef,
-          src: 'about:blank',
+          src: url || 'about:blank',
           partition: 'persist:nexum-preview',
           allowpopups: 'true',
           style: { width: '100%', height: '100%', background: '#111' },

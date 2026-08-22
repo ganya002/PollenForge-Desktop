@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore, Session } from '../../store/store'
 import { sessionMatches } from '../../lib/chatActions'
-import { refreshSessions, sessionTimestampMs, setSessionPinned } from '../../lib/sessions'
+import { refreshSessions, sessionTimestampMs, setSessionArchived, setSessionPinned } from '../../lib/sessions'
 import { displaySessionTitle, relativeTime } from '../../lib/chatTitle'
 import { currentWorkspace, folderName, pickAndSetProjectFolder, refreshFileTree } from '../../lib/workspace'
 
@@ -37,8 +37,10 @@ export default function SessionList() {
   const [renameValue, setRenameValue] = useState('')
   const [query, setQuery] = useState('')
   const renameRef = useRef<HTMLInputElement>(null)
+  const showArchived = useStore((s) => s.showArchived)
 
-  const visible = sessions.filter((s) => sessionMatches(s, query, displaySessionTitle(s)))
+  const visible = sessions.filter((s) => (showArchived ? !!s.archived : !s.archived) && sessionMatches(s, query, displaySessionTitle(s)))
+  const archivedCount = sessions.filter((s) => s.archived).length
   const grouped = groupSessions(visible)
 
   useEffect(() => {
@@ -155,6 +157,14 @@ export default function SessionList() {
             className="h-8 w-full pl-7 pr-2.5 rounded-md bg-transparent border border-border text-[12px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-hover"
           />
         </div>
+        {archivedCount > 0 && (
+          <button
+            onClick={() => useStore.getState().setShowArchived(!showArchived)}
+            className="mt-1.5 w-full h-7 px-2 rounded-md text-left text-[11px] text-text-muted hover:text-text-secondary hover:bg-surface-2"
+          >
+            {showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0 px-1.5 pb-2">
@@ -162,7 +172,9 @@ export default function SessionList() {
           <div className="px-2 py-3 text-[12px] text-text-muted">No chats yet</div>
         )}
         {sessions.length > 0 && visible.length === 0 && (
-          <div className="px-2 py-3 text-[12px] text-text-muted">No matching chats</div>
+          <div className="px-2 py-3 text-[12px] text-text-muted">
+            {showArchived ? 'No archived chats' : archivedCount ? 'No matching chats. Show archived to see older ones.' : 'No matching chats'}
+          </div>
         )}
         {Object.entries(grouped).map(([label, items]) =>
           items.length > 0 ? (
@@ -275,6 +287,16 @@ export default function SessionList() {
               className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-smooth"
             >
               Project folder
+            </button>
+            <button
+              onClick={() => {
+                const current = useStore.getState().sessions.find((s) => s.id === contextMenu.id)
+                void setSessionArchived(contextMenu.id, !current?.archived)
+                setContextMenu(null)
+              }}
+              className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-smooth"
+            >
+              {useStore.getState().sessions.find((s) => s.id === contextMenu.id)?.archived ? 'Unarchive' : 'Archive'}
             </button>
             <button
               onClick={() => handleDelete(contextMenu.id)}
