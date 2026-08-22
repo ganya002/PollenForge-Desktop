@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { fadeScale } from '../../lib/motion'
 import { useStore } from '../../store/store'
 import { catalogEntry, PROVIDER_CATALOG } from '../../lib/providerCatalog'
 import {
@@ -112,38 +114,42 @@ export default function ModelPicker() {
     <div ref={ref} className="relative border-b border-border px-3 py-2.5">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full h-10 flex items-center gap-2.5 px-2.5 rounded-lg bg-surface-2 hover:bg-surface-3 transition-smooth text-left"
+        className={`w-full min-h-[44px] flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-smooth ${
+          open
+            ? 'bg-surface-2 border-border-hover'
+            : 'bg-transparent border-border hover:bg-surface-2 hover:border-border-hover'
+        }`}
       >
-        <span
-          className="w-2 h-2 rounded-full shrink-0"
-          style={{ background: currentMeta?.color || '#888' }}
-        />
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] leading-4 text-text-muted truncate">
-            {currentMeta?.label || currentProvider}
-          </div>
-          <div className="text-[13px] leading-5 text-text-primary truncate">
+          <div className="text-[13px] leading-5 font-medium tracking-[-0.01em] text-text-primary truncate">
             {currentModelObj?.model.name || currentModel}
           </div>
+          <div className="mt-0.5 text-[11px] leading-4 text-text-muted truncate">
+            {[currentMeta?.label || currentProvider, currentModelObj ? formatModelCost(currentModelObj.model) : '']
+              .filter(Boolean)
+              .join(' · ')}
+          </div>
         </div>
-        {currentModelObj && (
-          <span className="text-[10px] text-text-muted shrink-0 tabular-nums" title="Model cost">
-            {formatModelCost(currentModelObj.model)}
-          </span>
-        )}
         <svg
           width="10"
           height="10"
           viewBox="0 0 10 10"
           fill="currentColor"
-          className={`text-text-muted transition-transform shrink-0 ${open ? 'rotate-180' : ''}`}
+          className={`text-text-muted transition-transform duration-200 shrink-0 ${open ? 'rotate-180' : ''}`}
         >
           <path d="M2 4l3 3 3-3z" />
         </svg>
       </button>
 
+      <AnimatePresence>
       {open && (
-        <div className="absolute top-full left-3 right-3 mt-2 bg-surface-2 border border-border rounded-lg overflow-hidden z-50">
+        <motion.div
+          initial={fadeScale.initial}
+          animate={fadeScale.animate}
+          exit={fadeScale.exit}
+          transition={fadeScale.transition}
+          className="absolute top-full left-3 right-3 mt-2 bg-surface-2 border border-border rounded-lg overflow-hidden z-50 shadow-xl"
+        >
           <div className="flex items-center gap-2 p-2 border-b border-border">
             <PollenBalance />
             <input
@@ -167,7 +173,6 @@ export default function ModelPicker() {
                     onClick={() => addProvider(p.id)}
                     className="w-full h-10 flex items-center gap-2.5 px-3 text-left text-[13px] text-text-secondary hover:bg-surface-3 hover:text-text-primary"
                   >
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
                     <span className="flex-1 truncate">{p.label}</span>
                     <span className="text-[11px] text-text-muted">Add</span>
                   </button>
@@ -180,7 +185,7 @@ export default function ModelPicker() {
               const meta = catalogEntry(provider)
               return (
                 <div key={provider}>
-                  <div className="px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                  <div className="px-3 pt-2.5 pb-1 text-[10px] font-medium uppercase tracking-[0.08em] text-text-muted">
                     {meta?.label || provider}
                   </div>
                   {rows.map(({ model }) => {
@@ -193,11 +198,10 @@ export default function ModelPicker() {
                           setOpen(false)
                           setSearch('')
                         }}
-                        className={`w-full h-10 flex items-center gap-2.5 px-3 text-left ${
+                        className={`w-full h-9 flex items-center gap-2.5 px-3 text-left ${
                           active ? 'bg-surface-3 text-text-primary' : 'text-text-secondary hover:bg-surface-3 hover:text-text-primary'
                         }`}
                       >
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta?.color || '#888' }} />
                         <span className="flex-1 min-w-0 text-[13px] truncate">{model.name}</span>
                         <span
                           className="text-[10px] text-text-muted shrink-0 tabular-nums"
@@ -224,8 +228,9 @@ export default function ModelPicker() {
               <div className="px-3 py-3 text-[13px] text-text-muted">No matches</div>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   )
 }

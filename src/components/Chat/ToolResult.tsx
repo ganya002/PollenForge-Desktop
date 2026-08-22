@@ -100,8 +100,8 @@ export default function ToolResult({ toolCall }: Props) {
   }, [toolCall.durationMs, toolCall.startedAt, isRunning])
 
   return (
-    <div className={`group relative rounded-lg border bg-surface-1 overflow-hidden ${isError ? 'border-red-500/20' : isRunning ? 'border-amber-500/20' : 'border-border'} ${isRunning ? 'animate-pulse-dot' : ''}`}>
-      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-current opacity-30" style={{ color: status.color.includes('amber') ? '#f59e0b' : status.color.includes('emerald') ? '#10b981' : status.color.includes('red') ? '#ef4444' : '#f0f0f0' }} />
+    <div className={`group relative rounded-lg border bg-surface-1 overflow-hidden animate-fade-in ${isError ? 'border-red-500/20' : isRunning ? 'border-amber-500/20' : 'border-border'}`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-px ${isRunning ? 'running-sheen bg-amber-400/70' : isError ? 'bg-red-400/50' : 'bg-white/15'}`} />
       <button
         onClick={() => setExpanded(!shouldExpand)}
         className="w-full flex items-center gap-2.5 pl-3 pr-2 py-2 text-left hover:bg-surface-2/40 transition-smooth"

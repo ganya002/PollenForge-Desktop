@@ -1,4 +1,6 @@
 import { createElement, useCallback, useEffect, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
+import { easeOut } from '../../lib/motion'
 import { useStore } from '../../store/store'
 import { currentWorkspace } from '../../lib/workspace'
 import { isSafeBrowserUrl, resolveBrowserUrl } from '../../lib/browserTargets'
@@ -179,8 +181,11 @@ export default function BrowserPanel() {
   if (!open) return null
 
   return (
-    <aside
+    <motion.aside
       ref={asideRef}
+      initial={fullscreen ? { opacity: 0 } : { opacity: 0, x: 16 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.22, ease: easeOut }}
       style={fullscreen ? undefined : { width }}
       className={
         fullscreen
@@ -315,6 +320,6 @@ export default function BrowserPanel() {
           </div>
         )}
       </div>
-    </aside>
+    </motion.aside>
   )
 }

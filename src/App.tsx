@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 
 import { useStore } from './store/store'
+import { easeOut, slidePanel } from './lib/motion'
 import { useChat } from './hooks/useChat'
 import Sidebar from './components/Sidebar/Sidebar'
 import ChatArea from './components/Chat/ChatArea'
@@ -151,7 +153,18 @@ export default function App() {
           </button>
 
           <span className="flex-1 text-[13px] text-text-secondary font-medium select-none truncate px-2">
-            {currentSession?.name || 'New chat'}
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={currentSession?.id || 'new'}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.16, ease: easeOut }}
+                className="block truncate"
+              >
+                {currentSession?.name || 'New chat'}
+              </motion.span>
+            </AnimatePresence>
           </span>
 
           <div className="no-drag flex items-center gap-1">
@@ -179,7 +192,20 @@ export default function App() {
             <ApprovalPrompt />
             <InputBar onSend={sendMessage} onStop={stopGeneration} onCompact={compactChat} isStreaming={isStreaming} />
           </div>
-          {hasOpenFiles && <FilePanel />}
+          <AnimatePresence>
+            {hasOpenFiles && (
+              <motion.div
+                key="file-panel"
+                initial={slidePanel.initial}
+                animate={slidePanel.animate}
+                exit={slidePanel.exit}
+                transition={slidePanel.transition}
+                className="h-full min-h-0"
+              >
+                <FilePanel />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Status bar */}

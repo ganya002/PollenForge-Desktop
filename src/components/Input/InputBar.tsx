@@ -290,7 +290,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
         )}
 
         {previewOffer && (
-          <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="flex items-center justify-center gap-2 mb-2 animate-fade-in">
             <button
               onClick={() => useStore.getState().openInBrowser(previewOffer.url)}
               className="h-7 px-2.5 rounded-md border border-border bg-surface-2 text-[12px] text-text-secondary hover:text-text-primary"
@@ -306,7 +306,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
           </div>
         )}
         {queuedMessage && (
-          <div className="flex items-center justify-center gap-2 mb-2 text-[12px] text-text-secondary">
+          <div className="flex items-center justify-center gap-2 mb-2 text-[12px] text-text-secondary animate-fade-in">
             <span className="truncate max-w-[28rem]">Queued: {queuedMessage}</span>
             <button
               onClick={() => useStore.getState().setQueuedMessage(null)}
@@ -350,7 +350,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
         )}
 
         <div
-          className={`grid grid-cols-[1fr_auto] items-center min-h-12 bg-surface-1 rounded-xl border transition-smooth ${isDragging ? 'border-accent' : 'border-border focus-within:border-border-hover'}`}
+          className={`composer-shell grid grid-cols-[1fr_auto] items-center min-h-12 bg-surface-1 rounded-xl border ${isDragging ? 'border-accent' : 'border-border'}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}

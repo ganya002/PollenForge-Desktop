@@ -45,7 +45,7 @@ export default function MessageActions({ content, isUser, onRetry, onEdit }: Mes
   }
 
   return (
-    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
       <button
         onClick={handleCopy}
         className="p-1 rounded hover:bg-surface-3 text-text-muted hover:text-text-secondary transition-smooth"

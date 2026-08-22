@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useStore, Session } from '../../store/store'
 import { sessionMatches } from '../../lib/chatActions'
 import { refreshSessions, sessionTimestampMs, setSessionPinned } from '../../lib/sessions'
-import { displaySessionTitle, relativeTime, sessionAccent, sessionInitial } from '../../lib/chatTitle'
+import { displaySessionTitle, relativeTime } from '../../lib/chatTitle'
 import { currentWorkspace, folderName, pickAndSetProjectFolder, refreshFileTree } from '../../lib/workspace'
 
 function groupSessions(sessions: Session[]) {
@@ -137,12 +137,24 @@ export default function SessionList() {
       </div>
 
       <div className="px-2.5 pb-1.5">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search chats"
-          className="h-7 w-full px-2 rounded-md bg-surface-1 border border-border text-[12px] text-text-primary placeholder:text-text-muted focus:outline-none"
-        />
+        <div className="relative">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+          >
+            <circle cx="5.2" cy="5.2" r="3.4" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M7.7 7.7L10 10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search"
+            className="h-8 w-full pl-7 pr-2.5 rounded-md bg-transparent border border-border text-[12px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-hover"
+          />
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0 px-1.5 pb-2">
@@ -161,8 +173,7 @@ export default function SessionList() {
                 const active = currentSessionId === s.id
                 const project = s.directory ? folderName(s.directory) : ''
                 const when = relativeTime(sessionTimestampMs(s))
-                const meta = [s.pinned ? 'Pinned' : '', project, when].filter(Boolean).join(' · ')
-                const accent = sessionAccent(s.id)
+                const meta = [project, when].filter(Boolean).join(' · ')
                 return (
                   <div
                     key={s.id}
@@ -176,14 +187,14 @@ export default function SessionList() {
                       e.preventDefault()
                       setContextMenu({ x: e.clientX, y: e.clientY, id: s.id })
                     }}
-                    className={`relative w-full text-left rounded-md px-2 py-1.5 cursor-pointer transition-smooth ${
+                    className={`relative w-full text-left rounded-md pl-3 pr-2 py-2 cursor-pointer transition-smooth ${
                       active
                         ? 'bg-surface-2 text-text-primary'
                         : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'
                     }`}
                   >
                     {active && (
-                      <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full" style={{ background: accent }} />
+                      <span className="absolute left-0 top-2 bottom-2 w-px bg-text-primary/70 animate-fade-in" />
                     )}
                     {renamingId === s.id ? (
                       <input
@@ -206,22 +217,22 @@ export default function SessionList() {
                         className="h-7 w-full px-1.5 text-[13px] bg-surface-1 border border-border rounded-md text-text-primary focus:outline-none"
                       />
                     ) : (
-                      <div className="flex items-start gap-2 min-w-0">
-                        <span
-                          className="mt-0.5 h-6 w-6 shrink-0 rounded-md flex items-center justify-center text-[10px] font-medium text-white/90"
-                          style={{ background: accent }}
-                          aria-hidden
-                        >
-                          {sessionInitial(title)}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate leading-5 text-[13px]">{title}</div>
-                          {meta && (
-                            <div className="truncate text-[11px] leading-4 text-text-muted mt-0.5" title={s.directory || undefined}>
-                              {meta}
-                            </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div className={`truncate leading-5 text-[13px] tracking-[-0.01em] ${active ? 'font-medium text-text-primary' : ''}`}>
+                            {title}
+                          </div>
+                          {s.pinned && (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="shrink-0 text-text-muted" aria-hidden>
+                              <path d="M3.2 4.1l2.7-2.7 2.7 2.7-1.1 1.1-1 .3V8.6L4.3 7.2V5.5l-1-.3L3.2 4.1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+                            </svg>
                           )}
                         </div>
+                        {meta && (
+                          <div className="truncate text-[11px] leading-4 text-text-muted mt-0.5" title={s.directory || undefined}>
+                            {meta}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

@@ -27,7 +27,7 @@ export default function Message({ message, onRetry, onEdit }: Props) {
     return (
       <div className="flex justify-end mb-5 group">
         <div className="max-w-[78%]">
-          <div className="bg-surface-2 text-text-primary rounded-2xl rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap break-words border border-border">
+          <div className="bg-surface-2 text-text-primary rounded-2xl rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap break-words border border-border transition-smooth">
             {message.content}
           </div>
           <div className="flex items-center gap-2 mt-1.5 justify-end">
@@ -92,7 +92,7 @@ export default function Message({ message, onRetry, onEdit }: Props) {
       )}
 
       {!isThinking && (hasContent || hasTools) && (
-        <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <span className="text-[10px] text-text-muted tabular-nums">{formatTime(message.timestamp)}</span>
           <MessageActions content={displayContent} isUser={false} onRetry={onRetry} onEdit={onEdit} />
         </div>

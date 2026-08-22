@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Ref } from 'react'
 import { Message as MessageType } from '../../store/store'
+import { easeOut, fadeUp } from '../../lib/motion'
 import Message from './Message'
 
 interface ChatAreaProps {
@@ -20,7 +21,12 @@ function WelcomeScreen() {
 
   return (
     <div className="flex-1 flex items-center justify-center px-4 py-8 min-h-0 overflow-y-auto">
-      <div className="welcome-col text-center my-auto">
+      <motion.div
+        className="welcome-col text-center my-auto"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: easeOut }}
+      >
         <div className="w-11 h-11 mx-auto mb-4 rounded-xl bg-surface-2 border border-border flex items-center justify-center">
           <svg width="22" height="22" viewBox="0 0 32 32" fill="none" className="text-text-secondary">
             <path d="M16 4L4 10v12l12 6 12-6V10L16 4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -33,9 +39,12 @@ function WelcomeScreen() {
         </p>
 
         <div className="grid grid-cols-2 gap-2 text-left">
-          {suggestions.map((s) => (
-            <button
+          {suggestions.map((s, i) => (
+            <motion.button
               key={s.text}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, delay: 0.08 + i * 0.05, ease: easeOut }}
               className="h-11 px-3 bg-surface-1 hover:bg-surface-2 rounded-lg text-[13px] text-text-secondary hover:text-text-primary transition-smooth border border-border hover:border-border-hover flex items-center gap-2.5"
               onClick={() => {
                 document.dispatchEvent(new CustomEvent('send-message', { detail: s.text }))
@@ -50,10 +59,10 @@ function WelcomeScreen() {
                 {s.icon === 'code' && <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M6 3L3 8l3 5M10 3l3 5-3 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
               </span>
               {s.text}
-            </button>
+            </motion.button>
           ))}
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
@@ -74,9 +83,9 @@ export default function ChatArea({ messages, scrollRef, onRetry, onEdit }: ChatA
             {messages.map((msg) => (
               <motion.div
                 key={msg.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={fadeUp.initial}
+                animate={fadeUp.animate}
+                transition={fadeUp.transition}
               >
                 <Message
                   message={msg}
