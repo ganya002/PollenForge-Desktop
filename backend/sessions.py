@@ -60,10 +60,11 @@ def list_sessions() -> list[dict]:
                 "updated_at": meta.get("updated_at", 0),
                 "directory": meta.get("directory") or "",
                 "preview": _user_preview(data.get("messages", [])),
+                "pinned": bool(meta.get("pinned")),
             })
         except Exception:
             continue
-    sessions.sort(key=lambda s: s["updated_at"], reverse=True)
+    sessions.sort(key=lambda s: (0 if s.get("pinned") else 1, -(s.get("updated_at") or 0)))
     return sessions
 
 

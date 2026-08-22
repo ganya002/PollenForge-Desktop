@@ -2,6 +2,7 @@ import { createElement, useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from '../../store/store'
 import { currentWorkspace } from '../../lib/workspace'
 import { isSafeBrowserUrl, resolveBrowserUrl } from '../../lib/browserTargets'
+import { pushBrowserHistory } from '../../lib/chatActions'
 
 type GuestView = HTMLElement & {
   src: string
@@ -18,6 +19,7 @@ const MIN_W = 280
 const MAX_W = 720
 const DEFAULT_W = 380
 const WIDTH_KEY = 'nx-browser-width'
+const HISTORY_KEY = 'nx-browser-history'
 
 function readWidth(): number {
   try {
@@ -27,6 +29,23 @@ function readWidth(): number {
     /* ignore */
   }
   return DEFAULT_W
+}
+
+function readHistory(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')
+    return Array.isArray(raw) ? raw.filter((item) => typeof item === 'string').slice(0, 8) : []
+  } catch {
+    return []
+  }
+}
+
+function persistHistory(urls: string[]) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(urls.slice(0, 8)))
+  } catch {
+    /* ignore */
+  }
 }
 
 function navigateInput(raw: string): string {
@@ -53,12 +72,19 @@ export default function BrowserPanel() {
   const [draft, setDraft] = useState(url)
   const [loading, setLoading] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [history, setHistory] = useState(readHistory)
   const widthRef = useRef(width)
   const viewRef = useRef<GuestView | null>(null)
   const asideRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     setDraft(url)
+    if (!url || url === 'about:blank') return
+    setHistory((prev) => {
+      const next = pushBrowserHistory(url, prev)
+      persistHistory(next)
+      return next
+    })
   }, [url])
 
   useEffect(() => {
@@ -238,6 +264,25 @@ export default function BrowserPanel() {
             className="h-7 w-full px-2 rounded-md bg-surface-2 border border-border text-[12px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none"
           />
         </form>
+        {history.length > 0 && (
+          <select
+            value=""
+            onChange={(e) => {
+              const next = e.target.value
+              if (next) setUrl(next)
+            }}
+            className="h-7 max-w-[7.5rem] px-1 rounded-md bg-surface-2 border border-border text-[11px] text-text-secondary"
+            title="Recent pages"
+            aria-label="Recent pages"
+          >
+            <option value="">Recent</option>
+            {history.map((item) => (
+              <option key={item} value={item}>
+                {item.replace(/^https?:\/\//, '').replace(/^file:\/\//, '')}
+              </option>
+            ))}
+          </select>
+        )}
         {!fullscreen && (
           <button
             onClick={toggleBrowser}

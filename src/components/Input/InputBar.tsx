@@ -3,15 +3,21 @@ import { useStore } from '../../store/store'
 import CommandMenu from './CommandMenu'
 import FileMentionMenu from './FileMentionMenu'
 import { persistConfig } from '../../lib/appConfig'
+import { projectPathFromDrop } from '../../lib/chatActions'
 import { PLUGIN_CATALOG_MAP, pluginByCommand } from '../../lib/pluginCatalog'
 import { activePluginIds, handlePluginSlash, installedPluginCommands, installedPluginIds, setPluginActive } from '../../lib/plugins'
-import { ensurePlanFile } from '../../lib/workspace'
+import { ensurePlanFile, setChatDirectory } from '../../lib/workspace'
 
-interface Props { onSend: (content: string) => void; isStreaming: boolean }
+interface Props {
+  onSend: (content: string) => void
+  onStop?: () => void
+  onCompact?: () => void
+  isStreaming: boolean
+}
 
 const MAX_ATTACH_SIZE = 2_000_000 // 2MB
 
-export default function InputBar({ onSend, isStreaming }: Props) {
+export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Props) {
   const [value, setValue] = useState('')
   const [showCommands, setShowCommands] = useState(false)
   const [showFileMention, setShowFileMention] = useState(false)
@@ -25,6 +31,8 @@ export default function InputBar({ onSend, isStreaming }: Props) {
   const currentModel = useStore((s) => s.currentModel)
   const currentProvider = useStore((s) => s.currentProvider)
   const config = useStore((s) => s.config)
+  const queuedMessage = useStore((s) => s.queuedMessage)
+  const previewOffer = useStore((s) => s.previewOffer)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -94,7 +102,7 @@ export default function InputBar({ onSend, isStreaming }: Props) {
     }
   }
 
-  const canSend = (!!value.trim() || attachedFiles.length > 0) && !isStreaming
+  const canSend = !!value.trim() || attachedFiles.length > 0
 
   const handleSend = () => {
     if (!canSend) return
@@ -182,7 +190,17 @@ export default function InputBar({ onSend, isStreaming }: Props) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault(); setIsDragging(false)
     const files = e.dataTransfer.files
-    if (!files) return
+    if (!files?.length) return
+    const folder = projectPathFromDrop(Array.from(files).map((file) => ({
+      path: (file as File & { path?: string }).path,
+      name: file.name,
+    })))
+    const first = files[0] as File & { path?: string }
+    const looksFolder = !!first?.path && !/\.[a-z0-9]{1,10}$/i.test(first.name)
+    if (looksFolder && folder) {
+      void setChatDirectory(folder)
+      return
+    }
     Array.from(files).forEach(processFile)
   }
 
@@ -191,7 +209,8 @@ export default function InputBar({ onSend, isStreaming }: Props) {
     if (command === '/clear') {
       useStore.getState().clearMessages()
     } else if (command === '/compact') {
-      onSend('Summarize our conversation so far, keeping key context for continuing.')
+      if (onCompact) onCompact()
+      else onSend('Summarize our conversation so far, keeping key context for continuing.')
     } else if (command === '/cost') {
       const s = useStore.getState()
       onSend(`Token usage: ${s.totalTokensUsed} total. Model ${s.currentModel} on ${s.currentProvider}.`)
@@ -270,6 +289,33 @@ export default function InputBar({ onSend, isStreaming }: Props) {
           <FileMentionMenu query={fileMentionQuery} onSelect={handleFileSelect} onClose={() => setShowFileMention(false)} />
         )}
 
+        {previewOffer && (
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <button
+              onClick={() => useStore.getState().openInBrowser(previewOffer.url)}
+              className="h-7 px-2.5 rounded-md border border-border bg-surface-2 text-[12px] text-text-secondary hover:text-text-primary"
+            >
+              Open {previewOffer.label} in browser
+            </button>
+            <button
+              onClick={() => useStore.getState().setPreviewOffer(null)}
+              className="h-7 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+        {queuedMessage && (
+          <div className="flex items-center justify-center gap-2 mb-2 text-[12px] text-text-secondary">
+            <span className="truncate max-w-[28rem]">Queued: {queuedMessage}</span>
+            <button
+              onClick={() => useStore.getState().setQueuedMessage(null)}
+              className="h-6 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary"
+            >
+              Clear
+            </button>
+          </div>
+        )}
         {(activePluginIds(config).length > 0 || pluginNotice) && (
           <div className="flex flex-wrap items-center justify-center gap-2 mb-2 min-h-6">
             {activePluginIds(config).map((id) => (
@@ -361,16 +407,47 @@ export default function InputBar({ onSend, isStreaming }: Props) {
             </button>
 
             <button
+              onClick={() => {
+                const cfg = useStore.getState().config
+                const on = !activePluginIds(cfg).includes('goal')
+                if (on && !installedPluginIds(cfg).includes('goal')) {
+                  setPluginNotice('Goal is not installed. Install it from Settings → Plugins.')
+                  return
+                }
+                const next = setPluginActive(cfg, 'goal', on)
+                setConfig(next)
+                persistConfig(next)
+                setPluginNotice(on ? 'Goal on. Next prompt is an objective.' : 'Goal off')
+              }}
+              className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 ${
+                activePluginIds(config).includes('goal')
+                  ? 'bg-surface-3 text-text-primary border-border'
+                  : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'
+              }`}
+              title="Goal mode — /goal"
+            >
+              Goal {activePluginIds(config).includes('goal') && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+            </button>
+
+            {isStreaming && (
+              <button
+                onClick={onStop}
+                className="h-8 w-8 flex items-center justify-center rounded-md bg-surface-3 hover:bg-red-500/20 text-text-secondary hover:text-red-400 transition-smooth"
+                aria-label="Stop"
+                title="Stop generation (Esc)"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5" /></svg>
+              </button>
+            )}
+
+            <button
               onClick={handleSend}
               disabled={!canSend}
               className="h-8 w-8 flex items-center justify-center rounded-md bg-accent hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-smooth text-accent-ink"
-              aria-label={isStreaming ? 'Stop' : 'Send'}
+              aria-label={isStreaming ? 'Queue' : 'Send'}
+              title={isStreaming ? 'Queue next message' : 'Send'}
             >
-              {isStreaming ? (
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5" /></svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l8-4v8L3 7z" fill="currentColor" /></svg>
-              )}
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l8-4v8L3 7z" fill="currentColor" /></svg>
             </button>
           </div>
         </div>
@@ -379,7 +456,7 @@ export default function InputBar({ onSend, isStreaming }: Props) {
           {isDragging ? (
             <span className="text-text-secondary">Drop files to attach</span>
           ) : (
-            <span>Enter to send · Shift+Enter newline</span>
+            <span>{isStreaming ? 'Enter queues the next message · Esc stops' : 'Enter to send · Shift+Enter newline'}</span>
           )}
         </div>
       </div>

@@ -9,7 +9,7 @@ const shortcuts = [
   { category: 'General', items: [
     { keys: ['Enter'], description: 'Send message' },
     { keys: ['Shift', 'Enter'], description: 'New line' },
-    { keys: ['Escape'], description: 'Cancel/Close' },
+    { keys: ['Escape'], description: 'Stop generation or close' },
   ]},
   { category: 'Navigation', items: [
     { keys: ['Cmd', 'B'], description: 'Toggle sidebar' },

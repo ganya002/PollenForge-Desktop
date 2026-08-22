@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore, Session } from '../../store/store'
-import { refreshSessions, sessionTimestampMs } from '../../lib/sessions'
+import { sessionMatches } from '../../lib/chatActions'
+import { refreshSessions, sessionTimestampMs, setSessionPinned } from '../../lib/sessions'
 import { displaySessionTitle, relativeTime, sessionAccent, sessionInitial } from '../../lib/chatTitle'
 import { currentWorkspace, folderName, pickAndSetProjectFolder, refreshFileTree } from '../../lib/workspace'
 
@@ -11,8 +12,12 @@ function groupSessions(sessions: Session[]) {
   yesterdayDate.setDate(now.getDate() - 1)
   const yesterday = yesterdayDate.toDateString()
 
-  const groups: Record<string, Session[]> = { Today: [], Yesterday: [], Earlier: [] }
+  const groups: Record<string, Session[]> = { Pinned: [], Today: [], Yesterday: [], Earlier: [] }
   for (const s of sessions) {
+    if (s.pinned) {
+      groups.Pinned.push(s)
+      continue
+    }
     const ts = sessionTimestampMs(s)
     const d = ts ? new Date(ts).toDateString() : ''
     if (d === today) groups.Today.push(s)
@@ -30,9 +35,11 @@ export default function SessionList() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string } | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [query, setQuery] = useState('')
   const renameRef = useRef<HTMLInputElement>(null)
 
-  const grouped = groupSessions(sessions)
+  const visible = sessions.filter((s) => sessionMatches(s, query, displaySessionTitle(s)))
+  const grouped = groupSessions(visible)
 
   useEffect(() => {
     if (renamingId) renameRef.current?.focus()
@@ -129,9 +136,21 @@ export default function SessionList() {
         </button>
       </div>
 
+      <div className="px-2.5 pb-1.5">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search chats"
+          className="h-7 w-full px-2 rounded-md bg-surface-1 border border-border text-[12px] text-text-primary placeholder:text-text-muted focus:outline-none"
+        />
+      </div>
+
       <div className="flex-1 overflow-y-auto min-h-0 px-1.5 pb-2">
         {sessions.length === 0 && (
           <div className="px-2 py-3 text-[12px] text-text-muted">No chats yet</div>
+        )}
+        {sessions.length > 0 && visible.length === 0 && (
+          <div className="px-2 py-3 text-[12px] text-text-muted">No matching chats</div>
         )}
         {Object.entries(grouped).map(([label, items]) =>
           items.length > 0 ? (
@@ -142,7 +161,7 @@ export default function SessionList() {
                 const active = currentSessionId === s.id
                 const project = s.directory ? folderName(s.directory) : ''
                 const when = relativeTime(sessionTimestampMs(s))
-                const meta = [project, when].filter(Boolean).join(' · ')
+                const meta = [s.pinned ? 'Pinned' : '', project, when].filter(Boolean).join(' · ')
                 const accent = sessionAccent(s.id)
                 return (
                   <div
@@ -225,6 +244,16 @@ export default function SessionList() {
               className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-smooth"
             >
               Rename
+            </button>
+            <button
+              onClick={() => {
+                const current = useStore.getState().sessions.find((s) => s.id === contextMenu.id)
+                void setSessionPinned(contextMenu.id, !current?.pinned)
+                setContextMenu(null)
+              }}
+              className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-smooth"
+            >
+              {useStore.getState().sessions.find((s) => s.id === contextMenu.id)?.pinned ? 'Unpin' : 'Pin'}
             </button>
             <button
               onClick={() => {

@@ -14,6 +14,12 @@ test('normalizeSession keeps the per-chat project folder', () => {
   })
   assert.equal(session.directory, 'C:\\proj\\app')
   assert.equal(session.preview, 'hello')
+  assert.equal(session.pinned, false)
+})
+
+test('normalizeSession keeps pinned chats', () => {
+  const session = normalizeSession({ id: 'p1', name: 'Pinned', pinned: true })
+  assert.equal(session.pinned, true)
 })
 
 test('sessionTimestampMs treats unix seconds as dates after 2001', () => {

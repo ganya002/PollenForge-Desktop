@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useStore, FileEntry } from '../../store/store'
 import { FileTypeIcon } from './fileIcons'
 import { addFileToChat, openWorkspaceFile } from '../../lib/workspaceFiles'
+import { projectPathFromDrop } from '../../lib/chatActions'
 import {
   clearDefaultDirectory,
   currentWorkspace,
@@ -10,6 +11,7 @@ import {
   pickAndSetProjectFolder,
   refreshFileTree,
   scheduleFileTreeRefresh,
+  setChatDirectory,
 } from '../../lib/workspace'
 
 function GitBadge({ status }: { status?: string }) {
@@ -179,8 +181,25 @@ export default function FileTree() {
     }
   }, [dir])
 
+  const acceptFolderDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const folder = projectPathFromDrop(Array.from(e.dataTransfer.files).map((file) => ({
+      path: (file as File & { path?: string }).path,
+      name: file.name,
+    })))
+    if (folder) void setChatDirectory(folder)
+  }
+
   return (
-    <div className="px-2 py-1">
+    <div
+      className="px-2 py-1"
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'copy'
+      }}
+      onDrop={acceptFolderDrop}
+    >
       <div className="flex items-center justify-between px-2 h-8">
         <span className="sidebar-label">Files</span>
         <div className="flex items-center gap-0.5">
@@ -231,7 +250,7 @@ export default function FileTree() {
         </>
       ) : (
         <div className="px-2 py-3 text-[12px] text-text-muted">
-          <p className="mb-2 leading-5">Select a project folder for this chat. Other chats can share it or pick their own.</p>
+          <p className="mb-2 leading-5">Select a project folder for this chat, or drop a folder here. Other chats can share it or pick their own.</p>
           <button
             onClick={() => void pickAndSetProjectFolder()}
             className="h-7 px-2.5 rounded-md bg-surface-2 border border-border text-text-secondary hover:text-text-primary text-[12px]"

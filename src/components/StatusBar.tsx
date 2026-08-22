@@ -49,15 +49,13 @@ export default function StatusBar({ onOpenUpdates }: StatusBarProps) {
       </div>
 
       <div className="flex items-center gap-3">
-        {estimatedTokens > 500 && (
-          <div className="flex items-center gap-1.5" title={`${estimatedTokens.toLocaleString()} tokens / ${maxTokens.toLocaleString()} context`}>
-            <div className="w-14 h-1.5 bg-surface-3 rounded-full overflow-hidden hidden sm:block">
-              <div className={`h-full rounded-full transition-all ${contextPercent > 85 ? 'bg-red-500' : contextPercent > 60 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.max(4, contextPercent)}%` }} />
-            </div>
-            <span className="tabular-nums">{contextPercent}%</span>
-            <span className="hidden md:inline tabular-nums opacity-60">· {estimatedTokens.toLocaleString()} tok</span>
+        <div className="flex items-center gap-1.5" title={`${estimatedTokens.toLocaleString()} tokens / ${maxTokens.toLocaleString()} context`}>
+          <div className="w-14 h-1.5 bg-surface-3 rounded-full overflow-hidden hidden sm:block">
+            <div className={`h-full rounded-full transition-all ${contextPercent > 85 ? 'bg-red-500' : contextPercent > 60 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.max(4, contextPercent)}%` }} />
           </div>
-        )}
+          <span className="tabular-nums">{contextPercent}%</span>
+          <span className="hidden md:inline tabular-nums opacity-60">· {estimatedTokens.toLocaleString()} tok</span>
+        </div>
         {lastStats && (
           <span className="hidden lg:inline tabular-nums opacity-70">
             {lastStats.tokens.toLocaleString()} tok · {(lastStats.duration_ms/1000).toFixed(1)}s

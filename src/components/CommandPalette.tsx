@@ -6,11 +6,13 @@ interface CommandPaletteProps {
   open: boolean
   onClose: () => void
   onNewChat: () => void
+  onCompact?: () => void
 }
 
 const COMMANDS = [
   { id: 'new-chat', label: 'New Chat', description: 'Start a fresh conversation', shortcut: 'Cmd+N', icon: 'plus' },
   { id: 'clear-chat', label: 'Clear Chat', description: 'Clear all messages', shortcut: 'Cmd+K', icon: 'trash' },
+  { id: 'compact-chat', label: 'Compact Chat', description: 'Keep recent messages and drop older ones', icon: 'trash' },
   { id: 'toggle-sidebar', label: 'Toggle Sidebar', description: 'Show/hide the sidebar', shortcut: 'Cmd+B', icon: 'sidebar' },
   { id: 'toggle-browser', label: 'Toggle Browser', description: 'Show/hide the right browser', shortcut: 'Cmd+Shift+B', icon: 'sidebar' },
   { id: 'settings', label: 'Settings', description: 'Open settings', shortcut: 'Cmd+,', icon: 'settings' },
@@ -31,7 +33,7 @@ const ICONS: Record<string, JSX.Element> = {
   terminal: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1" /><path d="M4 6l2 1.5L4 9M7.5 9h2.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" /></svg>,
 }
 
-export default function CommandPalette({ open, onClose, onNewChat }: CommandPaletteProps) {
+export default function CommandPalette({ open, onClose, onNewChat, onCompact }: CommandPaletteProps) {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -62,6 +64,9 @@ export default function CommandPalette({ open, onClose, onNewChat }: CommandPale
         break
       case 'clear-chat':
         useStore.getState().clearMessages()
+        break
+      case 'compact-chat':
+        onCompact?.()
         break
       case 'toggle-sidebar':
         useStore.getState().toggleSidebar()

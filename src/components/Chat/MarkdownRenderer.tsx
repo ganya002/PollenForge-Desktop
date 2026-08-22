@@ -3,7 +3,8 @@ import remarkGfm from 'remark-gfm'
 import { useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { currentWorkspace } from '../../lib/workspace'
+import { currentWorkspace, writeWorkspaceFile } from '../../lib/workspace'
+import { openWorkspaceFile } from '../../lib/workspaceFiles'
 import { isSafeBrowserUrl, resolveBrowserUrl } from '../../lib/browserTargets'
 import { useStore } from '../../store/store'
 
@@ -16,7 +17,7 @@ function CopyButton({ text }: { text: string }) {
         setCopied(true)
         setTimeout(() => setCopied(false), 1500)
       }}
-      className="absolute top-2 right-2 px-2 py-0.5 text-[10px] rounded bg-surface-3/80 hover:bg-surface-3 text-text-muted hover:text-text-primary transition-smooth opacity-0 group-hover:opacity-100"
+      className="px-2 py-0.5 text-[10px] rounded bg-surface-3/80 hover:bg-surface-3 text-text-muted hover:text-text-primary transition-smooth opacity-0 group-hover:opacity-100"
     >
       {copied ? 'Copied!' : 'Copy'}
     </button>
@@ -24,11 +25,36 @@ function CopyButton({ text }: { text: string }) {
 }
 
 function CodeBlock({ language, children }: { language: string; children: string }) {
+  const [applied, setApplied] = useState(false)
+  const activeFilePath = useStore((s) => s.activeFilePath)
+  const applyToFile = async () => {
+    if (!activeFilePath) return
+    const root = currentWorkspace()
+    const rel = root && (activeFilePath.startsWith(root))
+      ? activeFilePath.slice(root.length).replace(/^[\\/]+/, '')
+      : activeFilePath
+    await writeWorkspaceFile(rel, children.replace(/\n$/, '') + '\n', root)
+    await openWorkspaceFile(activeFilePath, { root, force: true })
+    setApplied(true)
+    setTimeout(() => setApplied(false), 1500)
+  }
+
   return (
     <div className="relative group rounded-lg overflow-hidden my-3 border border-border">
       <div className="flex items-center justify-between px-3 py-1.5 bg-surface-3/50 border-b border-border">
         <span className="text-[10px] text-text-muted font-mono">{language || 'code'}</span>
-        <CopyButton text={children} />
+        <div className="flex items-center gap-1">
+          {activeFilePath && (
+            <button
+              onClick={() => void applyToFile()}
+              className="px-2 py-0.5 text-[10px] rounded bg-surface-3/80 hover:bg-surface-3 text-text-muted hover:text-text-primary transition-smooth opacity-0 group-hover:opacity-100"
+              title={`Apply to ${activeFilePath.replace(/\\/g, '/').split('/').pop()}`}
+            >
+              {applied ? 'Applied' : 'Apply'}
+            </button>
+          )}
+          <CopyButton text={children} />
+        </div>
       </div>
       <SyntaxHighlighter
         language={language || 'text'}

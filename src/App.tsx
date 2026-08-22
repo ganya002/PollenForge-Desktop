@@ -22,7 +22,7 @@ export default function App() {
   const toggleSidebar = useStore((s) => s.toggleSidebar)
   const toggleBrowser = useStore((s) => s.toggleBrowser)
   const browserOpen = useStore((s) => s.browserOpen)
-  const { messages, isStreaming, sendMessage, retryLastMessage, scrollRef } = useChat()
+  const { messages, isStreaming, sendMessage, stopGeneration, editAndResend, compactChat, retryLastMessage, scrollRef } = useChat()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('providers')
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -109,10 +109,14 @@ export default function App() {
         e.preventDefault()
         handleNewChat()
       }
+      if (e.key === 'Escape' && useStore.getState().isStreaming) {
+        e.preventDefault()
+        stopGeneration()
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [toggleSidebar, toggleBrowser, handleNewChat])
+  }, [toggleSidebar, toggleBrowser, handleNewChat, stopGeneration])
 
   return (
     <div className="flex h-full bg-surface-0">
@@ -171,9 +175,9 @@ export default function App() {
         {/* Main content */}
         <div className="flex flex-1 min-h-0">
           <div className="flex flex-col flex-1 min-w-0">
-            <ChatArea messages={messages} scrollRef={scrollRef} onRetry={retryLastMessage} />
+            <ChatArea messages={messages} scrollRef={scrollRef} onRetry={retryLastMessage} onEdit={editAndResend} />
             <ApprovalPrompt />
-            <InputBar onSend={sendMessage} isStreaming={isStreaming} />
+            <InputBar onSend={sendMessage} onStop={stopGeneration} onCompact={compactChat} isStreaming={isStreaming} />
           </div>
           {hasOpenFiles && <FilePanel />}
         </div>
@@ -185,7 +189,7 @@ export default function App() {
       <BrowserPanel />
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} initialTab={settingsTab} />
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onNewChat={handleNewChat} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onNewChat={handleNewChat} onCompact={compactChat} />
       <KeyboardHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   )

@@ -2,6 +2,7 @@ import { useCallback, useRef, useEffect } from 'react'
 import { useStore, Message, ToolCall } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
 import { applyActivePlugins, activePluginIds } from '../lib/plugins'
+import { compactMessages, htmlUrlFromTool, messagesThroughUser } from '../lib/chatActions'
 import { refreshSessions, nameSessionFromPrompt } from '../lib/sessions'
 import { currentWorkspace, savePlanMarkdown, scheduleFileTreeRefresh } from '../lib/workspace'
 import { titleFromPrompt } from '../lib/chatTitle'
@@ -16,7 +17,9 @@ function genId(): string {
 export function useChat() {
   const messages = useStore((s) => s.messages)
   const isStreaming = useStore((s) => s.isStreaming)
+  const queuedMessage = useStore((s) => s.queuedMessage)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const sendMessageRef = useRef<(content: string) => Promise<void>>(async () => {})
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -59,6 +62,11 @@ export function useChat() {
         startedAt: Date.now(),
       }
       state.addToolCall(last.id, toolCall)
+      const htmlUrl = htmlUrlFromTool(tool, args, currentWorkspace())
+      if (htmlUrl) {
+        const name = String(args.path || args.file || htmlUrl).replace(/\\/g, '/').split('/').pop() || 'page'
+        state.setPreviewOffer({ url: htmlUrl, label: name })
+      }
       scrollToBottom()
     }, [scrollToBottom]),
 
@@ -131,6 +139,11 @@ export function useChat() {
       }
       void refreshSessions()
       scrollToBottom()
+      const queued = useStore.getState().queuedMessage
+      if (queued) {
+        useStore.getState().setQueuedMessage(null)
+        queueMicrotask(() => { void sendMessageRef.current(queued) })
+      }
     }, [scrollToBottom]),
 
     onError: useCallback((message: string) => {
@@ -158,7 +171,10 @@ export function useChat() {
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return
     const state = useStore.getState()
-    if (state.isStreaming) return
+    if (state.isStreaming) {
+      state.setQueuedMessage(content.trim())
+      return
+    }
 
     let sessionId = state.currentSessionId
     if (!sessionId) {
@@ -214,6 +230,29 @@ export function useChat() {
     scrollToBottom()
   }, [ws, scrollToBottom])
 
+  sendMessageRef.current = sendMessage
+
+  const stopGeneration = useCallback(() => {
+    ws.send({ type: 'cancel' })
+  }, [ws])
+
+  const editAndResend = useCallback((userId: string, content: string) => {
+    const state = useStore.getState()
+    useStore.setState({ messages: messagesThroughUser(state.messages, userId) })
+    if (state.isStreaming) {
+      stopGeneration()
+      state.setQueuedMessage(content)
+      return
+    }
+    void sendMessage(content)
+  }, [sendMessage, stopGeneration])
+
+  const compactChat = useCallback(() => {
+    const state = useStore.getState()
+    if (state.isStreaming) return
+    useStore.setState({ messages: compactMessages(state.messages) })
+  }, [])
+
   const approveTool = useCallback((approved: boolean) => {
     const state = useStore.getState()
     const approval = state.pendingApproval
@@ -244,5 +283,17 @@ export function useChat() {
     sendMessage(lastUser.content)
   }, [sendMessage])
 
-  return { messages, isStreaming, sendMessage, approveTool, retryLastMessage, scrollRef, scrollToBottom }
+  return {
+    messages,
+    isStreaming,
+    queuedMessage,
+    sendMessage,
+    stopGeneration,
+    editAndResend,
+    compactChat,
+    approveTool,
+    retryLastMessage,
+    scrollRef,
+    scrollToBottom,
+  }
 }

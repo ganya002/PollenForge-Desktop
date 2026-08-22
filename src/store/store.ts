@@ -39,6 +39,7 @@ export interface Session {
   updated_at?: number
   directory?: string
   preview?: string
+  pinned?: boolean
 }
 
 export interface Config {
@@ -149,6 +150,8 @@ interface AppState {
   openFiles: OpenFile[]
   activeFilePath: string | null
   pendingWorkspace: string | null
+  queuedMessage: string | null
+  previewOffer: { url: string; label: string } | null
   _wsSend: ((data: Record<string, unknown>) => boolean) | null
 
   addMessage: (msg: Message) => void
@@ -182,6 +185,8 @@ interface AppState {
   closeFile: (path: string) => void
   setActiveFile: (path: string | null) => void
   setPendingWorkspace: (path: string | null) => void
+  setQueuedMessage: (content: string | null) => void
+  setPreviewOffer: (offer: { url: string; label: string } | null) => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -222,6 +227,8 @@ export const useStore = create<AppState>((set, get) => ({
   openFiles: [],
   activeFilePath: null,
   pendingWorkspace: null,
+  queuedMessage: null,
+  previewOffer: null,
   _wsSend: null,
 
   addMessage: (msg) => set((s) => {
@@ -309,4 +316,6 @@ export const useStore = create<AppState>((set, get) => ({
   }),
   setActiveFile: (activeFilePath) => set({ activeFilePath }),
   setPendingWorkspace: (pendingWorkspace) => set({ pendingWorkspace }),
+  setQueuedMessage: (queuedMessage) => set({ queuedMessage }),
+  setPreviewOffer: (previewOffer) => set({ previewOffer }),
 }))

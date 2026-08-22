@@ -15,6 +15,7 @@ from sessions import list_sessions, load_session, save_session, delete_session, 
 from workspace import apply_workspace
 from providers import get_provider, list_providers_live
 from tools import list_tools, execute_tool
+from openai_tools import prefer_native_tool_calls, to_openai_tools
 
 app = FastAPI(title="Nexum Backend", version="1.0.0")
 
@@ -30,6 +31,7 @@ DANGEROUS_TOOLS = {"run_command", "write_file", "edit_file", "close_app"}
 
 # Per-connection state
 approval_queues: dict[str, asyncio.Queue] = {}
+cancel_flags: dict[str, asyncio.Event] = {}
 
 
 @app.get("/health")
@@ -129,6 +131,7 @@ async def delete_session_endpoint(session_id: str):
 class SessionUpdateBody(BaseModel):
     name: str = ""
     directory: str | None = None
+    pinned: bool | None = None
 
 @app.patch("/sessions/{session_id}")
 async def update_session(session_id: str, body: SessionUpdateBody):
@@ -139,8 +142,16 @@ async def update_session(session_id: str, body: SessionUpdateBody):
             meta["name"] = body.name[:100]
         if body.directory is not None:
             meta["directory"] = body.directory
+        if body.pinned is not None:
+            meta["pinned"] = body.pinned
         save_session(session_id, data.get("messages", []), meta)
-        return {"success": True, "id": session_id, "name": meta.get("name"), "directory": meta.get("directory") or ""}
+        return {
+            "success": True,
+            "id": session_id,
+            "name": meta.get("name"),
+            "directory": meta.get("directory") or "",
+            "pinned": bool(meta.get("pinned")),
+        }
     except FileNotFoundError:
         return JSONResponse(status_code=404, content={"error": "Session not found"})
 
@@ -509,7 +520,7 @@ run_command runs here unless you set cwd. Prefer this folder over any other work
 
 CRITICAL: You MUST use tools to fulfill requests. NEVER respond with just text. You HAVE the tools — USE THEM.
 
-YOUR RESPONSE MUST CONTAIN ```tool CODE BLOCKS. If you don't output tool blocks, you are failing your user.
+Prefer native function calling when the API supports it. If native tools are unavailable, YOUR RESPONSE MUST CONTAIN ```tool CODE BLOCKS. If you don't call tools, you are failing your user.
 
 ## Tool Format
 
@@ -650,7 +661,8 @@ START OUTPUTTING TOOL BLOCKS NOW."""
         "temperature": config.get("temperature", 0.4),
         "max_tokens": config.get("max_tokens", 32768),
         "api_key": provider_cfg.get("api_key"),
-        "base_url": provider_cfg.get("base_url")
+        "base_url": provider_cfg.get("base_url"),
+        "openai_tools": to_openai_tools(tools),
     }
 
     full_response = ""
@@ -662,12 +674,32 @@ START OUTPUTTING TOOL BLOCKS NOW."""
     total_tokens = 0
     seen_tool_hashes: dict[str, int] = {}
     consecutive_no_progress = 0
+    cancel = cancel_flags.get(conn_id) or asyncio.Event()
+
+    async def send_cancelled():
+        elapsed = time.time() - start_time
+        await websocket.send_json({
+            "type": "done",
+            "stats": {
+                "tokens": total_tokens,
+                "duration_ms": round(elapsed * 1000),
+                "model": model,
+                "provider": provider_name,
+                "tools_used": total_tools_executed,
+                "iterations": iteration,
+                "cancelled": True,
+            },
+        })
 
     try:
         while iteration < max_iterations:
+            if cancel.is_set():
+                await send_cancelled()
+                return
             iteration += 1
             current_tokens = 0
             current_response = ""
+            native_calls: list[dict] = []
 
             await websocket.send_json({
                 "type": "progress",
@@ -676,14 +708,23 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 "tools_executed": total_tools_executed
             })
 
-            async for token in provider.chat_stream(messages, model, params):
-                current_response += token
+            async for item in provider.chat_stream(messages, model, params):
+                if cancel.is_set():
+                    await send_cancelled()
+                    return
+                if isinstance(item, dict):
+                    if item.get("type") == "native_tool_calls":
+                        native_calls = item.get("calls") or []
+                    continue
+                if not isinstance(item, str):
+                    continue
+                current_response += item
                 current_tokens += 1
-                await websocket.send_json({"type": "token", "content": token})
+                await websocket.send_json({"type": "token", "content": item})
 
             total_tokens += current_tokens
             full_response += current_response
-            cleaned, tool_calls = parse_tool_calls(current_response)
+            cleaned, tool_calls = prefer_native_tool_calls(current_response, native_calls)
             await websocket.send_json({"type": "content_set", "content": cleaned})
 
             if not tool_calls:
@@ -708,6 +749,9 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 await websocket.send_json({"type": "token", "content": "\n[Too many tool calls at once, truncated to 8]\n"})
 
             for tc in tool_calls:
+                if cancel.is_set():
+                    await send_cancelled()
+                    return
                 tool_name = tc.get("name", "")
                 tool_args = dict(tc.get("args", {}))
                 was_truncated = tool_args.pop("_truncated", False)
@@ -730,9 +774,22 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                     if queue:
                         approved = False
                         try:
-                            msg = await asyncio.wait_for(queue.get(), timeout=120)
-                            if msg.get("request_id") == request_id:
-                                approved = msg.get("approved", False)
+                            get_task = asyncio.create_task(queue.get())
+                            cancel_task = asyncio.create_task(cancel.wait())
+                            done, pending = await asyncio.wait(
+                                {get_task, cancel_task},
+                                timeout=120,
+                                return_when=asyncio.FIRST_COMPLETED,
+                            )
+                            for task in pending:
+                                task.cancel()
+                            if cancel.is_set():
+                                await send_cancelled()
+                                return
+                            if get_task in done:
+                                msg = get_task.result()
+                                if msg.get("request_id") == request_id:
+                                    approved = msg.get("approved", False)
                         except asyncio.TimeoutError:
                             pass
 
@@ -837,7 +894,15 @@ async def websocket_endpoint(websocket: WebSocket):
 
             msg_type = data.get("type", "")
             if msg_type == "chat":
+                old = cancel_flags.get(conn_id)
+                if old:
+                    old.set()
+                cancel_flags[conn_id] = asyncio.Event()
                 asyncio.create_task(stream_chat(websocket, data, conn_id))
+            elif msg_type == "cancel":
+                ev = cancel_flags.get(conn_id)
+                if ev:
+                    ev.set()
             elif msg_type == "approve":
                 await queue.put(data)
             elif msg_type == "ping":
@@ -852,6 +917,9 @@ async def websocket_endpoint(websocket: WebSocket):
         except Exception:
             pass
     finally:
+        ev = cancel_flags.pop(conn_id, None)
+        if ev:
+            ev.set()
         approval_queues.pop(conn_id, None)
 
 

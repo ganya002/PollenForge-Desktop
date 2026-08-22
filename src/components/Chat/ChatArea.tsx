@@ -7,6 +7,7 @@ interface ChatAreaProps {
   messages: MessageType[]
   scrollRef: Ref<HTMLDivElement>
   onRetry?: () => void
+  onEdit?: (userId: string, content: string) => void
 }
 
 function WelcomeScreen() {
@@ -57,7 +58,7 @@ function WelcomeScreen() {
   )
 }
 
-export default function ChatArea({ messages, scrollRef, onRetry }: ChatAreaProps) {
+export default function ChatArea({ messages, scrollRef, onRetry, onEdit }: ChatAreaProps) {
   const empty = messages.length === 0
 
   return (
@@ -77,7 +78,11 @@ export default function ChatArea({ messages, scrollRef, onRetry }: ChatAreaProps
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <Message message={msg} onRetry={onRetry} />
+                <Message
+                  message={msg}
+                  onRetry={onRetry}
+                  onEdit={msg.role === 'user' && onEdit ? (content) => onEdit(msg.id, content) : undefined}
+                />
               </motion.div>
             ))}
           </AnimatePresence>
