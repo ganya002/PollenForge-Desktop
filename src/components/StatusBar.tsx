@@ -33,7 +33,7 @@ export default function StatusBar({ onOpenUpdates, onRetry }: StatusBarProps) {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">
           <span className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-500 shadow-sm' : 'bg-red-500 animate-pulse'}`} />
-          <span className={wsConnected ? '' : 'text-red-400'}>{wsConnected ? 'Connected' : 'Disconnected'}</span>
+          <span className={wsConnected ? '' : 'text-red-400'}>{wsConnected ? 'Backend' : 'Backend offline'}</span>
           {!wsConnected && onRetry && (
             <button onClick={onRetry} className="ml-1 text-text-secondary hover:text-text-primary">Retry</button>
           )}

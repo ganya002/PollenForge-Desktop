@@ -8,9 +8,8 @@ import time
 import asyncio
 import re
 import uuid
-from pathlib import Path
 
-from config import load_config, save_config
+from config import load_config, resolve_provider_api_key, save_config
 from sessions import list_sessions, load_session, save_session, delete_session, create_session
 from workspace import apply_workspace
 from providers import get_provider, list_providers_live
@@ -41,37 +40,18 @@ async def health():
 
 @app.get("/pollinations/balance")
 async def pollinations_balance():
-    import httpx
-    api_key = ""
-    cfg = load_config()
-    api_key = cfg.get("providers", {}).get("pollinations", {}).get("api_key", "")
-    if not api_key:
-        for env_path in [
-            Path.home() / ".local" / "share" / "nexum" / ".env",
-            Path.home() / ".local" / "share" / "pollenforge" / ".env",
-        ]:
-            try:
-                if env_path.exists():
-                    for line in env_path.read_text().splitlines():
-                        if line.startswith("POLLINATIONS_API_KEY="):
-                            api_key = line.split("=", 1)[1].strip()
-                            break
-            except Exception:
-                pass
-            if api_key:
-                break
-    if not api_key:
-        return {"balance": 0, "error": "No API key found"}
-    headers = {"Authorization": f"Bearer {api_key}"}
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get("https://gen.pollinations.ai/account/balance", headers=headers)
-            if resp.status_code != 200:
-                return {"balance": 0, "error": f"API returned {resp.status_code}"}
-            data = resp.json()
-            return {"balance": data.get("balance", 0)}
-    except Exception as e:
-        return {"balance": 0, "error": str(e)}
+    from providers.pollinations import inspect_pollinations_key
+    info = await inspect_pollinations_key(resolve_provider_api_key("pollinations"))
+    if not info.get("connected"):
+        return {"balance": 0, "connected": False, "error": info.get("error") or "Disconnected"}
+    return {"balance": info.get("balance") or 0, "connected": True, "type": info.get("type")}
+
+
+@app.get("/pollinations/status")
+async def pollinations_status():
+    from providers.pollinations import inspect_pollinations_key
+    info = await inspect_pollinations_key(resolve_provider_api_key("pollinations"))
+    return info
 
 
 @app.get("/config")
@@ -677,7 +657,7 @@ START OUTPUTTING TOOL BLOCKS NOW."""
     params = {
         "temperature": config.get("temperature", 0.4),
         "max_tokens": config.get("max_tokens", 32768),
-        "api_key": provider_cfg.get("api_key"),
+        "api_key": (data.get("api_key") or "").strip() or resolve_provider_api_key(provider_name, config),
         "base_url": provider_cfg.get("base_url"),
         "openai_tools": to_openai_tools(tools),
     }

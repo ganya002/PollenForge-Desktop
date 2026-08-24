@@ -255,6 +255,7 @@ export function useChat() {
       provider: state.currentProvider,
       session_id: sessionId,
       workspace: currentWorkspace() || '',
+      api_key: state.config.providers[state.currentProvider]?.api_key || '',
     })
     if (!sent) {
       state.updateMessage(assistantMsg.id, { content: '**Error:** Not connected. Reconnecting...', isError: true })

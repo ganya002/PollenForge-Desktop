@@ -140,12 +140,17 @@ export function removeEnabledProvider(config: Config, id: string): Config {
   return { ...config, enabled_providers: nextEnabled, providers }
 }
 
-export function persistConfig(config: Config) {
-  fetch('http://127.0.0.1:8765/config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(config),
-  }).catch(() => {})
+export async function persistConfig(config: Config): Promise<boolean> {
+  try {
+    const resp = await fetch('http://127.0.0.1:8765/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    })
+    return resp.ok
+  } catch {
+    return false
+  }
 }
 
 export function mergeProviderModels(

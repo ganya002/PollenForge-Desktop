@@ -28,9 +28,9 @@ export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
     id: 'pollinations',
     label: 'Pollinations',
     color: '#c45c54',
-    placeholder: 'Optional key (sk_…)',
+    placeholder: 'sk_… (required)',
     keyUrl: 'https://enter.pollinations.ai/keys',
-    needsKey: false,
+    needsKey: true,
     models: [
       m('gpt-5.6-sol', 'GPT-5.6 Sol'),
       m('gpt-5.6-luna', 'GPT-5.6 Luna'),

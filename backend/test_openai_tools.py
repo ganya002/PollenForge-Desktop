@@ -1,6 +1,12 @@
 import unittest
 
-from openai_tools import ToolCallAssembler, prefer_native_tool_calls, to_openai_tools
+from openai_tools import (
+    ToolCallAssembler,
+    apply_chat_payload,
+    prefer_native_tool_calls,
+    text_from_delta,
+    to_openai_tools,
+)
 
 
 class ToOpenAIToolsTests(unittest.TestCase):
@@ -56,6 +62,21 @@ class PreferNativeTests(unittest.TestCase):
         cleaned, calls = prefer_native_tool_calls(text, [])
         self.assertEqual(calls[0]["name"], "list_dir")
         self.assertNotIn("```tool", cleaned)
+
+
+class ReasoningAndJsonFallbackTests(unittest.TestCase):
+    def test_reasoning_content_is_used_when_content_missing(self):
+        self.assertEqual(text_from_delta({"reasoning_content": "thinking"}), "thinking")
+        self.assertEqual(text_from_delta({"content": "answer", "reasoning_content": "hidden"}), "answer")
+
+    def test_non_stream_message_payload(self):
+        assembler = ToolCallAssembler()
+        text = apply_chat_payload(
+            {"choices": [{"message": {"role": "assistant", "content": "Hello there"}}]},
+            assembler,
+        )
+        self.assertEqual(text, "Hello there")
+        self.assertEqual(assembler.finalized(), [])
 
 
 if __name__ == "__main__":

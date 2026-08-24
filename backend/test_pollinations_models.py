@@ -41,6 +41,19 @@ class MapPollinationsModelTests(unittest.TestCase):
         })
         self.assertEqual([m["id"] for m in rows], ["openai"])
 
+    def test_chat_requires_api_key(self):
+        import asyncio
+        from providers.pollinations import PollinationsProvider
+
+        async def run():
+            provider = PollinationsProvider()
+            with self.assertRaises(Exception) as ctx:
+                async for _ in provider.chat_stream([], "openai", {}):
+                    pass
+            self.assertIn("API key required", str(ctx.exception))
+
+        asyncio.run(run())
+
 
 if __name__ == "__main__":
     unittest.main()

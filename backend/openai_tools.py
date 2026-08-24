@@ -120,26 +120,81 @@ def _tools_rejected(status: int, body: bytes) -> bool:
     return "tool" in text or "function" in text
 
 
+def _text_parts(value) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        parts = []
+        for item in value:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text")
+                if isinstance(text, str):
+                    parts.append(text)
+        return "".join(parts)
+    return ""
+
+
+def text_from_delta(delta) -> str:
+    if not isinstance(delta, dict):
+        return ""
+    content = _text_parts(delta.get("content"))
+    if content:
+        return content
+    return _text_parts(delta.get("reasoning_content") or delta.get("reasoning"))
+
+
+def apply_chat_payload(data: dict, assembler: ToolCallAssembler) -> str:
+    choices = data.get("choices") or []
+    if not choices or not isinstance(choices[0], dict):
+        return ""
+    choice = choices[0]
+    delta = choice.get("delta") if isinstance(choice.get("delta"), dict) else {}
+    message = choice.get("message") if isinstance(choice.get("message"), dict) else {}
+    assembler.add(delta.get("tool_calls") or message.get("tool_calls"))
+    return text_from_delta(delta) or text_from_delta(message)
+
+
 async def iter_openai_chat_sse(response: httpx.Response) -> AsyncGenerator[str | dict, None]:
     assembler = ToolCallAssembler()
+    leftover: list[str] = []
+    saw_sse = False
     async for line in response.aiter_lines():
-        if not line or not line.startswith("data: "):
+        if not line:
             continue
-        data_str = line[6:]
-        if data_str.strip() == "[DONE]":
-            break
-        try:
-            data = json.loads(data_str)
-            choices = data.get("choices") or []
-            if not choices:
+        payload = None
+        if line.startswith("data:"):
+            saw_sse = True
+            data_str = line[5:].strip()
+            if data_str == "[DONE]":
+                break
+            try:
+                payload = json.loads(data_str)
+            except json.JSONDecodeError:
                 continue
-            delta = choices[0].get("delta") or {}
-            content = delta.get("content")
-            if content:
-                yield content
-            assembler.add(delta.get("tool_calls"))
-        except (json.JSONDecodeError, KeyError, IndexError, TypeError):
+        elif not saw_sse:
+            leftover.append(line)
             continue
+        else:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        try:
+            text = apply_chat_payload(payload, assembler)
+        except (KeyError, IndexError, TypeError):
+            continue
+        if text:
+            yield text
+    if not saw_sse and leftover:
+        try:
+            payload = json.loads("".join(leftover))
+            if isinstance(payload, dict):
+                text = apply_chat_payload(payload, assembler)
+                if text:
+                    yield text
+        except (json.JSONDecodeError, KeyError, IndexError, TypeError):
+            pass
     calls = assembler.finalized()
     if calls:
         yield {"type": "native_tool_calls", "calls": calls}

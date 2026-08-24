@@ -29,26 +29,65 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
   const currentProvider = useStore((s) => s.currentProvider)
   const [keys, setKeys] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [appVersion, setAppVersion] = useState('…')
   const [providerSearch, setProviderSearch] = useState('')
   const [pluginSearch, setPluginSearch] = useState('')
+  const [pollinationsStatus, setPollinationsStatus] = useState<{ connected?: boolean; error?: string } | null>(null)
 
   useEffect(() => {
-    if (open) {
-      setActiveTab(initialTab)
-      const initial: Record<string, string> = {}
-      for (const [name, cfg] of Object.entries(config.providers)) {
-        initial[name] = cfg.api_key || ''
-      }
-      setKeys(initial)
-      setSaved(false)
-      setProviderSearch('')
-      setPluginSearch('')
-      window.api?.app?.getVersion?.()
-        .then((info) => setAppVersion(info.version))
-        .catch(() => {})
+    if (!open) return
+    setActiveTab(initialTab)
+  }, [open, initialTab])
+
+  useEffect(() => {
+    if (!open) return
+    const current = useStore.getState().config
+    const initial: Record<string, string> = {}
+    for (const [name, cfg] of Object.entries(current.providers)) {
+      initial[name] = cfg.api_key || ''
     }
-  }, [open, config, initialTab])
+    setKeys(initial)
+    setSaved(false)
+    setSaveError('')
+    setPollinationsStatus(null)
+    setProviderSearch('')
+    setPluginSearch('')
+    window.api?.app?.getVersion?.()
+      .then((info) => setAppVersion(info.version))
+      .catch(() => {})
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    setKeys((prev) => {
+      const next = { ...prev }
+      let changed = false
+      for (const [name, cfg] of Object.entries(config.providers)) {
+        if (!next[name] && cfg.api_key) {
+          next[name] = cfg.api_key
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [open, config])
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    fetch('http://127.0.0.1:8765/pollinations/status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setPollinationsStatus(data)
+      })
+      .catch(() => {
+        if (!cancelled) setPollinationsStatus({ connected: false, error: 'Backend offline' })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, saved, config.providers.pollinations?.api_key])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -58,17 +97,22 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
     return () => document.removeEventListener('keydown', handler)
   }, [open, onClose])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const updatedProviders = { ...config.providers }
     for (const [name, key] of Object.entries(keys)) {
       if (updatedProviders[name]) {
-        updatedProviders[name] = { ...updatedProviders[name], api_key: key }
+        updatedProviders[name] = { ...updatedProviders[name], api_key: key.trim() }
       }
     }
     const next = { ...config, providers: updatedProviders }
     setConfig(next)
-    persistConfig(next)
-
+    const ok = await persistConfig(next)
+    if (!ok) {
+      setSaveError('Could not save. Start the backend, then try again.')
+      setSaved(false)
+      return
+    }
+    setSaveError('')
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -148,6 +192,25 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.color }} />
                               <span className="text-[13px] font-medium text-text-primary">{meta.label}</span>
                               {added && <span className="text-[11px] text-text-muted">Added</span>}
+                              {name === 'pollinations' && added && (
+                                <span
+                                  className={`text-[11px] ${
+                                    pollinationsStatus?.connected
+                                      ? 'text-emerald-400'
+                                      : 'text-red-400'
+                                  }`}
+                                >
+                                  {pollinationsStatus == null
+                                    ? 'Checking…'
+                                    : pollinationsStatus.connected
+                                      ? 'Connected'
+                                      : pollinationsStatus.error === 'No API key'
+                                        ? 'No key'
+                                        : pollinationsStatus.error === 'Backend offline'
+                                          ? 'Backend offline'
+                                          : 'Invalid key'}
+                                </span>
+                              )}
                               <span className="ml-auto flex items-center gap-3">
                                 {meta.keyUrl && (
                                   <a
@@ -192,6 +255,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                               </span>
                             </div>
                             {added && (
+                              <>
                               <input
                                 type={name === 'ollama' ? 'text' : 'password'}
                                 value={name === 'ollama' ? (config.providers[name]?.base_url || keys[name] || '') : (keys[name] || '')}
@@ -213,6 +277,12 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                                 placeholder={meta.placeholder}
                                 className="h-9 w-full mt-2 px-3 text-[13px] bg-surface-1 border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-hover"
                               />
+                              {name === 'pollinations' && (
+                                <p className="text-[11px] text-text-muted mt-1.5 leading-4">
+                                  Use a secret key starting with sk_ from the Get key link. Save after pasting. App keys (pk_) are for websites, not this app.
+                                </p>
+                              )}
+                              </>
                             )}
                           </div>
                         )
@@ -221,11 +291,12 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                   </div>
                   <div className="shrink-0 px-4 py-3 border-t border-border">
                     <button
-                      onClick={handleSave}
+                      onClick={() => void handleSave()}
                       className="w-full h-9 text-[13px] font-medium rounded-md bg-accent hover:bg-accent-hover text-accent-ink transition-smooth"
                     >
                       {saved ? 'Saved' : 'Save API keys'}
                     </button>
+                    {saveError && <p className="text-[12px] text-red-400 mt-2">{saveError}</p>}
                   </div>
                 </div>
               )}

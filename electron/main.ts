@@ -464,6 +464,14 @@ async function startBackend(): Promise<void> {
     console.log('Backend started successfully');
   } catch (err) {
     console.error('Failed to start backend:', err);
+    try {
+      fs.appendFileSync(
+        path.join(app.getPath('userData'), 'startup.log'),
+        `${new Date().toISOString()} backend-start-failed ${String(err)}\n`
+      );
+    } catch {
+      /* ignore */
+    }
   }
 }
 

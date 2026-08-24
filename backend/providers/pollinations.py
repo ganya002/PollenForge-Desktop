@@ -5,6 +5,20 @@ from collections.abc import AsyncGenerator
 from openai_tools import attach_openai_tools, stream_openai_chat
 from pollinations_models import map_pollinations_models
 
+ACCOUNT_KEY_URL = "https://gen.pollinations.ai/account/key"
+ACCOUNT_BALANCE_URL = "https://gen.pollinations.ai/account/balance"
+
+
+def pollinations_headers(api_key: str) -> dict:
+    headers = {
+        "Content-Type": "application/json",
+        "Referer": "https://github.com/ganya002/PollenForge-Desktop",
+        "User-Agent": "Nexum",
+    }
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
+
 
 class PollinationsProvider(Provider):
     name = "pollinations"
@@ -30,6 +44,11 @@ class PollinationsProvider(Provider):
     ]
 
     async def chat_stream(self, messages: list[dict], model: str, params: dict) -> AsyncGenerator[str, None]:
+        api_key = (params.get("api_key") or "").strip()
+        if not api_key:
+            raise Exception(
+                "Pollinations API key required. Add a secret key (sk_…) in Settings → Providers, then Save."
+            )
         payload = attach_openai_tools({
             "model": model,
             "messages": messages,
@@ -37,17 +56,18 @@ class PollinationsProvider(Provider):
             "temperature": params.get("temperature", 0.7),
             "max_tokens": params.get("max_tokens", 4096)
         }, params)
-        headers = {"Content-Type": "application/json"}
-        api_key = params.get("api_key")
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        async for item in stream_openai_chat(self.API_URL, headers, payload):
+        async for item in stream_openai_chat(self.API_URL, pollinations_headers(api_key), payload):
             yield item
 
     async def list_models(self) -> list[dict]:
         try:
+            from config import resolve_provider_api_key
+            api_key = resolve_provider_api_key("pollinations")
             async with httpx.AsyncClient(timeout=20.0) as client:
-                r = await client.get("https://gen.pollinations.ai/v1/models")
+                r = await client.get(
+                    "https://gen.pollinations.ai/v1/models",
+                    headers=pollinations_headers(api_key),
+                )
                 if r.status_code == 200:
                     mapped = map_pollinations_models(r.json())
                     if mapped:
@@ -58,7 +78,57 @@ class PollinationsProvider(Provider):
         return self.models
 
     async def validate_key(self, api_key: str) -> bool:
-        return True
+        info = await inspect_pollinations_key(api_key)
+        return bool(info.get("connected"))
+
+
+async def inspect_pollinations_key(api_key: str) -> dict:
+    key = (api_key or "").strip()
+    if not key:
+        return {"connected": False, "error": "No API key"}
+    headers = pollinations_headers(key)
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            key_resp = await client.get(ACCOUNT_KEY_URL, headers=headers)
+            if key_resp.status_code == 401:
+                return {
+                    "connected": False,
+                    "error": "Invalid API key",
+                    "status": 401,
+                }
+            if key_resp.status_code == 403:
+                # Key is accepted for generation; account endpoints may be scoped off.
+                return {"connected": True, "balance": None, "status": 403}
+            if key_resp.status_code != 200:
+                return {
+                    "connected": False,
+                    "error": f"API returned {key_resp.status_code}",
+                    "status": key_resp.status_code,
+                }
+            info = key_resp.json() if key_resp.content else {}
+            if not isinstance(info, dict):
+                info = {}
+            if info.get("valid") is False:
+                return {"connected": False, "error": "API key is not valid", **info}
+
+            balance = info.get("pollenBudget")
+            try:
+                bal_resp = await client.get(ACCOUNT_BALANCE_URL, headers=headers)
+                if bal_resp.status_code == 200:
+                    data = bal_resp.json() if bal_resp.content else {}
+                    if isinstance(data, dict) and data.get("balance") is not None:
+                        balance = data.get("balance")
+            except Exception:
+                pass
+
+            return {
+                "connected": True,
+                "balance": balance,
+                "type": info.get("type"),
+                "name": info.get("name"),
+            }
+    except Exception as exc:
+        return {"connected": False, "error": str(exc)}
 
 
 PROVIDER = PollinationsProvider()

@@ -12,17 +12,25 @@ import { formatModelCost, resolveModelList, visibleModels } from '../../lib/mode
 
 function PollenBalance() {
   const [balance, setBalance] = useState<number | null>(null)
+  const [status, setStatus] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const currentProvider = useStore((s) => s.currentProvider)
 
   const fetchBalance = useCallback(async () => {
     setLoading(true)
     try {
-      const resp = await fetch('http://127.0.0.1:8765/pollinations/balance')
+      const resp = await fetch('http://127.0.0.1:8765/pollinations/status')
       const data = await resp.json()
-      setBalance(data.balance ?? null)
+      if (data?.connected) {
+        setBalance(typeof data.balance === 'number' ? data.balance : null)
+        setStatus(typeof data.balance === 'number' ? '' : 'OK')
+      } else {
+        setBalance(null)
+        setStatus(data?.error === 'No API key' ? 'No key' : 'Offline')
+      }
     } catch {
       setBalance(null)
+      setStatus('Offline')
     }
     setLoading(false)
   }, [])
@@ -40,7 +48,7 @@ function PollenBalance() {
     <div className="h-8 px-2.5 shrink-0 flex items-center gap-2 rounded-md bg-surface-1 border border-border text-[11px] text-text-muted">
       <span className="uppercase tracking-wide">Pollen</span>
       <span className="font-mono text-text-primary tabular-nums">
-        {loading ? '…' : balance !== null ? balance.toLocaleString() : '—'}
+        {loading ? '…' : balance !== null ? balance.toLocaleString() : status || '—'}
       </span>
     </div>
   )
