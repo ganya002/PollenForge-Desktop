@@ -3,7 +3,7 @@ import { useStore, Message, ToolCall } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
 import { applyActivePlugins, activePluginIds } from '../lib/plugins'
 import { compactMessages, htmlUrlFromTool, messagesThroughUser } from '../lib/chatActions'
-import { ASK_PROMPT, isHtmlWriteTool, toolPath } from '../lib/qol'
+import { ASK_PROMPT, WEB_PROMPT, hasWebMention, isHtmlWriteTool, toolPath } from '../lib/qol'
 import { refreshSessions, nameSessionFromPrompt } from '../lib/sessions'
 import { currentWorkspace, savePlanMarkdown, scheduleFileTreeRefresh } from '../lib/workspace'
 import { titleFromPrompt } from '../lib/chatTitle'
@@ -244,6 +244,7 @@ export function useChat() {
       .map((m, i, arr) => {
         const isLastUser = m.role === 'user' && !arr.slice(i + 1).some((x) => x.role === 'user')
         let text = isLastUser ? applyActivePlugins(m.content, state.config) : m.content
+        if (isLastUser && hasWebMention(m.content)) text = `${WEB_PROMPT}\n\n${text}`
         if (isLastUser && state.config.agent_mode === 'ask') text = `${ASK_PROMPT}\n\n${text}`
         return { role: m.role, content: text }
       })

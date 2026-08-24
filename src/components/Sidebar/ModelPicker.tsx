@@ -7,6 +7,7 @@ import {
   addEnabledProvider,
   enabledProviderIds,
   persistConfig,
+  refreshProviderModels,
 } from '../../lib/appConfig'
 import { formatModelCost, resolveModelList, visibleModels } from '../../lib/modelFilter'
 
@@ -72,6 +73,17 @@ export default function ModelPicker() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    void refreshProviderModels(useStore.getState().config).then((next) => {
+      if (!cancelled) useStore.getState().setConfig(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
   const enabled = enabledProviderIds(config)
   const q = search.trim().toLowerCase()
 
@@ -109,13 +121,18 @@ export default function ModelPicker() {
     (row) => row.model.id === currentModel && row.provider === currentProvider,
   )
 
-  const addProvider = (id: string) => {
+  const addProvider = async (id: string) => {
     const next = addEnabledProvider(config, id)
     setConfig(next)
     persistConfig(next)
     const first = next.providers[id]?.models[0]
     if (first) setModel(first.id, id)
     setSearch('')
+    const live = await refreshProviderModels(useStore.getState().config)
+    useStore.getState().setConfig(live)
+    const liveFirst = live.providers[id]?.models[0]
+    const stillThere = live.providers[id]?.models.some((m) => m.id === useStore.getState().currentModel)
+    if (liveFirst && !stillThere) setModel(liveFirst.id, id)
   }
 
   return (

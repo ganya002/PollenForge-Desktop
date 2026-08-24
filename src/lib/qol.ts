@@ -38,6 +38,12 @@ export const ASK_PROMPT = `ASK MODE is ON. Answer and inspect only.
 Do not write, edit, or delete files. Do not run shell commands that change state.
 Read-only tools are OK. If the user needs a change, explain the plan and ask them to switch to Agent.`
 
+export const WEB_PROMPT = 'Use web_search and fetch_url for current information.'
+
+export function hasWebMention(text: string): boolean {
+  return /(^|[\s])@web\b/i.test(text || '')
+}
+
 export function pushPromptHistory(prev: string[], next: string, max = 40): string[] {
   const text = next.trim()
   if (!text) return prev

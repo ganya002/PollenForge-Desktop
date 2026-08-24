@@ -6,6 +6,8 @@ const SKIP_COMMANDS = new Set([
   'new',
   'model',
   'search',
+  'image',
+  'web',
   'file',
   'folder',
   'commit',

@@ -16,7 +16,7 @@ import KeyboardHelp from './components/KeyboardHelp'
 import UpdateBadge from './components/UpdateBadge'
 import ToastHost from './components/ToastHost'
 import { useAvailableUpdate } from './hooks/useAvailableUpdate'
-import { mergeFetchedConfig, mergeProviderModels, persistConfig } from './lib/appConfig'
+import { mergeFetchedConfig, persistConfig, refreshProviderModels } from './lib/appConfig'
 import { applyTheme, normalizeTheme } from './lib/qol'
 import { refreshSessions } from './lib/sessions'
 import { writeWorkspaceFile } from './lib/workspace'
@@ -97,12 +97,9 @@ export default function App() {
         }
       })
       .catch(() => {})
-      .then(() => fetch(`${API}/providers`))
-      .then((r) => (r && r.ok ? r.json() : null))
-      .then((list) => {
-        if (!Array.isArray(list)) return
-        const state = useStore.getState()
-        state.setConfig(mergeProviderModels(state.config, list))
+      .then(() => refreshProviderModels(useStore.getState().config))
+      .then((next) => {
+        useStore.getState().setConfig(next)
       })
       .catch(() => {})
 

@@ -9,22 +9,21 @@ from openrouter_models import map_openrouter_models
 class OpenRouterProvider(Provider):
     name = "openrouter"
     API_URL = "https://openrouter.ai/api/v1/chat/completions"
-    # Best coding models on OpenRouter as of 2026 - curated for coding + general
     models = [
-        {"id": "anthropic/claude-sonnet-4", "name": "Claude Sonnet 4 (OR)", "cost_per_1k": 0.003, "context_length": 200000},
-        {"id": "anthropic/claude-3.5-haiku", "name": "Claude 3.5 Haiku (OR)", "cost_per_1k": 0.0008, "context_length": 200000},
-        {"id": "openai/gpt-4o", "name": "GPT-4o (OR)", "cost_per_1k": 0.005, "context_length": 128000},
-        {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini (OR)", "cost_per_1k": 0.00015, "context_length": 128000},
-        {"id": "openai/o1", "name": "o1 (OR)", "cost_per_1k": 0.015, "context_length": 128000},
-        {"id": "openai/o3-mini", "name": "o3-mini (OR)", "cost_per_1k": 0.0011, "context_length": 128000},
-        {"id": "deepseek/deepseek-coder", "name": "DeepSeek Coder (OR)", "cost_per_1k": 0.00014, "context_length": 128000},
-        {"id": "deepseek/deepseek-v3", "name": "DeepSeek V3 (OR)", "cost_per_1k": 0.00027, "context_length": 128000},
-        {"id": "qwen/qwen-2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B (OR)", "cost_per_1k": 0.0002, "context_length": 128000},
-        {"id": "meta-llama/llama-3.1-405b-instruct", "name": "Llama 3.1 405B (OR)", "cost_per_1k": 0.003, "context_length": 128000},
-        {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash (OR)", "cost_per_1k": 0.0001, "context_length": 1048576},
-        {"id": "mistralai/codestral-latest", "name": "Codestral (OR)", "cost_per_1k": 0.00025, "context_length": 32000},
-        {"id": "anthropic/claude-3-opus", "name": "Claude 3 Opus (OR)", "cost_per_1k": 0.015, "context_length": 200000},
-        {"id": "perplexity/llama-3.1-sonar-large-128k-online", "name": "Sonar Large Online (OR)", "cost_per_1k": 0.001, "context_length": 128000},
+        {"id": "anthropic/claude-sonnet-5", "name": "Claude Sonnet 5 (OR)", "cost_per_1k": 0.003, "context_length": 1000000},
+        {"id": "anthropic/claude-opus-4.7", "name": "Claude Opus 4.7 (OR)", "cost_per_1k": 0.015, "context_length": 1000000},
+        {"id": "anthropic/claude-haiku-4.5", "name": "Claude Haiku 4.5 (OR)", "cost_per_1k": 0.001, "context_length": 200000},
+        {"id": "openai/gpt-5.6-sol", "name": "GPT-5.6 Sol (OR)", "cost_per_1k": 0.005, "context_length": 1050000},
+        {"id": "openai/gpt-5.6-luna", "name": "GPT-5.6 Luna (OR)", "cost_per_1k": 0.005, "context_length": 1050000},
+        {"id": "openai/gpt-5.4-mini", "name": "GPT-5.4 Mini (OR)", "cost_per_1k": 0.001, "context_length": 400000},
+        {"id": "google/gemini-3.5-flash", "name": "Gemini 3.5 Flash (OR)", "cost_per_1k": 0.0001, "context_length": 1048576},
+        {"id": "google/gemini-3.1-pro-preview", "name": "Gemini 3.1 Pro (OR)", "cost_per_1k": 0.001, "context_length": 1048576},
+        {"id": "deepseek/deepseek-v4-pro", "name": "DeepSeek V4 Pro (OR)", "cost_per_1k": 0.0003, "context_length": 1048576},
+        {"id": "qwen/qwen3-coder", "name": "Qwen3 Coder (OR)", "cost_per_1k": 0.0003, "context_length": 262144},
+        {"id": "moonshotai/kimi-k3", "name": "Kimi K3 (OR)", "cost_per_1k": 0.0006, "context_length": 1048576},
+        {"id": "x-ai/grok-4.6", "name": "Grok 4.6 (OR)", "cost_per_1k": 0.003, "context_length": 128000},
+        {"id": "meta-llama/llama-4-maverick", "name": "Llama 4 Maverick (OR)", "cost_per_1k": 0.0003, "context_length": 1048576},
+        {"id": "perplexity/sonar-pro", "name": "Sonar Pro (OR)", "cost_per_1k": 0.001, "context_length": 200000},
     ]
 
     async def chat_stream(self, messages: list[dict], model: str, params: dict) -> AsyncGenerator[str, None]:

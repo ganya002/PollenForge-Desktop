@@ -38,8 +38,10 @@ def map_openrouter_model(row: dict) -> dict | None:
         return None
     if not _is_text_chat(row):
         return None
-    model_id = str(row.get("id") or "")
-    if not model_id:
+    model_id = str(row.get("id") or "").strip()
+    if not model_id or model_id.startswith("~"):
+        return None
+    if ":batch" in model_id:
         return None
     pricing = row.get("pricing") if isinstance(row.get("pricing"), dict) else {}
     free = _is_free(model_id, pricing)

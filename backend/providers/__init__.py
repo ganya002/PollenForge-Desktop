@@ -1,4 +1,5 @@
 from pathlib import Path
+import asyncio
 import importlib
 import pkgutil
 
@@ -43,14 +44,15 @@ def list_providers() -> list[dict]:
 async def list_providers_live() -> list[dict]:
     if not PROVIDER_MAP:
         _discover_providers()
-    out = []
-    for p in PROVIDER_MAP.values():
-        models = p.models
+    providers = list(PROVIDER_MAP.values())
+
+    async def models_for(p):
         try:
-            listed = await p.list_models()
+            listed = await asyncio.wait_for(p.list_models(), timeout=12)
             if listed:
-                models = listed
+                return {"name": p.name, "models": listed}
         except Exception:
             pass
-        out.append({"name": p.name, "models": models})
-    return out
+        return {"name": p.name, "models": p.models}
+
+    return list(await asyncio.gather(*(models_for(p) for p in providers)))

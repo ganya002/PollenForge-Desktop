@@ -63,6 +63,12 @@ def skills_dir() -> Path:
     return path
 
 
+def generated_images_dir() -> Path:
+    path = data_dir() / "generated-images"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def legacy_skills_dir() -> Path:
     return Path.home() / ".local" / "share" / LEGACY / "skills"
 

@@ -30,6 +30,11 @@ class ApplyWorkspaceTests(unittest.TestCase):
         args = {"path": "."}
         self.assertEqual(apply_workspace("list_dir", args, ""), args)
 
+    def test_generate_image_gets_root(self):
+        out = apply_workspace("generate_image", {"prompt": "cat"}, "/tmp/proj")
+        self.assertEqual(out["root"], "/tmp/proj")
+        self.assertEqual(out["prompt"], "cat")
+
 
 if __name__ == "__main__":
     unittest.main()

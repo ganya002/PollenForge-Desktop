@@ -13,6 +13,8 @@ const BUILTINS = [
   { name: '/compact', description: 'Summarize conversation' },
   { name: '/cost', description: 'Show token usage' },
   { name: '/model', description: 'Switch model' },
+  { name: '/image', description: 'Generate an image' },
+  { name: '/web', description: 'Search the web' },
   { name: '/search', description: 'Search files' },
   { name: '/file', description: 'Read a file' },
   { name: '/folder', description: 'Browse folder' },

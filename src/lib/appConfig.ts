@@ -180,6 +180,18 @@ export function mergeProviderModels(
   return changed ? { ...config, providers: nextProviders } : config
 }
 
+export async function refreshProviderModels(config: Config): Promise<Config> {
+  try {
+    const res = await fetch('http://127.0.0.1:8765/providers')
+    if (!res.ok) return config
+    const list = await res.json()
+    if (!Array.isArray(list)) return config
+    return mergeProviderModels(config, list)
+  } catch {
+    return config
+  }
+}
+
 export function findProviderModel(
   config: Config,
   provider: string,

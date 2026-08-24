@@ -1,6 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 import uvicorn
 import json
@@ -205,6 +205,23 @@ async def files_edit(body: FileEditBody):
         "path": body.path, "old": body.old,
         "new": body.new, "replace_all": body.replace_all
     })
+
+
+@app.get("/media/{name}")
+async def get_media(name: str):
+    from tools.images import resolve_generated_image
+    target = resolve_generated_image(name)
+    if not target:
+        return JSONResponse(status_code=404, content={"error": "Not found"})
+    suffix = target.suffix.lower()
+    media_type = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+    }.get(suffix, "application/octet-stream")
+    return FileResponse(target, media_type=media_type)
 
 
 TOOL_CALL_PATTERN = re.compile(r"```tool\n(.*?)\n```", re.DOTALL)
@@ -569,12 +586,22 @@ YOU MUST OUTPUT THIS EXACT FORMAT. NOT ```json. NOT ```python. ONLY ```tool.
 - CHECK TEST COVERAGE
 - AUDIT dependencies for vulnerabilities
 
+### Images
+- GENERATE images with generate_image when the user asks to draw, generate, or illustrate
+- After generate_image returns, include ![description](url) using the returned url (http://127.0.0.1:8765/media/...)
+- Do not put API keys in image URLs
+
+### Web
+- SEARCH the live web with web_search for current events, docs, prices, or when the user writes @web
+- READ a page with fetch_url on the best links
+- Do not invent live facts — look them up
+
 ## RULES — Absolute. Follow Every One.
 
-1. When asked to CREATE/WRITE/MAKE → IMMEDIATELY output a ```tool block with write_file
+1. When asked to DRAW/GENERATE an IMAGE/ILLUSTRATE → IMMEDIATELY call generate_image, then include ![prompt](url) from the tool result. When asked to CREATE/WRITE/MAKE a file → write_file
 2. When asked to RUN/EXECUTE → IMMEDIATELY output a ```tool block with run_command
 3. When asked to OPEN → IMMEDIATELY output a ```tool block with open_app
-4. When asked to CHECK/LIST/SEE → IMMEDIATELY output appropriate ```tool block
+4. When asked to CHECK/LIST/SEE → IMMEDIATELY output appropriate ```tool block. For current information, news, docs, prices, or when the message contains @web → web_search then fetch_url on the best links
 5. NEVER say "I can't" or "I'm unable to" — YOU CAN. USE TOOLS.
 6. NEVER describe what you would do — OUTPUT TOOL BLOCKS AND DO IT
 7. You can output MULTIPLE ```tool blocks in one response
@@ -754,6 +781,8 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 was_truncated = tool_args.pop("_truncated", False)
                 if workspace:
                     tool_args = apply_workspace(tool_name, tool_args, workspace)
+                if ask_mode and tool_name == "generate_image":
+                    tool_args.pop("save_path", None)
                 if ask_mode and tool_name in {
                     "write_file", "edit_file", "run_command", "close_app",
                     "git_commit", "git_add", "git_push", "git_checkout",

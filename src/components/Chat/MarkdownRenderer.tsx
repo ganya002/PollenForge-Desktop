@@ -133,6 +133,21 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
             </a>
           )
         },
+        img({ src, alt }) {
+          const url = resolveBrowserUrl(src || '', currentWorkspace())
+            || (src && isSafeBrowserUrl(src) ? src : '')
+          if (!url) return null
+          return (
+            <img
+              src={url}
+              alt={alt || ''}
+              title={alt || ''}
+              className="max-w-full rounded-lg border border-border my-3 cursor-pointer"
+              style={{ maxHeight: 480 }}
+              onClick={() => useStore.getState().openInBrowser(url)}
+            />
+          )
+        },
         blockquote({ children }) {
           return <blockquote className="border-l-3 border-accent pl-3 text-text-secondary italic my-2">{children}</blockquote>
         },

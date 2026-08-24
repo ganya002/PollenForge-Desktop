@@ -8,6 +8,7 @@ FS_ROOT_TOOLS = {
     "list_dir",
     "search_files",
     "read_folder",
+    "generate_image",
 }
 
 PATH_DEFAULT_TOOLS = {

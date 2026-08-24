@@ -321,8 +321,11 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
       onSend(`Token usage: ${s.totalTokensUsed} total. Model ${s.currentModel} on ${s.currentProvider}.`)
     } else if (command === '/help') {
       const extras = installedPluginCommands(useStore.getState().config).map((c) => c.name)
-      const cmds = ['/clear', '/compact', '/cost', '/help', ...extras, '@files'].join(', ')
+      const cmds = ['/clear', '/compact', '/cost', '/help', '/image', '/web', ...extras, '@files', '@web'].join(', ')
       onSend(`Show available commands: ${cmds}. Install more from Settings → Plugins.`)
+    } else if (command === '/web') {
+      setValue('@web ')
+      textareaRef.current?.focus()
     } else if (command === '/new') {
       useStore.getState().clearMessages()
       useStore.getState().setCurrentSessionId(null)

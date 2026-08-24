@@ -20,15 +20,18 @@ const POPULAR_PREFIXES = [
   'openai/o4',
   'anthropic/claude-sonnet',
   'anthropic/claude-opus',
+  'anthropic/claude-haiku',
+  'anthropic/claude-fable',
   'anthropic/claude-3.5',
   'anthropic/claude-3.7',
-  'anthropic/claude-haiku',
+  'google/gemini-3',
   'google/gemini-2.5',
   'google/gemini-2.0',
   'google/gemini-pro',
   'google/gemini-flash',
   'deepseek/deepseek-chat',
   'deepseek/deepseek-v3',
+  'deepseek/deepseek-v4',
   'deepseek/deepseek-r1',
   'meta-llama/llama-3.3',
   'meta-llama/llama-4',
@@ -39,7 +42,10 @@ const POPULAR_PREFIXES = [
   'mistralai/codestral',
   'x-ai/grok-3',
   'x-ai/grok-4',
+  'x-ai/grok-5',
   'moonshotai/kimi-k2',
+  'moonshotai/kimi-k3',
+  'minimax/minimax-m',
   'perplexity/sonar',
 ]
 
@@ -68,9 +74,15 @@ export function resolveModelList(config: { model_list?: string; free_models_only
 
 export function visibleModels<T extends FilterableModel>(models: T[], mode: ModelListMode | boolean = 'all'): T[] {
   const resolved: ModelListMode = mode === true ? 'free' : mode === false ? 'all' : mode
-  if (resolved === 'free') return models.filter(isFreeModel)
-  if (resolved === 'popular') return models.filter(isPopularModel)
-  return models
+  let out = models
+  if (resolved === 'free') out = models.filter(isFreeModel)
+  else if (resolved === 'popular') out = models.filter(isPopularModel)
+  return [...out].sort((a, b) => {
+    const pa = isPopularModel(a) ? 0 : 1
+    const pb = isPopularModel(b) ? 0 : 1
+    if (pa !== pb) return pa - pb
+    return String(a.name || a.id).localeCompare(String(b.name || b.id))
+  })
 }
 
 function compactNumber(n: number): string {

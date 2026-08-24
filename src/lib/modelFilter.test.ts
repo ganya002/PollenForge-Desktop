@@ -11,12 +11,19 @@ test('visibleModels filters free, popular, and all', () => {
   ]
   assert.equal(visibleModels(models, 'all').length, 4)
   assert.deepEqual(visibleModels(models, 'free').map((m) => m.id), ['vendor/laguna:free'])
-  assert.deepEqual(visibleModels(models, 'popular').map((m) => m.id), ['gpt-5.6-sol', 'openai/gpt-4o'])
+  assert.deepEqual(visibleModels(models, 'popular').map((m) => m.id), ['openai/gpt-4o', 'gpt-5.6-sol'])
+  assert.deepEqual(
+    visibleModels(models, 'all').map((m) => m.id),
+    ['openai/gpt-4o', 'gpt-5.6-sol', 'vendor/laguna:free', 'obscure/lab-model'],
+  )
 })
 
 test('isPopularModel treats first-party Pollinations and flagship OpenRouter ids as popular', () => {
   assert.equal(isPopularModel({ id: 'kimi-k3' }), true)
   assert.equal(isPopularModel({ id: 'anthropic/claude-sonnet-4' }), true)
+  assert.equal(isPopularModel({ id: 'google/gemini-3.5-flash' }), true)
+  assert.equal(isPopularModel({ id: 'deepseek/deepseek-v4-pro' }), true)
+  assert.equal(isPopularModel({ id: 'moonshotai/kimi-k3' }), true)
   assert.equal(isPopularModel({ id: 'somebody/random-finetune' }), false)
 })
 

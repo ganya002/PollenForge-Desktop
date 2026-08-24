@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
-import { ToolCall } from '../../store/store'
+import { ToolCall, useStore } from '../../store/store'
 import { toolPath } from '../../lib/qol'
 import { currentWorkspace } from '../../lib/workspace'
 import { openWorkspaceFile } from '../../lib/workspaceFiles'
+import { isSafeBrowserUrl } from '../../lib/browserTargets'
 
 interface Props { toolCall: ToolCall }
 
@@ -49,11 +50,16 @@ const LABELS: Record<string, string> = {
   show_diff: 'Diff',
   worktree_list: 'Worktree',
   start_background_task: 'Task',
+  generate_image: 'Image',
+  web_search: 'Web search',
+  fetch_url: 'Fetch URL',
 }
 
 function getPreview(tc: ToolCall): string {
   const a = tc.args as any
   if (tc.name === 'run_command' && a.command) return String(a.command).slice(0, 80)
+  if (a.prompt) return String(a.prompt).slice(0, 80)
+  if (a.query) return String(a.query).slice(0, 80)
   if (a.path) return String(a.path).slice(0, 80)
   if (a.file) return String(a.file).slice(0, 80)
   if (a.url) return String(a.url).slice(0, 80)
@@ -73,6 +79,16 @@ function getOutput(tc: ToolCall): { text: string; isError: boolean; truncated?: 
   }
   if (r.content !== undefined) return { text: String(r.content).slice(0, 8000), isError: false }
   if (r.diff !== undefined) return { text: String(r.diff).slice(0, 8000) || '(no changes)', isError: false }
+  if (Array.isArray(r.results)) {
+    const lines = r.results.map((item: { title?: string; url?: string; snippet?: string }) => {
+      const title = item?.title || item?.url || 'result'
+      const url = item?.url ? ` ${item.url}` : ''
+      const snippet = item?.snippet ? `\n  ${item.snippet}` : ''
+      return `${title}${url}${snippet}`
+    })
+    if (r.answer) lines.unshift(String(r.answer).slice(0, 2000))
+    return { text: lines.join('\n').slice(0, 4000) || '(no results)', isError: false }
+  }
   if (r.files !== undefined) return { text: JSON.stringify(r.files, null, 2).slice(0, 4000), isError: false }
   return { text: JSON.stringify(r, null, 2).slice(0, 4000), isError: false }
 }
@@ -101,6 +117,19 @@ export default function ToolResult({ toolCall }: Props) {
     if (toolCall.startedAt && isRunning) return `${Date.now() - toolCall.startedAt}ms`
     return null
   }, [toolCall.durationMs, toolCall.startedAt, isRunning])
+
+  const result = toolCall.result as Record<string, unknown> | undefined
+  const imageUrl = toolCall.name === 'generate_image' && typeof result?.url === 'string' && isSafeBrowserUrl(result.url)
+    ? result.url
+    : ''
+  const searchResults = toolCall.name === 'web_search' && Array.isArray(result?.results)
+    ? (result.results as Array<{ title?: string; url?: string; snippet?: string }>)
+    : null
+  const searchAnswer = toolCall.name === 'web_search' && typeof result?.answer === 'string' ? result.answer : ''
+
+  const openUrl = (url: string) => {
+    if (isSafeBrowserUrl(url)) useStore.getState().openInBrowser(url)
+  }
 
   return (
     <div className={`group relative rounded-lg border bg-surface-1 overflow-hidden animate-fade-in ${isError ? 'border-red-500/20' : isRunning ? 'border-amber-500/20' : 'border-border'}`}>
@@ -150,9 +179,40 @@ export default function ToolResult({ toolCall }: Props) {
           {(toolCall.result || isRunning) && (
             <div className="px-3 pb-3">
               <div className="text-[10px] font-medium tracking-wider uppercase text-text-muted mb-1">Output</div>
-              <pre className={`text-xs font-mono border border-border rounded-md px-2.5 py-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words ${isError ? 'bg-surface-2 text-danger' : 'bg-surface-2 text-text-secondary'}`}>
-                {isRunning && !output ? 'Running…' : output || '(no output)'}
-              </pre>
+              {imageUrl && !isError ? (
+                <img
+                  src={imageUrl}
+                  alt={String((toolCall.args as { prompt?: string }).prompt || 'Generated image')}
+                  className="max-w-full rounded-md border border-border cursor-pointer"
+                  style={{ maxHeight: 360 }}
+                  onClick={() => openUrl(imageUrl)}
+                />
+              ) : searchResults && !isError ? (
+                <div className="space-y-2">
+                  {searchAnswer && (
+                    <p className="text-xs text-text-secondary whitespace-pre-wrap break-words">{searchAnswer.slice(0, 2000)}</p>
+                  )}
+                  {searchResults.length === 0 && !searchAnswer && (
+                    <div className="text-xs text-text-muted">No results</div>
+                  )}
+                  {searchResults.map((item, i) => (
+                    <button
+                      key={`${item.url || i}`}
+                      type="button"
+                      onClick={() => item.url && openUrl(item.url)}
+                      className="block w-full text-left rounded-md border border-border bg-surface-2 px-2.5 py-2 hover:bg-surface-3 transition-smooth"
+                    >
+                      <div className="text-xs text-accent truncate">{item.title || item.url}</div>
+                      {item.url && <div className="text-[10px] text-text-muted truncate">{item.url}</div>}
+                      {item.snippet && <div className="text-[11px] text-text-secondary mt-0.5 line-clamp-2">{item.snippet}</div>}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <pre className={`text-xs font-mono border border-border rounded-md px-2.5 py-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words ${isError ? 'bg-surface-2 text-danger' : 'bg-surface-2 text-text-secondary'}`}>
+                  {isRunning && !output ? 'Running…' : output || '(no output)'}
+                </pre>
+              )}
               {(toolCall.result as any)?.truncated && (
                 <div className="text-[10px] text-text-muted mt-1">Output truncated. Use get_task_logs or read_file for full output.</div>
               )}

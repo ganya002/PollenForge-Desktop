@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  hasWebMention,
   isAskBlockedTool,
   isHtmlWriteTool,
   messageMatchesFind,
@@ -19,6 +20,8 @@ test('ask mode blocks writes and shell', () => {
   assert.equal(normalizeAgentMode('ask'), 'ask')
   assert.equal(isAskBlockedTool('write_file'), true)
   assert.equal(isAskBlockedTool('read_file'), false)
+  assert.equal(isAskBlockedTool('generate_image'), false)
+  assert.equal(isAskBlockedTool('web_search'), false)
 })
 
 test('prompt history newest unique first', () => {
@@ -32,4 +35,7 @@ test('find and html write helpers', () => {
   assert.equal(toolPath({ path: 'src/app.ts' }), 'src/app.ts')
   assert.equal(isHtmlWriteTool('write_file', { path: 'index.html' }), true)
   assert.equal(isHtmlWriteTool('read_file', { path: 'index.html' }), false)
+  assert.equal(hasWebMention('@web latest rust release'), true)
+  assert.equal(hasWebMention('email @webmaster'), false)
+  assert.equal(hasWebMention('look this up'), false)
 })

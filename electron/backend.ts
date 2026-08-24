@@ -94,7 +94,7 @@ export class BackendManager {
   }
 
   private hasBackendDeps(command: string): boolean {
-    return this.probePython(command, 'import fastapi, uvicorn, httpx', 20_000);
+    return this.probePython(command, 'import fastapi, uvicorn, httpx, websockets', 20_000);
   }
 
   private installBackendDeps(command: string): void {

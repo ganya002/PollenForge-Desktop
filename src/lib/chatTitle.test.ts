@@ -9,7 +9,8 @@ test('titleFromPrompt skips commands and token dumps', () => {
   assert.equal(titleFromPrompt('/help'), '')
   assert.equal(titleFromPrompt('/caveman'), '')
   assert.equal(titleFromPrompt('/goal fix the pong paddle'), 'fix the pong paddle')
-  assert.equal(titleFromPrompt('/cave hello'), 'hello')
+  assert.equal(titleFromPrompt('/image a red bicycle'), 'a red bicycle')
+  assert.equal(titleFromPrompt('/web latest rust'), 'latest rust')
   assert.equal(titleFromPrompt('make a pong game'), 'make a pong game')
 })
 

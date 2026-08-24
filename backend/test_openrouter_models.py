@@ -54,6 +54,31 @@ class MapOpenRouterModelTests(unittest.TestCase):
         })
         self.assertEqual([m["id"] for m in rows], ["anthropic/claude-sonnet-4"])
 
+    def test_skips_batch_and_hidden_ids(self):
+        rows = map_openrouter_models({
+            "data": [
+                {
+                    "id": "anthropic/claude-sonnet-5:batch",
+                    "name": "Claude Sonnet 5 (batch)",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+                },
+                {
+                    "id": "~x-ai/grok-latest",
+                    "name": "Grok Latest",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {"prompt": "0", "completion": "0"},
+                },
+                {
+                    "id": "openai/gpt-5.6-sol",
+                    "name": "OpenAI: GPT-5.6 Sol",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {"prompt": "0.000005", "completion": "0.000015"},
+                },
+            ]
+        })
+        self.assertEqual([m["id"] for m in rows], ["openai/gpt-5.6-sol"])
+
 
 if __name__ == "__main__":
     unittest.main()
