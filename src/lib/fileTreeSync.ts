@@ -5,6 +5,7 @@ const FILE_MUTATING_TOOLS = new Set([
   'git_clone',
   'git_checkout',
   'run_formatter',
+  'spawn_swarm',
 ])
 
 const WATCH_SKIP = new Set([

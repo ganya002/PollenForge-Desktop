@@ -7,7 +7,7 @@ import { projectPathFromDrop } from '../../lib/chatActions'
 import { PLUGIN_CATALOG_MAP, pluginByCommand } from '../../lib/pluginCatalog'
 import { pushPromptHistory, speechSupported } from '../../lib/qol'
 import { addFileToChat } from '../../lib/workspaceFiles'
-import { activePluginIds, handlePluginSlash, installedPluginCommands, installedPluginIds, setPluginActive } from '../../lib/plugins'
+import { activePluginIds, handlePluginSlash, installPlugin, installedPluginCommands, installedPluginIds, setPluginActive } from '../../lib/plugins'
 import { ensurePlanFile, setChatDirectory } from '../../lib/workspace'
 
 interface Props {
@@ -551,6 +551,26 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
               title="Goal mode — /goal"
             >
               Goal {activePluginIds(config).includes('goal') && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+            </button>
+
+            <button
+              onClick={() => {
+                let cfg = useStore.getState().config
+                const on = !activePluginIds(cfg).includes('swarm')
+                if (on && !installedPluginIds(cfg).includes('swarm')) cfg = installPlugin(cfg, 'swarm')
+                const next = setPluginActive(cfg, 'swarm', on)
+                setConfig(next)
+                persistConfig(next)
+                setPluginNotice(on ? 'Swarm on. Large tasks split across workers.' : 'Swarm off')
+              }}
+              className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${
+                activePluginIds(config).includes('swarm')
+                  ? 'bg-surface-3 text-text-primary border-border'
+                  : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'
+              }`}
+              title="Swarm mode — /swarm"
+            >
+              Swarm {activePluginIds(config).includes('swarm') && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </button>
 
             {isStreaming && (

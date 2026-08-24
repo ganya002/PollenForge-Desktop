@@ -55,6 +55,13 @@ test('/plan with text sends the remainder when installed', () => {
   assert.ok(config.active_plugins.includes('planner'))
 })
 
+test('activating swarm turns plan off', () => {
+  let cfg = setPluginActive(installPlugin(installPlugin(base, 'swarm'), 'planner'), 'planner', true)
+  cfg = setPluginActive(cfg, 'swarm', true)
+  assert.equal(cfg.active_plugins.includes('planner'), false)
+  assert.ok(cfg.active_plugins.includes('swarm'))
+})
+
 test('activating goal turns plan off and the reverse', () => {
   let cfg = setPluginActive(installPlugin(installPlugin(base, 'goal'), 'planner'), 'planner', true)
   cfg = setPluginActive(cfg, 'goal', true)

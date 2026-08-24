@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../../store/store'
 import UpdatesPanel from './UpdatesPanel'
+import MemoryPanel from './MemoryPanel'
 import { PROVIDER_CATALOG } from '../../lib/providerCatalog'
 import {
   addEnabledProvider,
@@ -13,7 +14,7 @@ import { marketplaceSearch, installPlugin, uninstallPlugin, installedPluginIds }
 import { isFreeModel, resolveModelList, type ModelListMode } from '../../lib/modelFilter'
 import { applyTheme, THEME_IDS, type ThemeId } from '../../lib/qol'
 
-export type SettingsTab = 'providers' | 'plugins' | 'general' | 'updates' | 'about'
+export type SettingsTab = 'providers' | 'plugins' | 'general' | 'memory' | 'updates' | 'about'
 
 interface SettingsModalProps {
   open: boolean
@@ -143,7 +144,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
             </div>
 
             <div className="flex border-b border-border shrink-0 overflow-x-auto">
-              {(['providers', 'plugins', 'general', 'updates', 'about'] as const).map((tab) => (
+              {(['providers', 'plugins', 'general', 'memory', 'updates', 'about'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -312,7 +313,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                       className="h-9 w-full px-3 text-[13px] bg-surface-2 border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-hover"
                     />
                     <p className="text-[12px] text-text-muted">
-                      Installed plugins add instructions to the next prompt. Install first, then use /caveman, /goal, or /plan in chat. Goal and Plan cannot be on together.
+                      Installed plugins add instructions to the next prompt. Use /caveman, /goal, /plan, or /swarm. Plan cannot run with Goal or Swarm.
                     </p>
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-2">
@@ -521,6 +522,12 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                       className="w-full px-3 py-1.5 text-xs bg-surface-1 border border-border rounded text-text-primary focus:outline-none focus:border-accent"
                     />
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'memory' && (
+                <div className="h-full min-h-0">
+                  <MemoryPanel />
                 </div>
               )}
 

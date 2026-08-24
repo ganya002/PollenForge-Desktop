@@ -151,6 +151,26 @@ export interface Checkpoint {
   messages: Message[]
 }
 
+export interface SwarmWorker {
+  id: string
+  role: string
+  task: string
+  content: string
+  status: 'pending' | 'running' | 'done' | 'error'
+    lastTool?: string
+  lastPath?: string
+  added?: number
+  removed?: number
+  toolsUsed?: number
+  error?: string
+}
+
+export interface SwarmState {
+  goal: string
+  workers: SwarmWorker[]
+  active: boolean
+}
+
 interface AppState {
   messages: Message[]
   currentModel: string
@@ -184,6 +204,7 @@ interface AppState {
   chatFind: string
   checkpoints: Checkpoint[]
   showArchived: boolean
+  swarm: SwarmState | null
   _wsSend: ((data: Record<string, unknown>) => boolean) | null
 
   addMessage: (msg: Message) => void
@@ -229,6 +250,11 @@ interface AppState {
   addCheckpoint: (label?: string) => void
   restoreCheckpoint: (id: string) => void
   setShowArchived: (on: boolean) => void
+  startSwarm: (payload: { goal?: string; workers: { id: string; role: string; task: string }[] }) => void
+  appendSwarmToken: (id: string, content: string) => void
+  setSwarmWorker: (id: string, updates: Partial<SwarmWorker>) => void
+  endSwarm: () => void
+  clearSwarm: () => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -280,6 +306,7 @@ export const useStore = create<AppState>((set, get) => ({
   chatFind: '',
   checkpoints: [],
   showArchived: false,
+  swarm: null,
   _wsSend: null,
 
   addMessage: (msg) => set((s) => {
@@ -329,10 +356,10 @@ export const useStore = create<AppState>((set, get) => ({
   setSessions: (sessions) => set({ sessions }),
   setConfig: (config) => set({ config }),
   setFileTree: (tree) => set({ fileTree: tree }),
-  clearMessages: () => set({ messages: [], checkpoints: [], undoWrite: null, agentStep: null }),
+  clearMessages: () => set({ messages: [], checkpoints: [], undoWrite: null, agentStep: null, swarm: null }),
   setCurrentSessionId: (id) => {
     rememberSessionId(id)
-    set({ currentSessionId: id, checkpoints: [], undoWrite: null })
+    set({ currentSessionId: id, checkpoints: [], undoWrite: null, swarm: null })
   },
   loadSessionMessages: (msgs) => set({
     messages: msgs.map((m, i) => ({
@@ -344,6 +371,7 @@ export const useStore = create<AppState>((set, get) => ({
       toolCalls: (m as any).toolCalls,
       stats: (m as any).stats,
     })),
+    swarm: null,
   }),
   setPendingApproval: (approval) => set({ pendingApproval: approval }),
   setWsConnected: (v) => set({ wsConnected: v }),
@@ -408,4 +436,71 @@ export const useStore = create<AppState>((set, get) => ({
     return { messages: hit.messages.map((m) => ({ ...m })), agentStep: null }
   }),
   setShowArchived: (showArchived) => set({ showArchived }),
+  startSwarm: (payload) => set((s) => {
+    const workers = payload.workers.map((w) => ({
+      id: w.id,
+      role: w.role,
+      task: w.task,
+      content: '',
+      status: 'running' as const,
+    }))
+    const ids = workers.map((w) => w.id).join(',')
+    if (s.swarm && s.swarm.workers.map((w) => w.id).join(',') === ids) {
+      return {
+        swarm: {
+          ...s.swarm,
+          goal: payload.goal || s.swarm.goal,
+          active: true,
+          workers: s.swarm.workers.map((w, i) => ({
+            ...w,
+            role: workers[i]?.role || w.role,
+            task: workers[i]?.task || w.task,
+            status: w.status === 'done' || w.status === 'error' ? w.status : 'running',
+          })),
+        },
+      }
+    }
+    return {
+      swarm: {
+        goal: payload.goal || '',
+        active: true,
+        workers,
+      },
+    }
+  }),
+  appendSwarmToken: (id, content) => set((s) => {
+    if (!s.swarm) return s
+    return {
+      swarm: {
+        ...s.swarm,
+        workers: s.swarm.workers.map((w) => (
+          w.id === id
+            ? { ...w, content: w.content + content, status: w.status === 'pending' ? 'running' : w.status }
+            : w
+        )),
+      },
+    }
+  }),
+  setSwarmWorker: (id, updates) => set((s) => {
+    if (!s.swarm) return s
+    return {
+      swarm: {
+        ...s.swarm,
+        workers: s.swarm.workers.map((w) => (w.id === id ? { ...w, ...updates } : w)),
+      },
+    }
+  }),
+  endSwarm: () => set((s) => {
+    if (!s.swarm) return s
+    return {
+      swarm: {
+        ...s.swarm,
+        active: false,
+        workers: s.swarm.workers.map((w) => (
+          w.status === 'running' || w.status === 'pending' ? { ...w, status: 'done' } : w
+        )),
+      },
+    }
+  }),
+  clearSwarm: () => set({ swarm: null }),
 }))

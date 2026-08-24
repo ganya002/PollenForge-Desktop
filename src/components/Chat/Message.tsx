@@ -51,7 +51,7 @@ export default function Message({ message, onRetry, onEdit }: Props) {
 
   return (
     <div id={`msg-${message.id}`} className={`mb-6 group ${findHit ? 'chat-find-hit' : ''}`}>
-      <ThinkingBlock reasoning={reasoning} active={isLive} />
+      <ThinkingBlock reasoning={reasoning} active={isLive} toolCalls={message.toolCalls} />
 
       {hasTools && (
         <div className="space-y-2 mb-3">

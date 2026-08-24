@@ -1,5 +1,6 @@
 import { useStore } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
+import { summarizeAgentActivity } from '../lib/agentActivity'
 import UpdateBadge from './UpdateBadge'
 
 interface StatusBarProps {
@@ -18,6 +19,13 @@ export default function StatusBar({ onOpenUpdates, onRetry }: StatusBarProps) {
   const config = useStore((s) => s.config)
   const tasks = useStore((s) => s.tasks)
   const agentStep = useStore((s) => s.agentStep)
+  const swarm = useStore((s) => s.swarm)
+  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
+  const activity = summarizeAgentActivity({
+    toolCalls: lastAssistant?.toolCalls,
+    swarm,
+    streaming: isStreaming,
+  })
 
   const totalChars = messages.reduce((acc, m) => acc + m.content.length + (m.toolCalls?.reduce((a, tc) => a + JSON.stringify(tc.args).length, 0) || 0), 0)
   const estimatedTokens = Math.ceil(totalChars / 4)
@@ -42,7 +50,9 @@ export default function StatusBar({ onOpenUpdates, onRetry }: StatusBarProps) {
         {isStreaming && (
           <div className="flex items-center gap-1.5 text-accent min-w-0">
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-            <span className="truncate max-w-[22rem]">{agentStep || 'Generating…'}</span>
+            <span className="truncate max-w-[22rem]">{activity.headline || agentStep || 'Generating…'}</span>
+            {activity.added > 0 && <span className="text-emerald-400 tabular-nums">+{activity.added}</span>}
+            {activity.removed > 0 && <span className="text-red-400 tabular-nums">-{activity.removed}</span>}
           </div>
         )}
         {runningTasks > 0 && (

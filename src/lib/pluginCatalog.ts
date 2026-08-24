@@ -66,6 +66,19 @@ Produce a concrete plan:
 
 If the user later says go / execute / implement, drop this constraint and do the work.`,
   },
+  {
+    id: 'swarm',
+    name: 'Swarm',
+    command: '/swarm',
+    description: 'Split large work across parallel worker agents, then merge the results.',
+    prompt: `SWARM MODE is ON for this request.
+
+1. If the work is a small one-file change, do it yourself — do not spawn a swarm.
+2. Otherwise split into 2-3 jobs with non-overlapping files or concerns.
+3. Call spawn_swarm with JSON tasks: [{"role":"implementer","task":"..."},{"role":"reviewer","task":"..."}].
+4. Read every worker result. Fix conflicts yourself. You are the lead.
+5. Follow AGENTS.md. Save lasting notes with remember if the user states a preference.`,
+  },
 ]
 
 export const PLUGIN_CATALOG_MAP: Record<string, PluginEntry> = Object.fromEntries(

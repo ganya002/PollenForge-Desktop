@@ -51,9 +51,10 @@ async def execute_tool(name: str, args: dict) -> dict:
         result = handler(**args)
         if inspect.isawaitable(result):
             try:
-                result = await asyncio.wait_for(result, timeout=60)
+                limit = 180 if name == "spawn_swarm" else 60
+                result = await asyncio.wait_for(result, timeout=limit)
             except asyncio.TimeoutError:
-                return {"error": f"Tool {name} timed out after 60s", "timeout": True}
+                return {"error": f"Tool {name} timed out after {limit}s", "timeout": True}
         return result if isinstance(result, dict) else {"result": result}
     except TypeError as e:
         try:

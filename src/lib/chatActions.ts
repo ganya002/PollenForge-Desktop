@@ -39,6 +39,15 @@ export function sessionMatches(session: Session, query: string, title: string): 
   )
 }
 
+export function sidebarSessions(
+  sessions: Session[],
+  showArchived: boolean,
+  query: string,
+  title: (session: Session) => string,
+): Session[] {
+  return sessions.filter((s) => (showArchived ? !!s.archived : !s.archived) && sessionMatches(s, query, title(s)))
+}
+
 export function htmlUrlFromTool(
   tool: string,
   args: Record<string, unknown> | undefined,

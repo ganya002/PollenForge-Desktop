@@ -60,6 +60,9 @@ export default function BrowserPanel() {
   const url = useStore((s) => s.browserUrl)
   const browserTick = useStore((s) => s.browserTick)
   const fullscreen = useStore((s) => s.browserFullscreen)
+  const swarmOpen = useStore((s) => !!s.swarm?.workers.length)
+  const hasOpenFiles = useStore((s) => s.openFiles.length > 0)
+  const crowded = swarmOpen && hasOpenFiles
   const setUrl = useStore((s) => s.setBrowserUrl)
   const setFullscreen = useStore((s) => s.setBrowserFullscreen)
   const toggleBrowser = useStore((s) => s.toggleBrowser)
@@ -140,7 +143,10 @@ export default function BrowserPanel() {
   useEffect(() => {
     if (!dragging) return
     const onMove = (e: PointerEvent) => {
-      const next = Math.min(MAX_W, Math.max(MIN_W, window.innerWidth - e.clientX))
+      const cap = crowded
+        ? Math.min(MAX_W, Math.max(MIN_W, Math.round(window.innerWidth * 0.34)))
+        : MAX_W
+      const next = Math.min(cap, Math.max(MIN_W, window.innerWidth - e.clientX))
       widthRef.current = next
       if (asideRef.current) asideRef.current.style.width = `${next}px`
     }
@@ -168,7 +174,7 @@ export default function BrowserPanel() {
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [dragging])
+  }, [dragging, crowded])
 
   const go = useCallback(
     (value: string) => {
@@ -187,7 +193,10 @@ export default function BrowserPanel() {
       animate={open ? { opacity: 1, x: 0 } : { opacity: 0, x: 12 }}
       transition={{ duration: 0.22, ease: easeOut }}
       style={{
-        ...(fullscreen && open ? undefined : { width }),
+        ...(fullscreen && open ? undefined : {
+          width,
+          maxWidth: crowded ? 'min(34vw, 26rem)' : undefined,
+        }),
         display: open ? undefined : 'none',
       }}
       className={

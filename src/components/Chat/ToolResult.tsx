@@ -50,6 +50,10 @@ const LABELS: Record<string, string> = {
   show_diff: 'Diff',
   worktree_list: 'Worktree',
   start_background_task: 'Task',
+  spawn_swarm: 'Swarm',
+  remember: 'Memory',
+  forget_memory: 'Memory',
+  list_memories: 'Memory',
   generate_image: 'Image',
   web_search: 'Web search',
   fetch_url: 'Fetch URL',
@@ -58,6 +62,8 @@ const LABELS: Record<string, string> = {
 function getPreview(tc: ToolCall): string {
   const a = tc.args as any
   if (tc.name === 'run_command' && a.command) return String(a.command).slice(0, 80)
+  if (tc.name === 'spawn_swarm') return String(a.goal || a.tasks || 'parallel agents').slice(0, 80)
+  if (tc.name === 'remember') return String(a.text || a.note || '').slice(0, 80)
   if (a.prompt) return String(a.prompt).slice(0, 80)
   if (a.query) return String(a.query).slice(0, 80)
   if (a.path) return String(a.path).slice(0, 80)

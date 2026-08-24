@@ -137,6 +137,9 @@ contextBridge.exposeInMainWorld('api', {
     pickDirectory: (): Promise<{ ok: boolean; path?: string }> => {
       return ipcRenderer.invoke('app:pick-directory');
     },
+    notifyDone: (payload?: { title?: string; body?: string }): Promise<{ ok: boolean; skipped?: boolean; error?: string }> => {
+      return ipcRenderer.invoke('app:notify-done', payload);
+    },
     platform: process.platform,
     nativeFrame: process.platform === 'win32',
   },

@@ -7,7 +7,8 @@ function unique(ids: string[]): string[] {
 
 const EXCLUSIVE: Record<string, string[]> = {
   goal: ['planner'],
-  planner: ['goal'],
+  planner: ['goal', 'swarm'],
+  swarm: ['planner'],
 }
 
 export function installedPluginIds(config: Config): string[] {

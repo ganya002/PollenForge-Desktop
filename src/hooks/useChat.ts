@@ -10,6 +10,7 @@ import { titleFromPrompt } from '../lib/chatTitle'
 import { shouldRefreshFileTree } from '../lib/fileTreeSync'
 import { sanitizeAssistantContent } from '../lib/sanitizeAssistantContent'
 import { mergeReasoning, splitThinkTags } from '../lib/thinking'
+import { swarmWorkersFromArgs } from '../lib/swarm'
 import { useWebSocket } from './useWebSocket'
 
 function genId(): string {
@@ -105,6 +106,10 @@ export function useChat() {
         startedAt: Date.now(),
       }
       state.addToolCall(last.id, toolCall)
+      if (tool === 'spawn_swarm') {
+        const workers = swarmWorkersFromArgs(args)
+        if (workers.length) state.startSwarm({ goal: String(args.goal || ''), workers })
+      }
       const path = toolPath(args)
       state.setAgentStep(path ? `${tool} ${path}` : tool)
       const root = currentWorkspace()
@@ -148,6 +153,20 @@ export function useChat() {
         durationMs: running?.startedAt ? Date.now() - running.startedAt : undefined
       })
       if (shouldRefreshFileTree(tool, result)) scheduleFileTreeRefresh()
+      if (tool === 'spawn_swarm' && result && typeof result === 'object') {
+        const agents = (result as { agents?: Array<{ id?: string; result?: string; error?: string; tools_used?: number }> }).agents
+        if (Array.isArray(agents)) {
+          agents.forEach((agent, i) => {
+            const id = agent.id || `s${i}`
+            useStore.getState().setSwarmWorker(id, {
+              ...(agent.result ? { content: agent.result } : {}),
+              ...(agent.error ? { error: agent.error, status: 'error' as const } : { status: 'done' as const }),
+              toolsUsed: agent.tools_used,
+            })
+          })
+          useStore.getState().endSwarm()
+        }
+      }
       if (!isError && isHtmlWriteTool(tool, running?.args || last.toolCalls.find((t) => t.id === targetId)?.args)) {
         const htmlUrl = htmlUrlFromTool(tool, running?.args || {}, currentWorkspace())
         if (htmlUrl) {
@@ -211,15 +230,59 @@ export function useChat() {
         void savePlanMarkdown(plan)
       }
       useStore.getState().setAgentStep(null)
+      if (useStore.getState().swarm?.active) useStore.getState().endSwarm()
       void persistCurrentSession()
       void refreshSessions()
       scrollToBottom()
+      const cancelled = Boolean((stats as { cancelled?: boolean })?.cancelled)
+      if (!cancelled && (document.hidden || !document.hasFocus())) {
+        const preview = sanitizeAssistantContent(last?.content || '').replace(/\s+/g, ' ').trim().slice(0, 140)
+        void window.api?.app?.notifyDone?.({
+          title: 'Nexum',
+          body: preview || 'Agent finished',
+        })
+      }
       const queued = useStore.getState().queuedMessage
       if (queued) {
         useStore.getState().setQueuedMessage(null)
         queueMicrotask(() => { void sendMessageRef.current(queued) })
       }
     }, [scrollToBottom]),
+
+    onSwarmStart: useCallback((goal: string, workers: { id: string; role: string; task: string }[]) => {
+      if (workers.length) useStore.getState().startSwarm({ goal, workers })
+    }, []),
+
+    onSwarmToken: useCallback((id: string, content: string) => {
+      useStore.getState().appendSwarmToken(id, content)
+    }, []),
+
+    onSwarmTool: useCallback((id: string, tool: string, extra?: { path?: string; added?: number; removed?: number }) => {
+      const state = useStore.getState()
+      const worker = state.swarm?.workers.find((w) => w.id === id)
+      state.setSwarmWorker(id, {
+        lastTool: tool,
+        lastPath: extra?.path || worker?.lastPath,
+        added: (worker?.added || 0) + (extra?.added || 0),
+        removed: (worker?.removed || 0) + (extra?.removed || 0),
+        status: 'running',
+      })
+      if (shouldRefreshFileTree(tool)) scheduleFileTreeRefresh()
+    }, []),
+
+    onSwarmDone: useCallback((id: string, payload: { result?: string; error?: string; tools_used?: number }) => {
+      const updates: { status: 'done' | 'error'; toolsUsed?: number; error?: string; content?: string } = {
+        status: payload.error ? 'error' : 'done',
+        toolsUsed: payload.tools_used,
+      }
+      if (payload.error) updates.error = payload.error
+      if (payload.result) updates.content = payload.result
+      useStore.getState().setSwarmWorker(id, updates)
+    }, []),
+
+    onSwarmEnd: useCallback(() => {
+      useStore.getState().endSwarm()
+    }, []),
 
     onError: useCallback((message: string) => {
       const state = useStore.getState()
@@ -252,6 +315,7 @@ export function useChat() {
       return
     }
     if (state.messages.length > 0) state.addCheckpoint()
+    if (!state.swarm?.active) state.clearSwarm()
 
     let sessionId = state.currentSessionId
     if (!sessionId) {

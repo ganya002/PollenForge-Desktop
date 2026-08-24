@@ -15,6 +15,9 @@ from workspace import apply_workspace
 from providers import get_provider, list_providers_live
 from tools import list_tools, execute_tool
 from openai_tools import prefer_native_tool_calls, to_openai_tools
+from agents_md import load_agents_md, agents_prompt_section
+from runtime import runtime_var
+from tools.memory import forget_memory, list_memories, memory_prompt_section, remember, save_memories
 
 app = FastAPI(title="Nexum Backend", version="1.0.0")
 
@@ -146,6 +149,47 @@ async def post_update_session(session_id: str, body: dict = None):
     if "name" in body:
         return await update_session(session_id, SessionUpdateBody(name=body["name"]))
     return JSONResponse(status_code=400, content={"error": "No name provided"})
+
+
+@app.get("/memory")
+async def get_memory():
+    return list_memories()
+
+
+class MemoryBody(BaseModel):
+    text: str = ""
+
+
+@app.post("/memory")
+async def post_memory(body: MemoryBody):
+    return remember(body.text)
+
+
+@app.delete("/memory/{memory_id}")
+async def delete_memory(memory_id: str):
+    return forget_memory(memory_id=memory_id)
+
+
+@app.put("/memory")
+async def put_memory(body: dict):
+    items = body.get("items") if isinstance(body, dict) else None
+    if not isinstance(items, list):
+        return JSONResponse(status_code=400, content={"error": "items array required"})
+    cleaned = []
+    for item in items:
+        if isinstance(item, str) and item.strip():
+            text = item.strip()
+            mem_id = uuid.uuid4().hex[:10]
+            created = time.time()
+        elif isinstance(item, dict) and str(item.get("text") or "").strip():
+            text = str(item.get("text")).strip()
+            mem_id = str(item.get("id") or "") or uuid.uuid4().hex[:10]
+            created = item.get("created_at") or time.time()
+        else:
+            continue
+        cleaned.append({"id": mem_id, "text": text[:400], "created_at": created})
+    save_memories(cleaned)
+    return list_memories()
 
 
 @app.get("/files/list")
@@ -491,35 +535,9 @@ async def stream_chat(websocket: WebSocket, data: dict, conn_id: str):
         for t in tools
     ])
 
-    # Load AGENTS.md from the chat's project folder (not the Python backend cwd)
-    agents_md = ""
-    try:
-        import os
-        candidates = []
-        if workspace:
-            candidates.extend([
-                os.path.join(workspace, "AGENTS.md"),
-                os.path.join(workspace, ".opencode", "AGENTS.md"),
-            ])
-        else:
-            cwd = os.getcwd()
-            candidates.extend([
-                os.path.join(cwd, "AGENTS.md"),
-                os.path.join(cwd, ".opencode", "AGENTS.md"),
-            ])
-        candidates.extend([
-            os.path.expanduser("~/.config/nexum/AGENTS.md"),
-            os.path.expanduser("~/.config/pollenforge/AGENTS.md"),
-        ])
-        for candidate in candidates:
-            if os.path.exists(candidate):
-                with open(candidate) as f:
-                    agents_md = f.read()[:3000]
-                break
-    except Exception:
-        pass
-
-    agents_section = f"\n\n## Project Conventions (from AGENTS.md)\n\n{agents_md}" if agents_md else ""
+    loaded_agents = load_agents_md(workspace)
+    agents_section = agents_prompt_section(loaded_agents)
+    memory_section = memory_prompt_section()
     workspace_section = ""
     if workspace:
         workspace_section = f"""
@@ -531,8 +549,11 @@ run_command runs here unless you set cwd. Prefer this folder over any other work
 
     system_prompt = f"""You are Nexum, a powerful autonomous coding agent with FULL access to the user's computer. You are comparable to Claude Code, Codex, Cursor, and OpenCode.
 {workspace_section}
+{agents_section}
+{memory_section}
 
 CRITICAL: You MUST use tools to fulfill requests. NEVER respond with just text. You HAVE the tools — USE THEM.
+If AGENTS.md was loaded above, follow it first — especially for releases, packaging, and how users install the app.
 
 Prefer native function calling when the API supports it. If native tools are unavailable, YOUR RESPONSE MUST CONTAIN ```tool CODE BLOCKS. If you don't call tools, you are failing your user.
 
@@ -570,10 +591,12 @@ YOU MUST OUTPUT THIS EXACT FORMAT. NOT ```json. NOT ```python. ONLY ```tool.
 - GitHub: clone repos, list/create PRs, review PRs, list/create issues
 - Search code across GitHub
 
-### Skills System
+### Skills, memory, swarm
 - SAVE workflows as reusable Skills with save_skill
 - RUN saved Skills with run_skill
 - TEACH conventions with teach_convention
+- SAVE lasting user/project notes with remember; remove stale ones with forget_memory
+- For large multi-file work, split jobs and call spawn_swarm with 2-3 non-overlapping tasks, then merge the results yourself
 
 ### Code Analysis
 - TREE VIEW of project structure
@@ -674,7 +697,6 @@ WRONG responses (NEVER do these):
 - "I'd be happy to help..." (no tool = WRONG)
 - "I can't access your computer" (you CAN)
 - "Here's how you could..." (DO IT, don't describe)
-{agents_section}
 
 START OUTPUTTING TOOL BLOCKS NOW."""
 
@@ -699,6 +721,20 @@ START OUTPUTTING TOOL BLOCKS NOW."""
     seen_tool_hashes: dict[str, int] = {}
     consecutive_no_progress = 0
     cancel = cancel_flags.get(conn_id) or asyncio.Event()
+
+    runtime_token = runtime_var.set({
+        "provider": provider,
+        "model": model,
+        "params": params,
+        "workspace": workspace,
+        "agents_section": agents_section,
+        "memory_section": memory_section,
+        "ask_mode": ask_mode,
+        "depth": 0,
+        "emit": websocket.send_json,
+        "emit_lock": asyncio.Lock(),
+        "cancel": cancel,
+    })
 
     async def send_cancelled():
         elapsed = time.time() - start_time
@@ -913,6 +949,8 @@ START OUTPUTTING TOOL BLOCKS NOW."""
 
     except Exception as e:
         await websocket.send_json({"type": "error", "message": str(e)})
+    finally:
+        runtime_var.reset(runtime_token)
 
 
 @app.websocket("/ws")

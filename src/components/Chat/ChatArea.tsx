@@ -89,7 +89,7 @@ export default function ChatArea({ messages, scrollRef, onRetry, onEdit, onScrol
       ref={scrollRef}
       onScroll={onScroll}
       onWheel={onWheel}
-      className={`flex-1 min-h-0 bg-surface-0 ${empty ? 'flex flex-col' : 'overflow-y-auto'}`}
+      className={`flex-1 min-h-[7rem] min-w-0 bg-surface-0 ${empty ? 'flex flex-col' : 'overflow-y-auto'}`}
     >
       {empty ? (
         <WelcomeScreen />

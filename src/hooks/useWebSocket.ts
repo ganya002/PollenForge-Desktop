@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useStore } from '../store/store'
 
+type SwarmWorkerSeed = { id: string; role: string; task: string }
+
 type WSMessage =
   | { type: 'token'; content: string }
   | { type: 'reasoning'; content: string }
@@ -12,6 +14,11 @@ type WSMessage =
   | { type: 'done'; stats: unknown }
   | { type: 'error'; message: string }
   | { type: 'pong' }
+  | { type: 'swarm_start'; goal?: string; workers: SwarmWorkerSeed[] }
+  | { type: 'swarm_token'; id: string; content: string }
+  | { type: 'swarm_tool'; id: string; tool: string; path?: string; added?: number; removed?: number }
+  | { type: 'swarm_done'; id: string; result?: string; error?: string; tools_used?: number }
+  | { type: 'swarm_end' }
 
 interface UseWebSocketOptions {
   onToken?: (content: string) => void
@@ -23,6 +30,11 @@ interface UseWebSocketOptions {
   onProgress?: (iteration: number, maxIterations: number, toolsExecuted: number) => void
   onDone?: (stats: unknown) => void
   onError?: (message: string) => void
+  onSwarmStart?: (goal: string, workers: SwarmWorkerSeed[]) => void
+  onSwarmToken?: (id: string, content: string) => void
+  onSwarmTool?: (id: string, tool: string, extra?: { path?: string; added?: number; removed?: number }) => void
+  onSwarmDone?: (id: string, payload: { result?: string; error?: string; tools_used?: number }) => void
+  onSwarmEnd?: () => void
 }
 
 const WS_URL = 'ws://127.0.0.1:8765/ws'
@@ -75,6 +87,11 @@ export function useWebSocket(options: UseWebSocketOptions) {
           case 'done': opts.onDone?.(msg.stats); setStreaming(false); break
           case 'error': opts.onError?.(msg.message); setStreaming(false); break
           case 'pong': break
+          case 'swarm_start': opts.onSwarmStart?.(msg.goal || '', msg.workers || []); break
+          case 'swarm_token': opts.onSwarmToken?.(msg.id, msg.content); break
+          case 'swarm_tool': opts.onSwarmTool?.(msg.id, msg.tool, { path: msg.path, added: msg.added, removed: msg.removed }); break
+          case 'swarm_done': opts.onSwarmDone?.(msg.id, { result: msg.result, error: msg.error, tools_used: msg.tools_used }); break
+          case 'swarm_end': opts.onSwarmEnd?.(); break
         }
       } catch {
         console.error('[WS] Failed to parse message:', event.data?.slice?.(0, 200))

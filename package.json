@@ -57,6 +57,9 @@
       "category": "public.app-category.developer-tools",
       "identity": null,
       "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSUserNotificationsUsageDescription": "Nexum notifies you when an agent run finishes."
+      },
       "artifactName": "${productName}-${version}-Mac-${arch}.${ext}",
       "target": [
         {

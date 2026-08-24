@@ -7,6 +7,7 @@ import {
   projectPathFromDrop,
   pushBrowserHistory,
   sessionMatches,
+  sidebarSessions,
   sortSessions,
 } from './chatActions.ts'
 import type { Message, Session } from '../store/store.ts'
@@ -36,6 +37,16 @@ test('sortSessions puts pinned chats first', () => {
     { id: 'b', name: 'pin', created: '', modified: '', message_count: 1, updated_at: 10, pinned: true },
   ] as Session[]
   assert.deepEqual(sortSessions(sessions).map((s) => s.id), ['b', 'a'])
+})
+
+test('sidebarSessions keeps archived chats out of the main list', () => {
+  const sessions = [
+    { id: 'a', name: 'Open', created: '', modified: '', message_count: 1 },
+    { id: 'b', name: 'Old', created: '', modified: '', message_count: 1, archived: true },
+  ] as Session[]
+  const title = (s: Session) => s.name
+  assert.deepEqual(sidebarSessions(sessions, false, '', title).map((s) => s.id), ['a'])
+  assert.deepEqual(sidebarSessions(sessions, true, '', title).map((s) => s.id), ['b'])
 })
 
 test('sessionMatches title and preview', () => {
