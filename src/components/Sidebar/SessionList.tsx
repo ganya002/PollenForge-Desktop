@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api'
 import { useEffect, useRef, useState } from 'react'
 import { useStore, Session } from '../../store/store'
 import { sessionMatches } from '../../lib/chatActions'
@@ -81,7 +82,7 @@ export default function SessionList() {
     setRenamingId(null)
     if (!id || !name) return
     try {
-      await fetch(`http://127.0.0.1:8765/sessions/${id}`, {
+      await apiFetch(`http://127.0.0.1:8765/sessions/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),

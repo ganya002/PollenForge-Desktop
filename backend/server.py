@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -8,6 +8,8 @@ import time
 import asyncio
 import re
 import uuid
+import os
+import secrets
 
 from config import load_config, resolve_provider_api_key, save_config
 from sessions import list_sessions, load_session, save_session, delete_session, create_session
@@ -16,17 +18,52 @@ from providers import get_provider, list_providers_live
 from tools import list_tools, execute_tool
 from openai_tools import prefer_native_tool_calls, to_openai_tools
 
-app = FastAPI(title="Nexum Backend", version="1.0.0")
+# --- Auth (T1) -----------------------------------------------------------------
+# Every HTTP route requires the X-Nexum-Token header (or ?token= for <img>/WS).
+# The Electron main process generates the token and hands it to the backend via
+# env and to the renderer via IPC. Websites can't know it -> drive-by requests
+# (fetch http://127.0.0.1:8765/config from any webpage) now die with 401.
+INSECURE_NO_AUTH = os.environ.get("NEXUM_INSECURE_NO_AUTH") == "1"
+AUTH_TOKEN = os.environ.get("NEXUM_AUTH_TOKEN", "")
+if not AUTH_TOKEN and not INSECURE_NO_AUTH:
+    AUTH_TOKEN = secrets.token_hex(32)
+    # Printed only when running server.py manually (no Electron parent).
+    print(f"NEXUM_AUTH_TOKEN={AUTH_TOKEN}", flush=True)
+
+
+async def require_auth(request: Request):
+    if INSECURE_NO_AUTH:
+        return
+    # /media/* serves generated images that chat markdown embeds via <img>,
+    # and <img> requests cannot carry headers. Names are strictly
+    # traversal-validated in resolve_generated_image(), so this stays local-only.
+    if request.url.path.startswith("/media/"):
+        return
+    supplied = request.headers.get("x-nexum-token") or request.query_params.get("token") or ""
+    if not AUTH_TOKEN or not secrets.compare_digest(supplied, AUTH_TOKEN):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+app = FastAPI(title="Nexum Backend", version="1.0.0", dependencies=[Depends(require_auth)])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    # Renderer origins only (packaged = file:// -> Origin "null"; dev = Vite).
+    # Requests still need the auth token, so this is defense-in-depth, not the gate.
+    allow_origins=["null", "http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-DANGEROUS_TOOLS = {"run_command", "write_file", "edit_file", "close_app"}
+# Tools that mutate the system -> require user approval in Agent mode (T2).
+# Previously start_background_task/delete_file/git_* could run with NO prompt.
+DANGEROUS_TOOLS = {
+    "run_command", "write_file", "edit_file", "close_app",
+    "delete_file", "start_background_task",
+    "git_commit", "git_add", "git_push", "git_checkout",
+    "run_build",
+}
 
 # Per-connection state
 approval_queues: dict[str, asyncio.Queue] = {}
@@ -54,13 +91,31 @@ async def pollinations_status():
     return info
 
 
+API_KEY_MASK = "__MASKED__"
+
+
+def _mask_config(cfg: dict) -> dict:
+    """Return config with provider API keys replaced by a sentinel (T1)."""
+    masked = json.loads(json.dumps(cfg))  # deep copy
+    for prov in (masked.get("providers") or {}).values():
+        if isinstance(prov, dict) and prov.get("api_key"):
+            prov["api_key"] = API_KEY_MASK
+    return masked
+
+
 @app.get("/config")
 async def get_config():
-    return load_config()
+    return _mask_config(load_config())
 
 
 @app.post("/config")
 async def update_config(body: dict):
+    # A masked round-trip must never clobber real keys (T1).
+    current = load_config()
+    for name, prov in (body.get("providers") or {}).items():
+        if isinstance(prov, dict) and prov.get("api_key") == API_KEY_MASK:
+            existing = ((current.get("providers") or {}).get(name) or {}).get("api_key")
+            prov["api_key"] = existing
     save_config(body)
     return {"success": True}
 
@@ -915,6 +970,12 @@ START OUTPUTTING TOOL BLOCKS NOW."""
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    # T1: reject handshakes without the auth token (query param or header).
+    if not INSECURE_NO_AUTH:
+        supplied = websocket.query_params.get("token") or websocket.headers.get("x-nexum-token") or ""
+        if not AUTH_TOKEN or not secrets.compare_digest(supplied, AUTH_TOKEN):
+            await websocket.close(code=4401)
+            return
     await websocket.accept()
     conn_id = str(uuid.uuid4())
     queue: asyncio.Queue = asyncio.Queue()

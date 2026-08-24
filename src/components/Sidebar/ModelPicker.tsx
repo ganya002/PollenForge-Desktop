@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { fadeScale } from '../../lib/motion'
@@ -20,7 +21,7 @@ function PollenBalance() {
   const fetchBalance = useCallback(async () => {
     setLoading(true)
     try {
-      const resp = await fetch('http://127.0.0.1:8765/pollinations/status')
+      const resp = await apiFetch('http://127.0.0.1:8765/pollinations/status')
       const data = await resp.json()
       if (data?.connected) {
         setBalance(typeof data.balance === 'number' ? data.balance : null)

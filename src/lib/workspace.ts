@@ -1,3 +1,4 @@
+import { apiFetch } from './api'
 import { useStore } from '../store/store'
 import { persistConfig } from './appConfig'
 import { openWorkspaceFile } from './workspaceFiles'
@@ -38,7 +39,7 @@ export async function setChatDirectory(path: string, opts?: { asDefault?: boolea
   const sid = store.currentSessionId
   if (sid) {
     try {
-      await fetch(`${API}/sessions/${sid}`, {
+      await apiFetch(`${API}/sessions/${sid}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ directory: path }),
@@ -89,7 +90,7 @@ export async function refreshFileTree(root?: string | null): Promise<void> {
     return
   }
   try {
-    const res = await fetch(`${API}/files/list?path=.&root=${encodeURIComponent(dir)}`)
+    const res = await apiFetch(`${API}/files/list?path=.&root=${encodeURIComponent(dir)}`)
     const data = await res.json()
     store.setFileTree(mapListEntries(data))
   } catch {
@@ -111,7 +112,7 @@ export async function deleteWorkspaceFile(
 ): Promise<boolean> {
   const dir = root ?? currentWorkspace()
   if (!dir) return false
-  const res = await fetch(`${API}/files/delete`, {
+  const res = await apiFetch(`${API}/files/delete`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path: relativePath, root: dir }),
@@ -129,7 +130,7 @@ export async function renameWorkspaceFile(
 ): Promise<boolean> {
   const dir = root ?? currentWorkspace()
   if (!dir || !from.trim() || !to.trim() || from === to) return false
-  const res = await fetch(`${API}/files/read`, {
+  const res = await apiFetch(`${API}/files/read`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path: from, root: dir }),
@@ -149,7 +150,7 @@ export async function writeWorkspaceFile(
 ): Promise<string | null> {
   const dir = root ?? currentWorkspace()
   if (!dir) return null
-  const res = await fetch(`${API}/files/write`, {
+  const res = await apiFetch(`${API}/files/write`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path: relativePath, content, root: dir }),
@@ -166,7 +167,7 @@ export async function ensurePlanFile(): Promise<string | null> {
   if (!dir) return null
   const path = joinWorkspace(dir, 'plan.md')
   try {
-    const existing = await fetch(`${API}/files/read`, {
+    const existing = await apiFetch(`${API}/files/read`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: 'plan.md', root: dir }),

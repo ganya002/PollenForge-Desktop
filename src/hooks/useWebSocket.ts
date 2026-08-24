@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useStore } from '../store/store'
+import { backendToken } from '../lib/api'
 
 type WSMessage =
   | { type: 'token'; content: string }
@@ -46,8 +47,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
     const existing = wsRef.current
     if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) return
 
-    const ws = new WebSocket(WS_URL)
-    wsRef.current = ws
+    // T1: browsers cannot set custom headers on WebSocket -> token rides in
+    // the query string. Fetched once via IPC, cached in lib/api.
+    void backendToken().then((token) => {
+      if (!shouldReconnect.current) return
+      const ws = new WebSocket(
+        token ? `${WS_URL}?token=${encodeURIComponent(token)}` : WS_URL,
+      )
+      wsRef.current = ws
 
     ws.onopen = () => {
       setWsConnected(true)
@@ -87,10 +94,11 @@ export function useWebSocket(options: UseWebSocketOptions) {
       }
     }
 
-    ws.onerror = () => {
-      setWsConnected(false)
-      try { ws.close() } catch {}
-    }
+      ws.onerror = () => {
+        setWsConnected(false)
+        try { ws.close() } catch {}
+      }
+    })
   }, [setStreaming, setWsConnected, cleanupTimers])
 
   const send = useCallback((data: Record<string, unknown>) => {

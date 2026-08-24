@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api'
 import { useState, useEffect } from 'react'
 import { useStore, FileEntry } from '../../store/store'
 import { FileTypeIcon } from './fileIcons'
@@ -53,7 +54,7 @@ function TreeNode({ entry, depth = 0, root }: { entry: FileEntry; depth?: number
       setExpanded(next)
       if (next && !entry.children) {
         try {
-          const res = await fetch(
+          const res = await apiFetch(
             `http://127.0.0.1:8765/files/list?path=${encodeURIComponent(entry.path)}&root=${encodeURIComponent(root)}`
           )
           const data = await res.json()

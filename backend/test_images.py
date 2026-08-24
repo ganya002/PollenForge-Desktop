@@ -96,12 +96,19 @@ class ImageToolTests(unittest.IsolatedAsyncioTestCase):
 
     def test_media_route_404_on_traversal(self):
         from fastapi.testclient import TestClient
+        import server as server_module
         from server import app
 
+        # T1: send the auth token when one is active; /media/* is exempt but
+        # this keeps the test honest if the exemption ever changes.
+        headers = {}
+        if getattr(server_module, "AUTH_TOKEN", ""):
+            headers["x-nexum-token"] = server_module.AUTH_TOKEN
+
         client = TestClient(app)
-        self.assertEqual(client.get("/media/../config.json").status_code, 404)
-        self.assertEqual(client.get("/media/%2e%2e%2fconfig.json").status_code, 404)
-        self.assertEqual(client.get("/media/missing.png").status_code, 404)
+        self.assertEqual(client.get("/media/../config.json", headers=headers).status_code, 404)
+        self.assertEqual(client.get("/media/%2e%2e%2fconfig.json", headers=headers).status_code, 404)
+        self.assertEqual(client.get("/media/missing.png", headers=headers).status_code, 404)
 
 
 if __name__ == "__main__":

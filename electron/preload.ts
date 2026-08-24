@@ -108,6 +108,9 @@ contextBridge.exposeInMainWorld('api', {
     status: (): Promise<{ running: boolean; port?: number }> => {
       return ipcRenderer.invoke('backend:status');
     },
+    token: (): Promise<{ token: string }> => {
+      return ipcRenderer.invoke('backend:token');
+    },
   },
 
   app: {

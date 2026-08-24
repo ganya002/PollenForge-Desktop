@@ -278,7 +278,9 @@ function setupIpcHandlers(): void {
   // Chat - streaming via WebSocket
   ipcMain.handle('chat:send', async (_event, messages: unknown[], model: string, provider: string) => {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(`ws://localhost:${backendManager?.port || 8765}/ws`);
+      const ws = new WebSocket(
+        `ws://localhost:${backendManager?.port || 8765}/ws?token=${encodeURIComponent(backendManager?.authToken || '')}`,
+      );
 
       const chunks: string[] = [];
 

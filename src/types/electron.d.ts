@@ -40,6 +40,10 @@ export interface UpdateProgress {
 declare global {
   interface Window {
     api: {
+      backend?: {
+        /** Per-launch auth token for the local Nexum backend (T1). */
+        token: () => string
+      }
       app: {
         quit: () => void
         minimize: () => void

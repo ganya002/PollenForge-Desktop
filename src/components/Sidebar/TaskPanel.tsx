@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api'
 import { useEffect, useState } from 'react'
 import { useStore } from '../../store/store'
 
@@ -8,7 +9,7 @@ export default function TaskPanel() {
 
   const refresh = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8765/tools/list_tasks', {
+      const res = await apiFetch('http://127.0.0.1:8765/tools/list_tasks', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: '' })
       })
       const data = await res.json()

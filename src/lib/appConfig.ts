@@ -1,3 +1,4 @@
+import { apiFetch } from './api'
 import type { Config, ModelInfo, ProviderConfig } from '../store/store'
 import { catalogEntry, emptyProviderConfig } from './providerCatalog.ts'
 
@@ -151,7 +152,7 @@ export async function persistConfig(config: Config): Promise<boolean> {
     /* packaged save is optional in tests / browser */
   }
   try {
-    const resp = await fetch('http://127.0.0.1:8765/config', {
+    const resp = await apiFetch('http://127.0.0.1:8765/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
@@ -182,7 +183,7 @@ export function mergeProviderModels(
 
 export async function refreshProviderModels(config: Config): Promise<Config> {
   try {
-    const res = await fetch('http://127.0.0.1:8765/providers')
+    const res = await apiFetch('http://127.0.0.1:8765/providers')
     if (!res.ok) return config
     const list = await res.json()
     if (!Array.isArray(list)) return config

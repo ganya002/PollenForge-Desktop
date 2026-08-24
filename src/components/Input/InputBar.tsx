@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api'
 import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react'
 import { useStore } from '../../store/store'
 import CommandMenu from './CommandMenu'
@@ -374,7 +375,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
     setConfig(next)
     // Persist to backend
     try {
-      await fetch('http://127.0.0.1:8765/config', {
+      await apiFetch('http://127.0.0.1:8765/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(next)

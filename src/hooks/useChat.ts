@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/api'
 import { useCallback, useRef, useEffect } from 'react'
 import { useStore, Message, ToolCall } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
@@ -67,7 +68,7 @@ export function useChat() {
       state.setAgentStep(path ? `${tool} ${path}` : tool)
       const root = currentWorkspace()
       if ((tool === 'write_file' || tool === 'edit_file') && path) {
-        void fetch('http://127.0.0.1:8765/files/read', {
+        void apiFetch('http://127.0.0.1:8765/files/read', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ path, root: root || undefined }),

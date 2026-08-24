@@ -1,3 +1,4 @@
+import { apiFetch } from './lib/api'
 import { useState, useEffect, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
@@ -89,7 +90,7 @@ export default function App() {
       : Promise.resolve()
 
     void loadLocal
-      .then(() => fetch(`${API}/config`))
+      .then(() => apiFetch(`${API}/config`))
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.providers) {
@@ -105,7 +106,7 @@ export default function App() {
       .catch(() => {})
 
     // Load worktrees in background
-    fetch(`${API}/tools/worktree_list`, {
+    apiFetch(`${API}/tools/worktree_list`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: '.' })
