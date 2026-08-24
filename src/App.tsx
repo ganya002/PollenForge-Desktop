@@ -23,7 +23,7 @@ import { restoreLastSession, flushCurrentSession } from './lib/sessions'
 import { writeWorkspaceFile } from './lib/workspace'
 import FilePanel from './components/Files/FilePanel'
 import BrowserPanel from './components/Browser/BrowserPanel'
-import SwarmBoard from './components/Chat/SwarmBoard'
+import BrickPongHost from './components/BrickPong'
 
 export default function App() {
   const toggleSidebar = useStore((s) => s.toggleSidebar)
@@ -396,6 +396,7 @@ export default function App() {
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onNewChat={handleNewChat} onCompact={compactChat} onContinue={continueChat} />
       <KeyboardHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
       <ToastHost />
+      <BrickPongHost />
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { pushPromptHistory, speechSupported } from '../../lib/qol'
 import { addFileToChat } from '../../lib/workspaceFiles'
 import { activePluginIds, handlePluginSlash, setPluginActive, slashPluginCommands } from '../../lib/plugins'
 import { ensurePlanFile, setChatDirectory } from '../../lib/workspace'
+import { openBrickPong } from '../../lib/brickPong'
 
 interface Props {
   onSend: (content: string) => void
@@ -165,6 +166,13 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
     if (!canSend) return
     let message = value
     if (message.trim().startsWith('/')) {
+      if (/^\/pong\b/i.test(message.trim())) {
+        openBrickPong()
+        setValue('')
+        setShowCommands(false)
+        setPluginNotice('Brick Pong — drag the window, yellow to minimize')
+        return
+      }
       const { result, config: next } = handlePluginSlash(message, useStore.getState().config)
       if (result.kind !== 'ignore') {
         setConfig(next)
@@ -312,7 +320,10 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
 
   const handleCommandSelect = async (command: string) => {
     setShowCommands(false)
-    if (command === '/clear') {
+    if (command === '/pong') {
+      openBrickPong()
+      setPluginNotice('Brick Pong — drag the window, yellow to minimize')
+    } else if (command === '/clear') {
       useStore.getState().clearMessages()
     } else if (command === '/compact') {
       if (onCompact) onCompact()

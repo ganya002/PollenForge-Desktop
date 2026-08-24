@@ -1,6 +1,7 @@
 import { useStore } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
 import { summarizeAgentActivity } from '../lib/agentActivity'
+import { openBrickPong } from '../lib/brickPong'
 import UpdateBadge from './UpdateBadge'
 
 interface StatusBarProps {
@@ -54,6 +55,16 @@ export default function StatusBar({ onOpenUpdates, onRetry }: StatusBarProps) {
             {activity.added > 0 && <span className="text-emerald-400 tabular-nums">+{activity.added}</span>}
             {activity.removed > 0 && <span className="text-red-400 tabular-nums">-{activity.removed}</span>}
           </div>
+        )}
+        {isStreaming && (
+          <button
+            type="button"
+            onClick={openBrickPong}
+            className="text-text-secondary hover:text-text-primary"
+            title="Brick Pong"
+          >
+            Play while you wait
+          </button>
         )}
         {runningTasks > 0 && (
           <div className="flex items-center gap-1.5 text-amber-400">

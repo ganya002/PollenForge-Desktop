@@ -14,6 +14,7 @@ import {
 import { marketplaceSearch, installPlugin, uninstallPlugin, installedPluginIds } from '../../lib/plugins'
 import { isFreeModel, resolveModelList, type ModelListMode } from '../../lib/modelFilter'
 import { applyTheme, THEME_IDS, type ThemeId } from '../../lib/qol'
+import { openBrickPong } from '../../lib/brickPong'
 
 export type SettingsTab = 'providers' | 'plugins' | 'general' | 'memory' | 'updates' | 'about'
 
@@ -36,6 +37,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
   const [providerSearch, setProviderSearch] = useState('')
   const [pluginSearch, setPluginSearch] = useState('')
   const [pollinationsStatus, setPollinationsStatus] = useState<{ connected?: boolean; error?: string } | null>(null)
+  const [aboutClicks, setAboutClicks] = useState(0)
 
   useEffect(() => {
     if (!open) return
@@ -53,6 +55,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
     setSaved(false)
     setSaveError('')
     setPollinationsStatus(null)
+    setAboutClicks(0)
     setProviderSearch('')
     setPluginSearch('')
     window.api?.app?.getVersion?.()
@@ -541,7 +544,21 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
               {activeTab === 'about' && (
                 <div className="h-full overflow-y-auto flex items-center justify-center p-4 text-center">
                   <div>
-                    <div className="text-lg font-semibold text-text-primary mb-1">Nexum</div>
+                    <button
+                      type="button"
+                      className="text-lg font-semibold text-text-primary mb-1"
+                      onClick={() => {
+                        const n = aboutClicks + 1
+                        setAboutClicks(n)
+                        if (n >= 7) {
+                          setAboutClicks(0)
+                          onClose()
+                          openBrickPong()
+                        }
+                      }}
+                    >
+                      Nexum
+                    </button>
                     <div className="text-xs text-text-muted mb-4 font-mono">Version {appVersion}</div>
                     <p className="text-xs text-text-secondary leading-relaxed max-w-xs mx-auto">
                       AI-powered coding assistant with multi-provider support. Built with Electron, React, and Python.

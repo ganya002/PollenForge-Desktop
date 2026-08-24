@@ -19,6 +19,7 @@ from tools import list_tools, execute_tool
 from openai_tools import prefer_native_tool_calls, to_openai_tools
 from agents_md import load_agents_md, agents_prompt_section
 from runtime import runtime_var
+from agent_loop import EXPLORE_TOOLS, KEEP_GOING_NUDGE, last_user_text, should_keep_going
 from tools.memory import forget_memory, list_memories, memory_prompt_section, remember, save_memories
 
 # --- Auth (T1) -----------------------------------------------------------------
@@ -808,12 +809,15 @@ START OUTPUTTING TOOL BLOCKS NOW."""
     full_response = ""
     tool_results_all = []
     start_time = time.time()
-    max_iterations = 12
+    max_iterations = 24
     iteration = 0
     total_tools_executed = 0
     total_tokens = 0
     seen_tool_hashes: dict[str, int] = {}
     consecutive_no_progress = 0
+    last_visible = ""
+    last_tool_names: list[str] = []
+    user_text = last_user_text(data.get("messages") or messages)
     cancel = cancel_flags.get(conn_id) or asyncio.Event()
 
     runtime_token = runtime_var.set({
@@ -881,10 +885,21 @@ START OUTPUTTING TOOL BLOCKS NOW."""
             total_tokens += current_tokens
             full_response += current_response
             cleaned, tool_calls = prefer_native_tool_calls(current_response, native_calls)
-            await websocket.send_json({"type": "content_set", "content": cleaned})
-
             if not tool_calls:
+                if should_keep_going(cleaned, tool_calls, last_tool_names, user_text, consecutive_no_progress):
+                    consecutive_no_progress += 1
+                    messages.append({"role": "assistant", "content": current_response or cleaned})
+                    messages.append({"role": "user", "content": KEEP_GOING_NUDGE})
+                    await websocket.send_json({"type": "content_set", "content": last_visible})
+                    continue
+                if cleaned.strip():
+                    last_visible = cleaned
+                await websocket.send_json({"type": "content_set", "content": cleaned})
                 break
+
+            if cleaned.strip():
+                last_visible = cleaned
+            await websocket.send_json({"type": "content_set", "content": cleaned})
 
             # Circuit breaker: detect repeating same tool+args (infinite loop)
             deduped_calls = []
@@ -903,6 +918,9 @@ START OUTPUTTING TOOL BLOCKS NOW."""
             if len(tool_calls) > 8:
                 tool_calls = tool_calls[:8]
                 await websocket.send_json({"type": "token", "content": "\n[Too many tool calls at once, truncated to 8]\n"})
+            last_tool_names = [tc.get("name", "") for tc in tool_calls]
+            if any(name not in EXPLORE_TOOLS for name in last_tool_names):
+                consecutive_no_progress = 0
 
             for tc in tool_calls:
                 if cancel.is_set():
@@ -1009,8 +1027,7 @@ START OUTPUTTING TOOL BLOCKS NOW."""
             tool_results_all = []
 
         elapsed = time.time() - start_time
-        final_text, _ = parse_tool_calls(full_response)
-        await websocket.send_json({"type": "content_set", "content": final_text})
+        await websocket.send_json({"type": "content_set", "content": last_visible})
         stats = {
             "tokens": total_tokens,
             "duration_ms": round(elapsed * 1000),
@@ -1036,7 +1053,7 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 if m.get("role") == "user" and "\n---\nUser request:\n" in content:
                     content = content.split("\n---\nUser request:\n", 1)[-1]
                 visible.append({"role": m.get("role"), "content": content})
-            visible.append({"role": "assistant", "content": full_response})
+            visible.append({"role": "assistant", "content": last_visible or full_response})
             save_session(session_id, visible, meta)
 
         await websocket.send_json({"type": "done", "stats": stats})

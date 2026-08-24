@@ -25,6 +25,7 @@ const COMMANDS = [
   { id: 'run-command', label: 'Run Command', description: 'Execute a shell command', icon: 'terminal' },
   { id: 'find', label: 'Find in Thread', description: 'Search this chat', shortcut: 'Cmd+F', icon: 'search' },
   { id: 'continue', label: 'Continue', description: 'Ask the agent to keep going', icon: 'play' },
+  { id: 'brick-pong', label: 'Brick Pong', description: 'Play a tiny game while you wait', icon: 'play' },
   { id: 'restore-checkpoint', label: 'Restore Last Checkpoint', description: 'Undo the last sent turn', icon: 'undo' },
   { id: 'toggle-mode', label: 'Toggle Ask / Agent', description: 'Switch inspect-only vs write mode', icon: 'settings' },
   { id: 'theme-dark', label: 'Theme: Dark', description: 'Matte black', icon: 'theme' },
@@ -120,6 +121,9 @@ export default function CommandPalette({ open, onClose, onNewChat, onCompact, on
         break
       case 'continue':
         onContinue?.()
+        break
+      case 'brick-pong':
+        document.dispatchEvent(new CustomEvent('open-brick-pong'))
         break
       case 'restore-checkpoint': {
         const cps = useStore.getState().checkpoints

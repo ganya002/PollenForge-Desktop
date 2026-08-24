@@ -8,6 +8,7 @@ interface CommandMenuProps {
 }
 
 const BUILTINS = [
+  { name: '/pong', description: 'Play Brick Pong while you wait' },
   { name: '/help', description: 'Show help and commands' },
   { name: '/clear', description: 'Clear conversation' },
   { name: '/compact', description: 'Summarize conversation' },
