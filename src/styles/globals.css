@@ -162,6 +162,7 @@ html, body, #root {
 .welcome-col {
   width: min(100%, 36rem);
   margin-inline: auto;
+  min-width: 0;
 }
 
 /* Code blocks — JetBrains Mono for code, Geist for prose */
@@ -210,6 +211,21 @@ code {
   inset: 0;
   background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.08), transparent);
   animation: sheen 1.8s var(--ease-out) infinite;
+}
+
+@keyframes thinking-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.thinking-shimmer {
+  animation: thinking-pulse 1.4s ease-in-out infinite;
+}
+
+.thinking-body.markdown-body,
+.thinking-body.markdown-body p,
+.thinking-body.markdown-body li {
+  color: var(--text-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

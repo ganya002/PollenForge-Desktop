@@ -8,6 +8,7 @@ export interface Message {
   role: 'user' | 'assistant' | 'system'
   content: string
   timestamp: number
+  reasoning?: string
   toolCalls?: ToolCall[]
   stats?: MessageStats
   isError?: boolean
@@ -188,6 +189,7 @@ interface AppState {
   addMessage: (msg: Message) => void
   updateMessage: (id: string, updates: Partial<Message>) => void
   appendToLastMessage: (content: string) => void
+  appendToLastReasoning: (content: string) => void
   addToolCall: (messageId: string, toolCall: ToolCall) => void
   updateToolCall: (messageId: string, toolCallId: string, updates: Partial<ToolCall>) => void
   setStreaming: (v: boolean) => void
@@ -202,7 +204,7 @@ interface AppState {
   setFileTree: (tree: FileEntry[]) => void
   clearMessages: () => void
   setCurrentSessionId: (id: string | null) => void
-  loadSessionMessages: (msgs: { role: string; content: string; toolCalls?: ToolCall[]; stats?: MessageStats }[]) => void
+  loadSessionMessages: (msgs: { role: string; content: string; reasoning?: string; toolCalls?: ToolCall[]; stats?: MessageStats }[]) => void
   setPendingApproval: (approval: PendingApproval | null) => void
   setWsConnected: (v: boolean) => void
   addTokensUsed: (tokens: number, cost: number) => void
@@ -297,6 +299,13 @@ export const useStore = create<AppState>((set, get) => ({
     const updated = { ...last, content: (last.content || '') + content }
     return { messages: [...s.messages.slice(0, -1), updated] }
   }),
+  appendToLastReasoning: (content) => set((s) => {
+    if (s.messages.length === 0) return s
+    const last = s.messages[s.messages.length - 1]
+    if (last.role !== 'assistant') return s
+    const updated = { ...last, reasoning: (last.reasoning || '') + content }
+    return { messages: [...s.messages.slice(0, -1), updated] }
+  }),
   addToolCall: (messageId, toolCall) => set((s) => ({
     messages: s.messages.map(m => m.id === messageId ? { ...m, toolCalls: [...(m.toolCalls || []), toolCall] } : m)
   })),
@@ -330,6 +339,7 @@ export const useStore = create<AppState>((set, get) => ({
       id: `loaded-${Date.now()}-${i}`,
       role: m.role as 'user' | 'assistant',
       content: m.content,
+      reasoning: m.reasoning,
       timestamp: Date.now() - (msgs.length - i) * 1000,
       toolCalls: (m as any).toolCalls,
       stats: (m as any).stats,

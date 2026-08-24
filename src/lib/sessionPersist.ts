@@ -36,16 +36,23 @@ export function userPreview(messages: Array<{ role?: string; content?: string }>
   return ''
 }
 
-export function visibleSessionMessages(messages: Message[]): Array<{ role: 'user' | 'assistant'; content: string }> {
+export function visibleSessionMessages(messages: Message[]): Array<{ role: 'user' | 'assistant'; content: string; reasoning?: string }> {
   return messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content || '' }))
+    .map((m) => {
+      const row: { role: 'user' | 'assistant'; content: string; reasoning?: string } = {
+        role: m.role as 'user' | 'assistant',
+        content: m.content || '',
+      }
+      if (m.role === 'assistant' && m.reasoning) row.reasoning = m.reasoning
+      return row
+    })
 }
 
 export function sessionFilePayload(
   messages: Message[],
   meta: { name?: string; directory?: string; pinned?: boolean; archived?: boolean; created_at?: number },
-): { messages: Array<{ role: string; content: string }>; meta: Record<string, unknown> } {
+): { messages: Array<{ role: string; content: string; reasoning?: string }>; meta: Record<string, unknown> } {
   const visible = visibleSessionMessages(messages)
   return {
     messages: visible,

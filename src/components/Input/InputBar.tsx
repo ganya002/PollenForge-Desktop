@@ -458,7 +458,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
         )}
 
         <div
-          className={`composer-shell flex flex-wrap items-end min-h-12 bg-surface-1 rounded-xl border ${isDragging ? 'border-accent' : 'border-border'}`}
+          className={`composer-shell flex flex-nowrap items-end min-h-12 min-w-0 bg-surface-1 rounded-xl border ${isDragging ? 'border-accent' : 'border-border'}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -471,10 +471,10 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
             onPaste={handlePaste}
             placeholder={attachedFiles.length > 0 ? `${attachedFiles.length} file(s) attached — add a message…` : "Ask anything… (@ files, / commands)"}
             rows={1}
-            className="flex-1 min-w-[12rem] w-full bg-transparent px-4 text-[14px] leading-6 text-text-primary resize-none focus:outline-none placeholder:text-text-muted min-h-12 max-h-[200px] py-3 box-border"
+            className="flex-1 min-w-0 bg-transparent px-4 text-[14px] leading-6 text-text-primary resize-none focus:outline-none placeholder:text-text-muted min-h-12 max-h-[200px] py-3 box-border"
           />
 
-          <div className="flex flex-wrap items-center justify-end gap-1.5 pr-3 pl-1 py-2 min-h-12 shrink-0">
+          <div className="flex flex-nowrap items-center justify-end gap-1.5 pr-3 pl-1 h-12 shrink-0">
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.c,.cpp,.h,.css,.html,.json,.yaml,.yml,.md,.sh,.zsh,.bash,.sql,.xml,.toml,.cfg,.ini,.env,.log,.csv" />
             <button onClick={() => fileInputRef.current?.click()} className="h-8 w-8 flex items-center justify-center rounded-md bg-surface-2 hover:bg-surface-3 text-text-muted hover:text-text-primary transition-smooth" title="Attach files">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 7l-5 5a3 3 0 01-4.24-4.24l5-5A2 2 0 0111 4.5l-5 5a1 1 0 01-1.42-1.42l5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -496,7 +496,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
               </svg>
             </button>
 
-            <button onClick={toggleAutoApprove} className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 ${autoApprove ? 'bg-surface-3 text-success border-border' : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'}`} title="Auto-approve tool execution">
+            <button onClick={toggleAutoApprove} className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${autoApprove ? 'bg-surface-3 text-success border-border' : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'}`} title="Auto-approve tool execution">
               Auto {autoApprove && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </button>
 
@@ -520,7 +520,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
                 persistConfig(next)
                 setPluginNotice(on ? 'Plan on. Replies save to plan.md' : 'Plan off')
               }}
-              className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 ${
+              className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${
                 activePluginIds(config).includes('planner')
                   ? 'bg-surface-3 text-text-primary border-border'
                   : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'
@@ -543,7 +543,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
                 persistConfig(next)
                 setPluginNotice(on ? 'Goal on. Next prompt is an objective.' : 'Goal off')
               }}
-              className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 ${
+              className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${
                 activePluginIds(config).includes('goal')
                   ? 'bg-surface-3 text-text-primary border-border'
                   : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'

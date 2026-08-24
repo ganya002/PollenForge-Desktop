@@ -4,6 +4,7 @@ from openai_tools import (
     ToolCallAssembler,
     apply_chat_payload,
     prefer_native_tool_calls,
+    reasoning_from_delta,
     text_from_delta,
     to_openai_tools,
 )
@@ -65,18 +66,46 @@ class PreferNativeTests(unittest.TestCase):
 
 
 class ReasoningAndJsonFallbackTests(unittest.TestCase):
-    def test_reasoning_content_is_used_when_content_missing(self):
-        self.assertEqual(text_from_delta({"reasoning_content": "thinking"}), "thinking")
+    def test_reasoning_is_separate_from_answer(self):
+        self.assertEqual(text_from_delta({"reasoning_content": "thinking"}), "")
+        self.assertEqual(reasoning_from_delta({"reasoning_content": "thinking"}), "thinking")
         self.assertEqual(text_from_delta({"content": "answer", "reasoning_content": "hidden"}), "answer")
+        self.assertEqual(reasoning_from_delta({"content": "answer", "reasoning_content": "hidden"}), "hidden")
 
     def test_non_stream_message_payload(self):
         assembler = ToolCallAssembler()
-        text = apply_chat_payload(
+        content, reasoning = apply_chat_payload(
             {"choices": [{"message": {"role": "assistant", "content": "Hello there"}}]},
             assembler,
         )
-        self.assertEqual(text, "Hello there")
+        self.assertEqual(content, "Hello there")
+        self.assertEqual(reasoning, "")
         self.assertEqual(assembler.finalized(), [])
+
+    def test_payload_yields_reasoning_and_content(self):
+        assembler = ToolCallAssembler()
+        content, reasoning = apply_chat_payload(
+            {"choices": [{"delta": {"reasoning": "plan", "content": "done"}}]},
+            assembler,
+        )
+        self.assertEqual(content, "done")
+        self.assertEqual(reasoning, "plan")
+
+    def test_typed_content_parts_split_reasoning(self):
+        self.assertEqual(
+            text_from_delta({"content": [
+                {"type": "reasoning", "text": "plan"},
+                {"type": "text", "text": "answer"},
+            ]}),
+            "answer",
+        )
+        self.assertEqual(
+            reasoning_from_delta({"content": [
+                {"type": "reasoning", "text": "plan"},
+                {"type": "text", "text": "answer"},
+            ]}),
+            "plan",
+        )
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import { useStore } from '../store/store'
 
 type WSMessage =
   | { type: 'token'; content: string }
+  | { type: 'reasoning'; content: string }
   | { type: 'content_set'; content: string }
   | { type: 'tool_start'; tool: string; args: Record<string, unknown>; request_id?: string }
   | { type: 'tool_result'; tool: string; result: unknown }
@@ -14,6 +15,7 @@ type WSMessage =
 
 interface UseWebSocketOptions {
   onToken?: (content: string) => void
+  onReasoning?: (content: string) => void
   onContentSet?: (content: string) => void
   onToolStart?: (tool: string, args: Record<string, unknown>) => void
   onToolResult?: (tool: string, result: unknown) => void
@@ -64,6 +66,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
         const opts = optionsRef.current
         switch (msg.type) {
           case 'token': opts.onToken?.(msg.content); break
+          case 'reasoning': opts.onReasoning?.(msg.content); break
           case 'content_set': opts.onContentSet?.(msg.content); break
           case 'tool_start': opts.onToolStart?.(msg.tool, msg.args); break
           case 'tool_result': opts.onToolResult?.(msg.tool, msg.result); break

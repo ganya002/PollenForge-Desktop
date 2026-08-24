@@ -739,6 +739,8 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 if isinstance(item, dict):
                     if item.get("type") == "native_tool_calls":
                         native_calls = item.get("calls") or []
+                    elif item.get("type") == "reasoning" and item.get("content"):
+                        await websocket.send_json({"type": "reasoning", "content": item["content"]})
                     continue
                 if not isinstance(item, str):
                     continue

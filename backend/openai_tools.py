@@ -123,37 +123,83 @@ def _tools_rejected(status: int, body: bytes) -> bool:
 def _text_parts(value) -> str:
     if isinstance(value, str):
         return value
+    if isinstance(value, dict):
+        for key in ("text", "content", "summary"):
+            text = value.get(key)
+            if isinstance(text, str) and text:
+                return text
+        return ""
     if isinstance(value, list):
         parts = []
         for item in value:
             if isinstance(item, str):
                 parts.append(item)
             elif isinstance(item, dict):
-                text = item.get("text")
-                if isinstance(text, str):
-                    parts.append(text)
+                parts.append(_text_parts(item))
         return "".join(parts)
     return ""
+
+
+def _split_content_parts(value) -> tuple[str, str]:
+    if not isinstance(value, list):
+        return _text_parts(value), ""
+    content: list[str] = []
+    reasoning: list[str] = []
+    for item in value:
+        if isinstance(item, str):
+            content.append(item)
+            continue
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("type") or "").lower()
+        text = _text_parts(item)
+        if text and ("reason" in kind or "think" in kind):
+            reasoning.append(text)
+        elif text:
+            content.append(text)
+    return "".join(content), "".join(reasoning)
 
 
 def text_from_delta(delta) -> str:
     if not isinstance(delta, dict):
         return ""
-    content = _text_parts(delta.get("content"))
-    if content:
-        return content
-    return _text_parts(delta.get("reasoning_content") or delta.get("reasoning"))
+    content, _ = _split_content_parts(delta.get("content"))
+    return content
 
 
-def apply_chat_payload(data: dict, assembler: ToolCallAssembler) -> str:
+def reasoning_from_delta(delta) -> str:
+    if not isinstance(delta, dict):
+        return ""
+    _, nested = _split_content_parts(delta.get("content"))
+    chunks = [
+        nested,
+        _text_parts(delta.get("reasoning_content")),
+        _text_parts(delta.get("reasoning")),
+        _text_parts(delta.get("thinking")),
+    ]
+    details = delta.get("reasoning_details")
+    if isinstance(details, list):
+        for item in details:
+            if not isinstance(item, dict):
+                continue
+            kind = str(item.get("type") or "").lower()
+            if "encrypted" in kind:
+                continue
+            chunks.append(_text_parts(item))
+    return "".join(chunk for chunk in chunks if chunk)
+
+
+def apply_chat_payload(data: dict, assembler: ToolCallAssembler) -> tuple[str, str]:
     choices = data.get("choices") or []
     if not choices or not isinstance(choices[0], dict):
-        return ""
+        return "", ""
     choice = choices[0]
     delta = choice.get("delta") if isinstance(choice.get("delta"), dict) else {}
     message = choice.get("message") if isinstance(choice.get("message"), dict) else {}
     assembler.add(delta.get("tool_calls") or message.get("tool_calls"))
-    return text_from_delta(delta) or text_from_delta(message)
+    content = text_from_delta(delta) or text_from_delta(message)
+    reasoning = reasoning_from_delta(delta) or reasoning_from_delta(message)
+    return content, reasoning
 
 
 async def iter_openai_chat_sse(response: httpx.Response) -> AsyncGenerator[str | dict, None]:
@@ -181,18 +227,22 @@ async def iter_openai_chat_sse(response: httpx.Response) -> AsyncGenerator[str |
         if not isinstance(payload, dict):
             continue
         try:
-            text = apply_chat_payload(payload, assembler)
+            content, reasoning = apply_chat_payload(payload, assembler)
         except (KeyError, IndexError, TypeError):
             continue
-        if text:
-            yield text
+        if reasoning:
+            yield {"type": "reasoning", "content": reasoning}
+        if content:
+            yield content
     if not saw_sse and leftover:
         try:
             payload = json.loads("".join(leftover))
             if isinstance(payload, dict):
-                text = apply_chat_payload(payload, assembler)
-                if text:
-                    yield text
+                content, reasoning = apply_chat_payload(payload, assembler)
+                if reasoning:
+                    yield {"type": "reasoning", "content": reasoning}
+                if content:
+                    yield content
         except (json.JSONDecodeError, KeyError, IndexError, TypeError):
             pass
     calls = assembler.finalized()

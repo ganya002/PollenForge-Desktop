@@ -22,6 +22,17 @@ test('sessionFilePayload writes the Python session shape', () => {
   ])
 })
 
+test('sessionFilePayload keeps assistant reasoning', () => {
+  const payload = sessionFilePayload(
+    [
+      { id: '1', role: 'user', content: 'hi', timestamp: 1 },
+      { id: '2', role: 'assistant', content: 'ok', reasoning: 'plan it', timestamp: 2 },
+    ],
+    { name: 'Think' },
+  )
+  assert.deepEqual(payload.messages[1], { role: 'assistant', content: 'ok', reasoning: 'plan it' })
+})
+
 test('summaryFromSessionFile reads meta from disk JSON', () => {
   const session = summaryFromSessionFile('abc', {
     messages: [{ role: 'user', content: 'ship it' }],

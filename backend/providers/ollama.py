@@ -38,7 +38,11 @@ class OllamaProvider(Provider):
                         continue
                     try:
                         data = json.loads(line)
-                        content = data.get("message", {}).get("content", "")
+                        msg = data.get("message") or {}
+                        thinking = msg.get("thinking") or ""
+                        if thinking:
+                            yield {"type": "reasoning", "content": thinking}
+                        content = msg.get("content") or ""
                         if content:
                             yield content
                     except json.JSONDecodeError:

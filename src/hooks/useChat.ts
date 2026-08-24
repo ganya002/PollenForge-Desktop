@@ -9,6 +9,7 @@ import { currentWorkspace, savePlanMarkdown, scheduleFileTreeRefresh } from '../
 import { titleFromPrompt } from '../lib/chatTitle'
 import { shouldRefreshFileTree } from '../lib/fileTreeSync'
 import { sanitizeAssistantContent } from '../lib/sanitizeAssistantContent'
+import { mergeReasoning, splitThinkTags } from '../lib/thinking'
 import { useWebSocket } from './useWebSocket'
 
 function genId(): string {
@@ -43,11 +44,26 @@ export function useChat() {
       scrollToBottom()
     }, [scrollToBottom]),
 
+    onReasoning: useCallback((content: string) => {
+      const state = useStore.getState()
+      const last = state.messages[state.messages.length - 1]
+      if (!last || last.role !== 'assistant') {
+        state.addMessage({ id: genId(), role: 'assistant', content: '', reasoning: content, timestamp: Date.now(), toolCalls: [] })
+      } else {
+        state.appendToLastReasoning(content)
+      }
+      scrollToBottom()
+    }, [scrollToBottom]),
+
     onContentSet: useCallback((content: string) => {
       const state = useStore.getState()
       const last = state.messages[state.messages.length - 1]
       if (last?.role === 'assistant') {
-        state.updateMessage(last.id, { content })
+        const split = splitThinkTags(content)
+        state.updateMessage(last.id, {
+          content: split.content,
+          reasoning: mergeReasoning(last.reasoning, split.reasoning),
+        })
       }
     }, []),
 
@@ -184,7 +200,7 @@ export function useChat() {
       const last = state.messages[state.messages.length - 1]
       if (last?.role === 'assistant') {
         // If assistant is empty, show error inside it; otherwise append new error message
-        if (!last.content && (!last.toolCalls || last.toolCalls.length === 0)) {
+        if (!last.content && !last.reasoning && (!last.toolCalls || last.toolCalls.length === 0)) {
           state.updateMessage(last.id, { content: `**Error:** ${message}`, isError: true })
         } else {
           state.addMessage({ id: genId(), role: 'assistant', content: `**Error:** ${message}`, timestamp: Date.now(), isError: true })
