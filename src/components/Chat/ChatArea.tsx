@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Ref, useEffect } from 'react'
+import { Ref, UIEventHandler, WheelEventHandler, useEffect } from 'react'
 import { Message as MessageType, useStore } from '../../store/store'
 import { easeOut, fadeUp } from '../../lib/motion'
 import { messageMatchesFind } from '../../lib/qol'
@@ -10,6 +10,8 @@ interface ChatAreaProps {
   scrollRef: Ref<HTMLDivElement>
   onRetry?: () => void
   onEdit?: (userId: string, content: string) => void
+  onScroll?: UIEventHandler<HTMLDivElement>
+  onWheel?: WheelEventHandler<HTMLDivElement>
 }
 
 function WelcomeScreen() {
@@ -68,7 +70,7 @@ function WelcomeScreen() {
   )
 }
 
-export default function ChatArea({ messages, scrollRef, onRetry, onEdit }: ChatAreaProps) {
+export default function ChatArea({ messages, scrollRef, onRetry, onEdit, onScroll, onWheel }: ChatAreaProps) {
   const empty = messages.length === 0
   const chatFind = useStore((s) => s.chatFind)
 
@@ -85,6 +87,8 @@ export default function ChatArea({ messages, scrollRef, onRetry, onEdit }: ChatA
   return (
     <div
       ref={scrollRef}
+      onScroll={onScroll}
+      onWheel={onWheel}
       className={`flex-1 min-h-0 bg-surface-0 ${empty ? 'flex flex-col' : 'overflow-y-auto'}`}
     >
       {empty ? (

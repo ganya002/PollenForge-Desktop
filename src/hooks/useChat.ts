@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback, useRef, useEffect, type UIEvent, type WheelEvent } from 'react'
 import { useStore, Message, ToolCall } from '../store/store'
 import { findProviderModel } from '../lib/appConfig'
 import { applyActivePlugins, activePluginIds } from '../lib/plugins'
@@ -22,12 +22,38 @@ export function useChat() {
   const queuedMessage = useStore((s) => s.queuedMessage)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const sendMessageRef = useRef<(content: string) => Promise<void>>(async () => {})
+  const stickToBottom = useRef(true)
+  const lastScrollTop = useRef(0)
+  const scrollQueued = useRef(false)
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((force = false) => {
+    if (force) stickToBottom.current = true
+    if (!force && !stickToBottom.current) return
+    if (scrollQueued.current) return
+    scrollQueued.current = true
     requestAnimationFrame(() => {
+      scrollQueued.current = false
       const el = scrollRef.current
-      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      if (!el) return
+      if (!stickToBottom.current) return
+      el.scrollTop = el.scrollHeight
+      lastScrollTop.current = el.scrollTop
     })
+  }, [])
+
+  const onChatScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
+    const el = event.currentTarget
+    const top = el.scrollTop
+    if (top + 2 < lastScrollTop.current) {
+      stickToBottom.current = false
+    } else {
+      stickToBottom.current = el.scrollHeight - top - el.clientHeight <= 96
+    }
+    lastScrollTop.current = top
+  }, [])
+
+  const onChatWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
+    if (event.deltaY < 0) stickToBottom.current = false
   }, [])
 
   const ws = useWebSocket({
@@ -270,7 +296,7 @@ export function useChat() {
       state.pushToast({ kind: 'error', text: 'Backend is disconnected. Retrying…' })
     }
     void persistCurrentSession()
-    scrollToBottom()
+    scrollToBottom(true)
   }, [ws, scrollToBottom])
 
   sendMessageRef.current = sendMessage
@@ -344,5 +370,7 @@ export function useChat() {
     reconnect: ws.connect,
     scrollRef,
     scrollToBottom,
+    onChatScroll,
+    onChatWheel,
   }
 }

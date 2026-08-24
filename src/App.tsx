@@ -27,7 +27,7 @@ export default function App() {
   const toggleSidebar = useStore((s) => s.toggleSidebar)
   const toggleBrowser = useStore((s) => s.toggleBrowser)
   const browserOpen = useStore((s) => s.browserOpen)
-  const { messages, isStreaming, sendMessage, continueChat, stopGeneration, editAndResend, compactChat, retryLastMessage, reconnect, scrollRef } = useChat()
+  const { messages, isStreaming, sendMessage, continueChat, stopGeneration, editAndResend, compactChat, retryLastMessage, reconnect, scrollRef, onChatScroll, onChatWheel } = useChat()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('providers')
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -354,7 +354,7 @@ export default function App() {
           )}
           <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
             <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-              <ChatArea messages={messages} scrollRef={scrollRef} onRetry={retryLastMessage} onEdit={editAndResend} />
+              <ChatArea messages={messages} scrollRef={scrollRef} onScroll={onChatScroll} onWheel={onChatWheel} onRetry={retryLastMessage} onEdit={editAndResend} />
             </div>
             <AnimatePresence>
               {hasOpenFiles && (
