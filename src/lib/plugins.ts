@@ -7,8 +7,12 @@ function unique(ids: string[]): string[] {
 
 const EXCLUSIVE: Record<string, string[]> = {
   goal: ['planner'],
-  planner: ['goal'],
+  planner: ['goal', 'swarm'],
+  swarm: ['planner'],
 }
+
+/** Slash commands that install themselves — no marketplace button required. */
+export const AUTO_INSTALL_PLUGINS = new Set(['goal', 'planner', 'swarm'])
 
 export function installedPluginIds(config: Config): string[] {
   return Array.isArray(config.installed_plugins) ? config.installed_plugins : []
@@ -85,10 +89,13 @@ export function handlePluginSlash(raw: string, config: Config): { result: SlashR
   }
 
   if (!installedPluginIds(config).includes(plugin.id)) {
-    return {
-      result: { kind: 'consumed', notice: `${plugin.name} is not installed. Install it from Settings → Plugins.` },
-      config,
+    if (!AUTO_INSTALL_PLUGINS.has(plugin.id)) {
+      return {
+        result: { kind: 'consumed', notice: `${plugin.name} is not installed. Install it from Settings → Plugins.` },
+        config,
+      }
     }
+    config = installPlugin(config, plugin.id)
   }
 
   let next = setPluginActive(config, plugin.id, true)
@@ -119,6 +126,13 @@ export function marketplaceSearch(query: string) {
       p.command.toLowerCase().includes(q) ||
       p.description.toLowerCase().includes(q),
   )
+}
+
+export function slashPluginCommands(): Array<{ name: string; description: string }> {
+  return PLUGIN_CATALOG.map((p) => ({
+    name: p.command,
+    description: p.description,
+  }))
 }
 
 export function installedPluginCommands(config: Config): Array<{ name: string; description: string }> {

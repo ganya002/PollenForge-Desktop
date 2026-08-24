@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, Request, Depends, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -17,9 +17,13 @@ from workspace import apply_workspace
 from providers import get_provider, list_providers_live
 from tools import list_tools, execute_tool
 from openai_tools import prefer_native_tool_calls, to_openai_tools
+from agents_md import load_agents_md, agents_prompt_section
+from runtime import runtime_var
+from tools.memory import forget_memory, list_memories, memory_prompt_section, remember, save_memories
 
 # --- Auth (T1) -----------------------------------------------------------------
-# Every HTTP route requires the X-Nexum-Token header (or ?token= for <img>/WS).
+# Every HTTP route requires the X-Nexum-Token header (Authorization: Bearer also works).
+# WebSocket may use ?token= because browsers cannot set WS headers.
 # The Electron main process generates the token and hands it to the backend via
 # env and to the renderer via IPC. Websites can't know it -> drive-by requests
 # (fetch http://127.0.0.1:8765/config from any webpage) now die with 401.
@@ -31,6 +35,28 @@ if not AUTH_TOKEN and not INSECURE_NO_AUTH:
     print(f"NEXUM_AUTH_TOKEN={AUTH_TOKEN}", flush=True)
 
 
+def token_ok(supplied: str, expected: str | None = None, insecure: bool | None = None) -> bool:
+    """Constant-time compare that never raises on length mismatch (401, not 500)."""
+    if insecure is None:
+        insecure = INSECURE_NO_AUTH
+    if insecure:
+        return True
+    token = AUTH_TOKEN if expected is None else expected
+    got = supplied or ""
+    if not token or len(got) != len(token):
+        return False
+    return secrets.compare_digest(got, token)
+
+
+def _bearer_or_header(header_token: str, authorization: str, query_token: str = "") -> str:
+    raw = (header_token or "").strip()
+    if not raw:
+        auth = (authorization or "").strip()
+        if auth.lower().startswith("bearer "):
+            raw = auth[7:].strip()
+    return raw or (query_token or "").strip()
+
+
 async def require_auth(request: Request):
     if INSECURE_NO_AUTH:
         return
@@ -39,8 +65,11 @@ async def require_auth(request: Request):
     # traversal-validated in resolve_generated_image(), so this stays local-only.
     if request.url.path.startswith("/media/"):
         return
-    supplied = request.headers.get("x-nexum-token") or request.query_params.get("token") or ""
-    if not AUTH_TOKEN or not secrets.compare_digest(supplied, AUTH_TOKEN):
+    supplied = _bearer_or_header(
+        request.headers.get("x-nexum-token") or "",
+        request.headers.get("authorization") or "",
+    )
+    if not token_ok(supplied):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -61,8 +90,11 @@ app.add_middleware(
 DANGEROUS_TOOLS = {
     "run_command", "write_file", "edit_file", "close_app",
     "delete_file", "start_background_task",
-    "git_commit", "git_add", "git_push", "git_checkout",
-    "run_build",
+    "git_commit", "git_add", "git_push", "git_checkout", "git_clone",
+    "run_build", "run_formatter",
+    "apply_patch", "revert_file",
+    "clear_tasks",
+    "save_skill", "delete_skill",
 }
 
 # Per-connection state
@@ -98,9 +130,19 @@ def _mask_config(cfg: dict) -> dict:
     """Return config with provider API keys replaced by a sentinel (T1)."""
     masked = json.loads(json.dumps(cfg))  # deep copy
     for prov in (masked.get("providers") or {}).values():
-        if isinstance(prov, dict) and prov.get("api_key"):
-            prov["api_key"] = API_KEY_MASK
+        if not isinstance(prov, dict):
+            continue
+        key = prov.get("api_key") or ""
+        prov["has_key"] = bool(key)
+        prov["api_key"] = API_KEY_MASK if key else ""
     return masked
+
+
+def _effective_api_key(raw, provider_name: str, config: dict) -> str:
+    key = str(raw or "").strip()
+    if not key or key == API_KEY_MASK:
+        key = ""
+    return key or resolve_provider_api_key(provider_name, config)
 
 
 @app.get("/config")
@@ -201,6 +243,47 @@ async def post_update_session(session_id: str, body: dict = None):
     if "name" in body:
         return await update_session(session_id, SessionUpdateBody(name=body["name"]))
     return JSONResponse(status_code=400, content={"error": "No name provided"})
+
+
+@app.get("/memory")
+async def get_memory():
+    return list_memories()
+
+
+class MemoryBody(BaseModel):
+    text: str = ""
+
+
+@app.post("/memory")
+async def post_memory(body: MemoryBody):
+    return remember(body.text)
+
+
+@app.delete("/memory/{memory_id}")
+async def delete_memory(memory_id: str):
+    return forget_memory(memory_id=memory_id)
+
+
+@app.put("/memory")
+async def put_memory(body: dict):
+    items = body.get("items") if isinstance(body, dict) else None
+    if not isinstance(items, list):
+        return JSONResponse(status_code=400, content={"error": "items array required"})
+    cleaned = []
+    for item in items:
+        if isinstance(item, str) and item.strip():
+            text = item.strip()
+            mem_id = uuid.uuid4().hex[:10]
+            created = time.time()
+        elif isinstance(item, dict) and str(item.get("text") or "").strip():
+            text = str(item.get("text")).strip()
+            mem_id = str(item.get("id") or "") or uuid.uuid4().hex[:10]
+            created = item.get("created_at") or time.time()
+        else:
+            continue
+        cleaned.append({"id": mem_id, "text": text[:400], "created_at": created})
+    save_memories(cleaned)
+    return list_memories()
 
 
 @app.get("/files/list")
@@ -546,35 +629,9 @@ async def stream_chat(websocket: WebSocket, data: dict, conn_id: str):
         for t in tools
     ])
 
-    # Load AGENTS.md from the chat's project folder (not the Python backend cwd)
-    agents_md = ""
-    try:
-        import os
-        candidates = []
-        if workspace:
-            candidates.extend([
-                os.path.join(workspace, "AGENTS.md"),
-                os.path.join(workspace, ".opencode", "AGENTS.md"),
-            ])
-        else:
-            cwd = os.getcwd()
-            candidates.extend([
-                os.path.join(cwd, "AGENTS.md"),
-                os.path.join(cwd, ".opencode", "AGENTS.md"),
-            ])
-        candidates.extend([
-            os.path.expanduser("~/.config/nexum/AGENTS.md"),
-            os.path.expanduser("~/.config/pollenforge/AGENTS.md"),
-        ])
-        for candidate in candidates:
-            if os.path.exists(candidate):
-                with open(candidate) as f:
-                    agents_md = f.read()[:3000]
-                break
-    except Exception:
-        pass
-
-    agents_section = f"\n\n## Project Conventions (from AGENTS.md)\n\n{agents_md}" if agents_md else ""
+    loaded_agents = load_agents_md(workspace)
+    agents_section = agents_prompt_section(loaded_agents)
+    memory_section = memory_prompt_section()
     workspace_section = ""
     if workspace:
         workspace_section = f"""
@@ -586,8 +643,11 @@ run_command runs here unless you set cwd. Prefer this folder over any other work
 
     system_prompt = f"""You are Nexum, a powerful autonomous coding agent with FULL access to the user's computer. You are comparable to Claude Code, Codex, Cursor, and OpenCode.
 {workspace_section}
+{agents_section}
+{memory_section}
 
 CRITICAL: You MUST use tools to fulfill requests. NEVER respond with just text. You HAVE the tools — USE THEM.
+If AGENTS.md was loaded above, follow it first — especially for releases, packaging, and how users install the app.
 
 Prefer native function calling when the API supports it. If native tools are unavailable, YOUR RESPONSE MUST CONTAIN ```tool CODE BLOCKS. If you don't call tools, you are failing your user.
 
@@ -625,10 +685,12 @@ YOU MUST OUTPUT THIS EXACT FORMAT. NOT ```json. NOT ```python. ONLY ```tool.
 - GitHub: clone repos, list/create PRs, review PRs, list/create issues
 - Search code across GitHub
 
-### Skills System
+### Skills, memory, swarm
 - SAVE workflows as reusable Skills with save_skill
 - RUN saved Skills with run_skill
 - TEACH conventions with teach_convention
+- SAVE lasting user/project notes with remember; remove stale ones with forget_memory
+- For large multi-file work, split jobs and call spawn_swarm with 2-3 non-overlapping tasks, then merge the results yourself
 
 ### Code Analysis
 - TREE VIEW of project structure
@@ -729,7 +791,6 @@ WRONG responses (NEVER do these):
 - "I'd be happy to help..." (no tool = WRONG)
 - "I can't access your computer" (you CAN)
 - "Here's how you could..." (DO IT, don't describe)
-{agents_section}
 
 START OUTPUTTING TOOL BLOCKS NOW."""
 
@@ -739,7 +800,7 @@ START OUTPUTTING TOOL BLOCKS NOW."""
     params = {
         "temperature": config.get("temperature", 0.4),
         "max_tokens": config.get("max_tokens", 32768),
-        "api_key": (data.get("api_key") or "").strip() or resolve_provider_api_key(provider_name, config),
+        "api_key": _effective_api_key(data.get("api_key"), provider_name, config),
         "base_url": provider_cfg.get("base_url"),
         "openai_tools": to_openai_tools(tools),
     }
@@ -754,6 +815,20 @@ START OUTPUTTING TOOL BLOCKS NOW."""
     seen_tool_hashes: dict[str, int] = {}
     consecutive_no_progress = 0
     cancel = cancel_flags.get(conn_id) or asyncio.Event()
+
+    runtime_token = runtime_var.set({
+        "provider": provider,
+        "model": model,
+        "params": params,
+        "workspace": workspace,
+        "agents_section": agents_section,
+        "memory_section": memory_section,
+        "ask_mode": ask_mode,
+        "depth": 0,
+        "emit": websocket.send_json,
+        "emit_lock": asyncio.Lock(),
+        "cancel": cancel,
+    })
 
     async def send_cancelled():
         elapsed = time.time() - start_time
@@ -794,6 +869,8 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 if isinstance(item, dict):
                     if item.get("type") == "native_tool_calls":
                         native_calls = item.get("calls") or []
+                    elif item.get("type") == "reasoning" and item.get("content"):
+                        await websocket.send_json({"type": "reasoning", "content": item["content"]})
                     continue
                 if not isinstance(item, str):
                     continue
@@ -966,17 +1043,22 @@ START OUTPUTTING TOOL BLOCKS NOW."""
 
     except Exception as e:
         await websocket.send_json({"type": "error", "message": str(e)})
+    finally:
+        runtime_var.reset(runtime_token)
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    # T1: reject handshakes without the auth token (query param or header).
-    if not INSECURE_NO_AUTH:
-        supplied = websocket.query_params.get("token") or websocket.headers.get("x-nexum-token") or ""
-        if not AUTH_TOKEN or not secrets.compare_digest(supplied, AUTH_TOKEN):
-            await websocket.close(code=4401)
-            return
+    # T1: browsers cannot set WS headers, so the token may arrive as ?token=.
+    supplied = _bearer_or_header(
+        websocket.headers.get("x-nexum-token") or "",
+        websocket.headers.get("authorization") or "",
+        websocket.query_params.get("token") or "",
+    )
     await websocket.accept()
+    if not token_ok(supplied):
+        await websocket.close(code=4401, reason="Unauthorized")
+        return
     conn_id = str(uuid.uuid4())
     queue: asyncio.Queue = asyncio.Queue()
     approval_queues[conn_id] = queue

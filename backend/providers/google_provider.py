@@ -47,8 +47,13 @@ class GoogleProvider(Provider):
                         if candidates:
                             parts = candidates[0].get("content", {}).get("parts", [])
                             for part in parts:
-                                text = part.get("text", "")
-                                if text:
+                                thought = part.get("thought")
+                                text = part.get("text") or ""
+                                if isinstance(thought, str) and thought:
+                                    yield {"type": "reasoning", "content": thought}
+                                elif thought and text:
+                                    yield {"type": "reasoning", "content": text}
+                                elif text:
                                     yield text
                     except (json.JSONDecodeError, KeyError):
                         continue

@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.images import generate_image, resolve_generated_image
+from tools.images import generate_image, resolve_generated_image, _resolve_save_path
 
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
@@ -94,21 +94,37 @@ class ImageToolTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIsNone(resolve_generated_image("foo/bar.png"))
                 self.assertIsNone(resolve_generated_image("missing.png"))
 
+    def test_no_workspace_rejects_absolute_save_path(self):
+        err = _resolve_save_path("/tmp/nexum-overwrite.png", None)
+        self.assertIsInstance(err, dict)
+        self.assertIn("relative", err.get("error", ""))
+
+    def test_no_workspace_rejects_save_path_escape(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "generated-images"
+            folder.mkdir()
+            with patch("tools.images.generated_images_dir", return_value=folder):
+                err = _resolve_save_path("../secret.png", None)
+            self.assertIsInstance(err, dict)
+            self.assertIn("escapes", err.get("error", ""))
+
     def test_media_route_404_on_traversal(self):
         from fastapi.testclient import TestClient
         import server as server_module
         from server import app
 
-        # T1: send the auth token when one is active; /media/* is exempt but
-        # this keeps the test honest if the exemption ever changes.
         headers = {}
         if getattr(server_module, "AUTH_TOKEN", ""):
             headers["x-nexum-token"] = server_module.AUTH_TOKEN
 
         client = TestClient(app)
-        self.assertEqual(client.get("/media/../config.json", headers=headers).status_code, 404)
-        self.assertEqual(client.get("/media/%2e%2e%2fconfig.json", headers=headers).status_code, 404)
-        self.assertEqual(client.get("/media/missing.png", headers=headers).status_code, 404)
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "generated-images"
+            folder.mkdir()
+            with patch("tools.images.generated_images_dir", return_value=folder):
+                self.assertEqual(client.get("/media/../config.json", headers=headers).status_code, 404)
+                self.assertEqual(client.get("/media/%2e%2e%2fconfig.json", headers=headers).status_code, 404)
+                self.assertEqual(client.get("/media/missing.png", headers=headers).status_code, 404)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import { apiFetch } from '../lib/api'
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback, useRef, useEffect, type UIEvent, type WheelEvent } from 'react'
 import { useStore, Message, ToolCall } from '../store/store'
-import { findProviderModel } from '../lib/appConfig'
+import { findProviderModel, MASKED_API_KEY } from '../lib/appConfig'
 import { applyActivePlugins, activePluginIds } from '../lib/plugins'
 import { compactMessages, htmlUrlFromTool, messagesThroughUser } from '../lib/chatActions'
 import { ASK_PROMPT, WEB_PROMPT, hasWebMention, isHtmlWriteTool, toolPath } from '../lib/qol'
@@ -10,6 +10,8 @@ import { currentWorkspace, savePlanMarkdown, scheduleFileTreeRefresh } from '../
 import { titleFromPrompt } from '../lib/chatTitle'
 import { shouldRefreshFileTree } from '../lib/fileTreeSync'
 import { sanitizeAssistantContent } from '../lib/sanitizeAssistantContent'
+import { mergeReasoning, splitThinkTags } from '../lib/thinking'
+import { swarmWorkersFromArgs } from '../lib/swarm'
 import { useWebSocket } from './useWebSocket'
 
 function genId(): string {
@@ -22,12 +24,38 @@ export function useChat() {
   const queuedMessage = useStore((s) => s.queuedMessage)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const sendMessageRef = useRef<(content: string) => Promise<void>>(async () => {})
+  const stickToBottom = useRef(true)
+  const lastScrollTop = useRef(0)
+  const scrollQueued = useRef(false)
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((force = false) => {
+    if (force) stickToBottom.current = true
+    if (!force && !stickToBottom.current) return
+    if (scrollQueued.current) return
+    scrollQueued.current = true
     requestAnimationFrame(() => {
+      scrollQueued.current = false
       const el = scrollRef.current
-      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      if (!el) return
+      if (!stickToBottom.current) return
+      el.scrollTop = el.scrollHeight
+      lastScrollTop.current = el.scrollTop
     })
+  }, [])
+
+  const onChatScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
+    const el = event.currentTarget
+    const top = el.scrollTop
+    if (top + 2 < lastScrollTop.current) {
+      stickToBottom.current = false
+    } else {
+      stickToBottom.current = el.scrollHeight - top - el.clientHeight <= 96
+    }
+    lastScrollTop.current = top
+  }, [])
+
+  const onChatWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
+    if (event.deltaY < 0) stickToBottom.current = false
   }, [])
 
   const ws = useWebSocket({
@@ -44,11 +72,26 @@ export function useChat() {
       scrollToBottom()
     }, [scrollToBottom]),
 
+    onReasoning: useCallback((content: string) => {
+      const state = useStore.getState()
+      const last = state.messages[state.messages.length - 1]
+      if (!last || last.role !== 'assistant') {
+        state.addMessage({ id: genId(), role: 'assistant', content: '', reasoning: content, timestamp: Date.now(), toolCalls: [] })
+      } else {
+        state.appendToLastReasoning(content)
+      }
+      scrollToBottom()
+    }, [scrollToBottom]),
+
     onContentSet: useCallback((content: string) => {
       const state = useStore.getState()
       const last = state.messages[state.messages.length - 1]
       if (last?.role === 'assistant') {
-        state.updateMessage(last.id, { content })
+        const split = splitThinkTags(content)
+        state.updateMessage(last.id, {
+          content: split.content,
+          reasoning: mergeReasoning(last.reasoning, split.reasoning),
+        })
       }
     }, []),
 
@@ -64,6 +107,10 @@ export function useChat() {
         startedAt: Date.now(),
       }
       state.addToolCall(last.id, toolCall)
+      if (tool === 'spawn_swarm') {
+        const workers = swarmWorkersFromArgs(args)
+        if (workers.length) state.startSwarm({ goal: String(args.goal || ''), workers })
+      }
       const path = toolPath(args)
       state.setAgentStep(path ? `${tool} ${path}` : tool)
       const root = currentWorkspace()
@@ -107,6 +154,20 @@ export function useChat() {
         durationMs: running?.startedAt ? Date.now() - running.startedAt : undefined
       })
       if (shouldRefreshFileTree(tool, result)) scheduleFileTreeRefresh()
+      if (tool === 'spawn_swarm' && result && typeof result === 'object') {
+        const agents = (result as { agents?: Array<{ id?: string; result?: string; error?: string; tools_used?: number }> }).agents
+        if (Array.isArray(agents)) {
+          agents.forEach((agent, i) => {
+            const id = agent.id || `s${i}`
+            useStore.getState().setSwarmWorker(id, {
+              ...(agent.result ? { content: agent.result } : {}),
+              ...(agent.error ? { error: agent.error, status: 'error' as const } : { status: 'done' as const }),
+              toolsUsed: agent.tools_used,
+            })
+          })
+          useStore.getState().endSwarm()
+        }
+      }
       if (!isError && isHtmlWriteTool(tool, running?.args || last.toolCalls.find((t) => t.id === targetId)?.args)) {
         const htmlUrl = htmlUrlFromTool(tool, running?.args || {}, currentWorkspace())
         if (htmlUrl) {
@@ -170,9 +231,18 @@ export function useChat() {
         void savePlanMarkdown(plan)
       }
       useStore.getState().setAgentStep(null)
+      if (useStore.getState().swarm?.active) useStore.getState().endSwarm()
       void persistCurrentSession()
       void refreshSessions()
       scrollToBottom()
+      const cancelled = Boolean((stats as { cancelled?: boolean })?.cancelled)
+      if (!cancelled && (document.hidden || !document.hasFocus())) {
+        const preview = sanitizeAssistantContent(last?.content || '').replace(/\s+/g, ' ').trim().slice(0, 140)
+        void window.api?.app?.notifyDone?.({
+          title: 'Nexum',
+          body: preview || 'Agent finished',
+        })
+      }
       const queued = useStore.getState().queuedMessage
       if (queued) {
         useStore.getState().setQueuedMessage(null)
@@ -180,12 +250,47 @@ export function useChat() {
       }
     }, [scrollToBottom]),
 
+    onSwarmStart: useCallback((goal: string, workers: { id: string; role: string; task: string }[]) => {
+      if (workers.length) useStore.getState().startSwarm({ goal, workers })
+    }, []),
+
+    onSwarmToken: useCallback((id: string, content: string) => {
+      useStore.getState().appendSwarmToken(id, content)
+    }, []),
+
+    onSwarmTool: useCallback((id: string, tool: string, extra?: { path?: string; added?: number; removed?: number }) => {
+      const state = useStore.getState()
+      const worker = state.swarm?.workers.find((w) => w.id === id)
+      state.setSwarmWorker(id, {
+        lastTool: tool,
+        lastPath: extra?.path || worker?.lastPath,
+        added: (worker?.added || 0) + (extra?.added || 0),
+        removed: (worker?.removed || 0) + (extra?.removed || 0),
+        status: 'running',
+      })
+      if (shouldRefreshFileTree(tool)) scheduleFileTreeRefresh()
+    }, []),
+
+    onSwarmDone: useCallback((id: string, payload: { result?: string; error?: string; tools_used?: number }) => {
+      const updates: { status: 'done' | 'error'; toolsUsed?: number; error?: string; content?: string } = {
+        status: payload.error ? 'error' : 'done',
+        toolsUsed: payload.tools_used,
+      }
+      if (payload.error) updates.error = payload.error
+      if (payload.result) updates.content = payload.result
+      useStore.getState().setSwarmWorker(id, updates)
+    }, []),
+
+    onSwarmEnd: useCallback(() => {
+      useStore.getState().endSwarm()
+    }, []),
+
     onError: useCallback((message: string) => {
       const state = useStore.getState()
       const last = state.messages[state.messages.length - 1]
       if (last?.role === 'assistant') {
         // If assistant is empty, show error inside it; otherwise append new error message
-        if (!last.content && (!last.toolCalls || last.toolCalls.length === 0)) {
+        if (!last.content && !last.reasoning && (!last.toolCalls || last.toolCalls.length === 0)) {
           state.updateMessage(last.id, { content: `**Error:** ${message}`, isError: true })
         } else {
           state.addMessage({ id: genId(), role: 'assistant', content: `**Error:** ${message}`, timestamp: Date.now(), isError: true })
@@ -211,6 +316,7 @@ export function useChat() {
       return
     }
     if (state.messages.length > 0) state.addCheckpoint()
+    if (!state.swarm?.active) state.clearSwarm()
 
     let sessionId = state.currentSessionId
     if (!sessionId) {
@@ -247,7 +353,10 @@ export function useChat() {
       provider: state.currentProvider,
       session_id: sessionId,
       workspace: currentWorkspace() || '',
-      api_key: state.config.providers[state.currentProvider]?.api_key || '',
+      api_key: (() => {
+        const key = state.config.providers[state.currentProvider]?.api_key || ''
+        return key === MASKED_API_KEY ? '' : key
+      })(),
     })
     if (!sent) {
       state.updateMessage(assistantMsg.id, { content: '**Error:** Not connected. Reconnecting...', isError: true })
@@ -255,7 +364,7 @@ export function useChat() {
       state.pushToast({ kind: 'error', text: 'Backend is disconnected. Retrying…' })
     }
     void persistCurrentSession()
-    scrollToBottom()
+    scrollToBottom(true)
   }, [ws, scrollToBottom])
 
   sendMessageRef.current = sendMessage
@@ -329,5 +438,7 @@ export function useChat() {
     reconnect: ws.connect,
     scrollRef,
     scrollToBottom,
+    onChatScroll,
+    onChatWheel,
   }
 }

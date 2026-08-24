@@ -1,12 +1,14 @@
-import { Message as MessageType } from '../../store/store'
+import { Message as MessageType, ToolCall } from '../../store/store'
 import ToolResult from './ToolResult'
-import StreamingText from './StreamingText'
 import MessageActions from './MessageActions'
 import MarkdownRenderer from './MarkdownRenderer'
+import ThinkingBlock from './ThinkingBlock'
 import { sanitizeAssistantContent } from '../../lib/sanitizeAssistantContent'
+import { splitThinkTags } from '../../lib/thinking'
 import { currentWorkspace } from '../../lib/workspace'
 import { extractBrowserTargets } from '../../lib/browserTargets'
 import { messageMatchesFind } from '../../lib/qol'
+import { lineDeltaFromTool } from '../../lib/agentActivity'
 import { useStore } from '../../store/store'
 
 interface Props { message: MessageType; onRetry?: () => void; onEdit?: (c: string) => void }
@@ -15,22 +17,47 @@ function formatTime(ts: number): string {
   try { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) } catch { return '' }
 }
 
+function FileChangeSummary({ toolCalls }: { toolCalls: ToolCall[] }) {
+  const edits = toolCalls.filter((t) => t.name === 'write_file' || t.name === 'edit_file')
+  if (edits.length < 2) return null
+  let added = 0
+  let removed = 0
+  for (const t of edits) {
+    const d = lineDeltaFromTool(t.name, t.args, t.result)
+    added += d.added
+    removed += d.removed
+  }
+  return (
+    <div className="mb-1.5 text-[13px] text-text-muted flex items-center gap-2">
+      <span>{edits.length} files changed</span>
+      {added > 0 && <span className="text-emerald-400 tabular-nums">+{added}</span>}
+      {removed > 0 && <span className="text-red-400 tabular-nums">-{removed}</span>}
+    </div>
+  )
+}
+
 export default function Message({ message, onRetry, onEdit }: Props) {
   const isUser = message.role === 'user'
   const hasTools = !!message.toolCalls?.length
   const chatFind = useStore((s) => s.chatFind)
-  const findHit = !!chatFind.trim() && messageMatchesFind(message.content, chatFind)
-  const displayContent = isUser ? message.content : sanitizeAssistantContent(message.content || '')
+  const lastId = useStore((s) => s.messages[s.messages.length - 1]?.id)
+  const live = useStore((s) => s.isStreaming)
+  const tagged = isUser ? { content: message.content, reasoning: '' } : splitThinkTags(message.content || '')
+  const reasoning = [message.reasoning, tagged.reasoning].filter((part) => part?.trim()).join('\n\n')
+  const displayContent = isUser ? message.content : sanitizeAssistantContent(tagged.content)
+  const findHit = !!chatFind.trim() && (
+    messageMatchesFind(message.content, chatFind) || messageMatchesFind(reasoning, chatFind)
+  )
   const browserLinks = !isUser ? extractBrowserTargets(displayContent, currentWorkspace()) : []
-  const isThinking = !isUser && !displayContent && !hasTools
-  const isStreaming = !isUser && !!displayContent && !message.stats && !message.isError
+  const isLive = !isUser && live && message.id === lastId && !message.stats && !message.isError
+  const isStreaming = isLive && !!displayContent
   const hasContent = !!displayContent.trim()
 
   if (isUser) {
     return (
       <div id={`msg-${message.id}`} className={`flex justify-end mb-5 group ${findHit ? 'chat-find-hit' : ''}`}>
         <div className="max-w-[78%]">
-          <div className="bg-surface-2 text-text-primary rounded-2xl rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap break-words border border-border transition-smooth">
+          <div className="bg-surface-2/80 text-text-primary rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed whitespace-pre-wrap break-words">
             {message.content}
           </div>
           <div className="flex items-center gap-2 mt-1.5 justify-end">
@@ -42,19 +69,13 @@ export default function Message({ message, onRetry, onEdit }: Props) {
     )
   }
 
-  // Assistant - Codex style: no bubble, timeline then markdown
   return (
     <div id={`msg-${message.id}`} className={`mb-6 group ${findHit ? 'chat-find-hit' : ''}`}>
-      {isThinking && (
-        <div className="flex items-center gap-2.5 py-2 text-text-muted">
-          <StreamingText />
-          <span className="text-xs">Working…</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 border border-border">thinking</span>
-        </div>
-      )}
+      <ThinkingBlock reasoning={reasoning} active={isLive} toolCalls={message.toolCalls} />
 
       {hasTools && (
-        <div className="space-y-2 mb-3">
+        <div className="space-y-0.5 mb-3">
+          <FileChangeSummary toolCalls={message.toolCalls!} />
           {message.toolCalls!.map(tc => (
             <ToolResult key={tc.id} toolCall={tc} />
           ))}
@@ -94,7 +115,7 @@ export default function Message({ message, onRetry, onEdit }: Props) {
         </div>
       )}
 
-      {!isThinking && (hasContent || hasTools) && (
+      {(hasContent || hasTools || reasoning.trim()) && !isLive && (
         <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <span className="text-[10px] text-text-muted tabular-nums">{formatTime(message.timestamp)}</span>
           <MessageActions content={displayContent} isUser={false} onRetry={onRetry} onEdit={onEdit} />

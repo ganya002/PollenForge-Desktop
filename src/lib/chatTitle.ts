@@ -14,6 +14,8 @@ const SKIP_COMMANDS = new Set([
   'diff',
   'caveman',
   'plan',
+  'goal',
+  'swarm',
   'review',
 ])
 

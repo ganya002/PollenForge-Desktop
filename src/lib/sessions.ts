@@ -220,7 +220,9 @@ export async function setSessionArchived(sessionId: string, archived: boolean): 
     /* ignore */
   }
   const sessions = useStore.getState().sessions
-  useStore.getState().setSessions(sortSessions(sessions.map((s) => (s.id === sessionId ? { ...s, archived } : s))))
+  const next = sortSessions(sessions.map((s) => (s.id === sessionId ? { ...s, archived } : s)))
+  useStore.getState().setSessions(next)
+  if (!archived && !next.some((s) => s.archived)) useStore.getState().setShowArchived(false)
   if (useStore.getState().currentSessionId === sessionId) void persistCurrentSession()
 }
 

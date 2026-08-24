@@ -41,8 +41,8 @@ declare global {
   interface Window {
     api: {
       backend?: {
-        /** Per-launch auth token for the local Nexum backend (T1). */
-        token: () => string
+        status: () => Promise<{ running: boolean; port?: number }>
+        token: () => Promise<{ token: string }>
       }
       app: {
         quit: () => void
@@ -52,6 +52,7 @@ declare global {
         onMaximized: (cb: (maximized: boolean) => void) => () => void
         getVersion: () => Promise<{ version: string; packaged: boolean }>
         pickDirectory: () => Promise<{ ok: boolean; path?: string }>
+        notifyDone: (payload?: { title?: string; body?: string }) => Promise<{ ok: boolean; skipped?: boolean; error?: string }>
         platform: string
         nativeFrame: boolean
       }

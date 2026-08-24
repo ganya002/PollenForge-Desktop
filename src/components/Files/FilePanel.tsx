@@ -45,14 +45,22 @@ export default function FilePanel() {
   const activeFilePath = useStore((s) => s.activeFilePath)
   const closeFile = useStore((s) => s.closeFile)
   const setActiveFile = useStore((s) => s.setActiveFile)
+  const swarmOpen = useStore((s) => !!s.swarm?.workers.length)
+  const browserOpen = useStore((s) => s.browserOpen)
   const [source, setSource] = useState(false)
 
   const active = openFiles.find((f) => f.path === activeFilePath) || openFiles[0]
   if (!active) return null
   const isMd = /\.mdx?$/i.test(active.name)
+  const crowded = swarmOpen && browserOpen
+  const widthClass = crowded
+    ? 'w-[min(18rem,26vw)] min-w-[11rem] max-w-[30%]'
+    : swarmOpen
+      ? 'w-[min(22rem,32vw)] min-w-[13rem] max-w-[36%]'
+      : 'w-[min(28rem,40vw)] max-w-full'
 
   return (
-    <div className="h-full min-h-0 w-[min(28rem,40vw)] max-w-full shrink-0 border-l border-border bg-surface-0 flex flex-col overflow-hidden">
+    <div className={`h-full min-h-0 shrink-0 border-l border-border bg-surface-0 flex flex-col overflow-hidden ${widthClass}`}>
       <div className="h-10 shrink-0 flex items-center gap-1 px-1 border-b border-border overflow-x-auto">
         {openFiles.map((file) => {
           const on = file.path === active.path

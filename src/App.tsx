@@ -23,12 +23,13 @@ import { restoreLastSession, flushCurrentSession } from './lib/sessions'
 import { writeWorkspaceFile } from './lib/workspace'
 import FilePanel from './components/Files/FilePanel'
 import BrowserPanel from './components/Browser/BrowserPanel'
+import SwarmBoard from './components/Chat/SwarmBoard'
 
 export default function App() {
   const toggleSidebar = useStore((s) => s.toggleSidebar)
   const toggleBrowser = useStore((s) => s.toggleBrowser)
   const browserOpen = useStore((s) => s.browserOpen)
-  const { messages, isStreaming, sendMessage, continueChat, stopGeneration, editAndResend, compactChat, retryLastMessage, reconnect, scrollRef } = useChat()
+  const { messages, isStreaming, sendMessage, continueChat, stopGeneration, editAndResend, compactChat, retryLastMessage, reconnect, scrollRef, onChatScroll, onChatWheel } = useChat()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('providers')
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -37,6 +38,8 @@ export default function App() {
   const nativeFrame = window.api?.app?.nativeFrame === true
   const currentSession = useStore((s) => s.sessions.find((x) => x.id === s.currentSessionId))
   const hasOpenFiles = useStore((s) => s.openFiles.length > 0)
+  const swarmOpen = useStore((s) => !!s.swarm?.workers.length)
+  const swarmActive = useStore((s) => !!s.swarm?.active)
   const wsConnected = useStore((s) => s.wsConnected)
   const agentMode = useStore((s) => s.config.agent_mode) || 'agent'
   const theme = useStore((s) => s.config.theme)
@@ -257,17 +260,23 @@ export default function App() {
           </span>
 
           <div className="no-drag flex items-center gap-1">
-            <div className="flex items-center rounded-md border border-border overflow-hidden mr-1">
+            {swarmOpen && (
+              <span className="h-6 px-2 rounded-md border border-border bg-surface-2 text-[11px] text-text-secondary inline-flex items-center gap-1.5 mr-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${swarmActive ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                Swarm
+              </span>
+            )}
+            <div className="flex items-center rounded-lg overflow-hidden mr-1">
               <button
                 onClick={() => setAgentMode('ask')}
-                className={`h-6 px-2 text-[11px] ${agentMode === 'ask' ? 'bg-surface-3 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+                className={`h-6 px-2.5 text-[11px] rounded-md ${agentMode === 'ask' ? 'bg-surface-2 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
                 title="Ask — inspect only, no writes"
               >
                 Ask
               </button>
               <button
                 onClick={() => setAgentMode('agent')}
-                className={`h-6 px-2 text-[11px] ${agentMode === 'agent' ? 'bg-surface-3 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+                className={`h-6 px-2.5 text-[11px] rounded-md ${agentMode === 'agent' ? 'bg-surface-2 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
                 title="Agent — can write files and run commands"
               >
                 Agent
@@ -354,8 +363,9 @@ export default function App() {
             </div>
           )}
           <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
-            <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-              <ChatArea messages={messages} scrollRef={scrollRef} onRetry={retryLastMessage} onEdit={editAndResend} />
+            <div className="flex flex-col flex-1 min-w-[12rem] min-h-0 overflow-hidden">
+              <ChatArea messages={messages} scrollRef={scrollRef} onScroll={onChatScroll} onWheel={onChatWheel} onRetry={retryLastMessage} onEdit={editAndResend} />
+              {swarmOpen && <SwarmBoard />}
             </div>
             <AnimatePresence>
               {hasOpenFiles && (

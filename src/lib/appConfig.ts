@@ -2,6 +2,8 @@ import { apiFetch } from './api'
 import type { Config, ModelInfo, ProviderConfig } from '../store/store'
 import { catalogEntry, emptyProviderConfig } from './providerCatalog.ts'
 
+export const MASKED_API_KEY = '__MASKED__'
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   return value as Record<string, unknown>
@@ -89,16 +91,18 @@ export function mergeFetchedConfig(current: Config, remote: unknown): Config {
       const inc = asRecord(incoming) || {}
       const existing = providers[name]
       const catalog = emptyProviderConfig(name)
-      const hasKey = typeof inc.api_key === 'string' && inc.api_key.length > 0
+      const incomingKey = typeof inc.api_key === 'string' ? inc.api_key : ''
+      const masked = incomingKey === MASKED_API_KEY
+      const hasKey = !masked && incomingKey.length > 0
       const flaggedOn = inc.enabled === true
-      if (flaggedOn || hasKey) inferredEnabled.push(name)
+      if (flaggedOn || hasKey || inc.has_key === true) inferredEnabled.push(name)
 
-      const shouldKeep = existing || flaggedOn || hasKey || remoteEnabled?.includes(name)
+      const shouldKeep = existing || flaggedOn || hasKey || inc.has_key === true || remoteEnabled?.includes(name)
       if (!shouldKeep) continue
 
       const models = existing?.models ?? catalog.models
       providers[name] = {
-        api_key: hasKey ? (inc.api_key as string) : existing?.api_key || '',
+        api_key: masked ? (existing?.api_key || '') : (hasKey ? incomingKey : existing?.api_key || ''),
         base_url: typeof inc.base_url === 'string' ? inc.base_url : existing?.base_url || catalog.base_url,
         models,
       }

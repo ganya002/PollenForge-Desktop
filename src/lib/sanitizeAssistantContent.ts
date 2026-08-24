@@ -1,3 +1,5 @@
+import { splitThinkTags } from './thinking.ts'
+
 /** Strip tool-call JSON and close dangling fences so chat markdown stays readable. */
 
 function stripJsonToolObjects(text: string): string {
@@ -60,7 +62,7 @@ function stripJsonToolObjects(text: string): string {
 
 export function sanitizeAssistantContent(raw: string): string {
   if (!raw) return raw
-  let s = raw.replace(/\r\n/g, '\n')
+  let s = splitThinkTags(raw).content.replace(/\r\n/g, '\n')
 
   s = s.replace(/```tool[^\n]*\n[\s\S]*?(?:```|$)/g, '')
   s = s.replace(/```json[^\n]*\n(\s*\{[\s\S]*?"name"\s*:[\s\S]*?)(?:```|$)/g, (full, body: string) => {

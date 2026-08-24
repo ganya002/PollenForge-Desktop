@@ -77,7 +77,7 @@ export default function FileMentionMenu({ query, onSelect, onClose }: FileMentio
   return (
     <div
       ref={ref}
-      className="absolute bottom-full left-0 right-0 mb-2 bg-surface-2 border border-border rounded-lg shadow-xl overflow-hidden z-50 max-h-60"
+      className="absolute bottom-full left-0 right-0 mb-2 bg-surface-2 border border-border rounded-lg shadow-xl overflow-hidden z-[90] max-h-60"
     >
       <div className="px-3 py-1.5 text-[10px] text-text-muted uppercase tracking-wider border-b border-border">
         Mentions

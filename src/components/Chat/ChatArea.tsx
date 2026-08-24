@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Ref, useEffect } from 'react'
+import { Ref, UIEventHandler, WheelEventHandler, useEffect } from 'react'
 import { Message as MessageType, useStore } from '../../store/store'
 import { easeOut, fadeUp } from '../../lib/motion'
 import { messageMatchesFind } from '../../lib/qol'
@@ -10,6 +10,8 @@ interface ChatAreaProps {
   scrollRef: Ref<HTMLDivElement>
   onRetry?: () => void
   onEdit?: (userId: string, content: string) => void
+  onScroll?: UIEventHandler<HTMLDivElement>
+  onWheel?: WheelEventHandler<HTMLDivElement>
 }
 
 function WelcomeScreen() {
@@ -23,7 +25,7 @@ function WelcomeScreen() {
   return (
     <div className="flex-1 flex items-center justify-center px-4 py-8 min-h-0 overflow-y-auto">
       <motion.div
-        className="welcome-col text-center my-auto"
+        className="welcome-col text-center my-auto w-full min-w-0 px-1"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: easeOut }}
@@ -39,14 +41,14 @@ function WelcomeScreen() {
           Local coding assistant. Read, write, and run things on this machine.
         </p>
 
-        <div className="grid grid-cols-2 gap-2 text-left">
+        <div className="grid grid-cols-1 min-[20rem]:grid-cols-2 gap-2 text-left w-full">
           {suggestions.map((s, i) => (
             <motion.button
               key={s.text}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.28, delay: 0.08 + i * 0.05, ease: easeOut }}
-              className="h-11 px-3 bg-surface-1 hover:bg-surface-2 rounded-lg text-[13px] text-text-secondary hover:text-text-primary transition-smooth border border-border hover:border-border-hover flex items-center gap-2.5"
+              className="h-10 min-w-0 px-3 bg-surface-1 hover:bg-surface-2 rounded-lg text-[13px] leading-4 text-text-secondary hover:text-text-primary transition-smooth border border-border hover:border-border-hover flex items-center gap-2 overflow-hidden"
               onClick={() => {
                 document.dispatchEvent(new CustomEvent('send-message', { detail: s.text }))
               }}
@@ -59,7 +61,7 @@ function WelcomeScreen() {
                 {s.icon === 'window' && <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M2 5.5h12" stroke="currentColor" strokeWidth="1.1" /></svg>}
                 {s.icon === 'code' && <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M6 3L3 8l3 5M10 3l3 5-3 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
               </span>
-              {s.text}
+              <span className="truncate min-w-0">{s.text}</span>
             </motion.button>
           ))}
         </div>
@@ -68,13 +70,15 @@ function WelcomeScreen() {
   )
 }
 
-export default function ChatArea({ messages, scrollRef, onRetry, onEdit }: ChatAreaProps) {
+export default function ChatArea({ messages, scrollRef, onRetry, onEdit, onScroll, onWheel }: ChatAreaProps) {
   const empty = messages.length === 0
   const chatFind = useStore((s) => s.chatFind)
 
   useEffect(() => {
     if (!chatFind.trim()) return
-    const first = messages.find((m) => messageMatchesFind(m.content, chatFind))
+    const first = messages.find((m) => (
+      messageMatchesFind(m.content, chatFind) || messageMatchesFind(m.reasoning || '', chatFind)
+    ))
     if (!first) return
     const el = document.getElementById(`msg-${first.id}`)
     el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
@@ -83,12 +87,14 @@ export default function ChatArea({ messages, scrollRef, onRetry, onEdit }: ChatA
   return (
     <div
       ref={scrollRef}
-      className={`flex-1 min-h-0 bg-surface-0 ${empty ? 'flex flex-col' : 'overflow-y-auto'}`}
+      onScroll={onScroll}
+      onWheel={onWheel}
+      className={`flex-1 min-h-[7rem] min-w-0 bg-surface-0 ${empty ? 'flex flex-col' : 'overflow-y-auto'}`}
     >
       {empty ? (
         <WelcomeScreen />
       ) : (
-        <div className="composer-col px-4 py-6">
+        <div className="composer-col px-5 py-8">
           <AnimatePresence initial={false}>
             {messages.map((msg) => (
               <motion.div

@@ -55,7 +55,11 @@ class AnthropicProvider(Provider):
                         data = json.loads(data_str)
                         event_type = data.get("type")
                         if event_type == "content_block_delta":
-                            text = data.get("delta", {}).get("text", "")
+                            delta = data.get("delta") or {}
+                            thought = delta.get("thinking") or ""
+                            if thought:
+                                yield {"type": "reasoning", "content": thought}
+                            text = delta.get("text") or ""
                             if text:
                                 yield text
                         elif event_type == "message_stop":

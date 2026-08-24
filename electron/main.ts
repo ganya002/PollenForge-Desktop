@@ -7,6 +7,7 @@ import {
   Menu,
   nativeImage,
   screen,
+  Notification,
 } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -24,6 +25,7 @@ import {
 
 if (process.platform === 'win32') {
   app.disableHardwareAcceleration();
+  app.setAppUserModelId('com.nexum.desktop');
   for (const [flag, value] of windowsChromiumSwitches()) {
     if (value === undefined) app.commandLine.appendSwitch(flag);
     else app.commandLine.appendSwitch(flag, value);
@@ -275,6 +277,36 @@ function setupIpcHandlers(): void {
     return { ok: true, path: result.filePaths[0] };
   });
 
+  ipcMain.handle('app:notify-done', async (_event, payload?: { title?: string; body?: string }) => {
+    if (mainWindow?.isFocused() && mainWindow.isVisible()) {
+      return { ok: true, skipped: true };
+    }
+    const title = String(payload?.title || 'Nexum');
+    const body = String(payload?.body || 'Agent finished').slice(0, 180);
+    try {
+      if (process.platform === 'darwin') {
+        app.dock?.bounce('informational');
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (Notification.isSupported()) {
+        const notice = new Notification({ title, body });
+        notice.on('click', () => {
+          if (!mainWindow) return;
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.show();
+          mainWindow.focus();
+        });
+        notice.show();
+      }
+    } catch (err: any) {
+      return { ok: false, error: err?.message || 'notify failed' };
+    }
+    return { ok: true };
+  });
+
   // Chat - streaming via WebSocket
   ipcMain.handle('chat:send', async (_event, messages: unknown[], model: string, provider: string) => {
     return new Promise((resolve, reject) => {
@@ -478,13 +510,17 @@ function setupIpcHandlers(): void {
     }
   });
 
-  // Backend status
+  // Backend status + per-launch auth token for renderer fetch/WS
   ipcMain.handle('backend:status', async () => {
     if (!backendManager) {
       return { running: false };
     }
     const isHealthy = await backendManager.checkHealth();
     return { running: isHealthy, port: backendManager.port };
+  });
+
+  ipcMain.handle('backend:token', () => {
+    return { token: backendManager?.authToken || '' };
   });
 }
 

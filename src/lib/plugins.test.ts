@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { applyActivePlugins, handlePluginSlash, installPlugin, setPluginActive } from './plugins.ts'
+import { applyActivePlugins, handlePluginSlash, installPlugin, setPluginActive, slashPluginCommands } from './plugins.ts'
 import type { Config } from '../store/store.ts'
 
 const base: Config = {
@@ -43,9 +43,10 @@ test('/caveman activates when installed', () => {
   assert.ok(config.installed_plugins.includes('caveman'))
 })
 
-test('/goal with text sends the remainder when installed', () => {
-  const { result, config } = handlePluginSlash('/goal ship 1.0.0', installPlugin(base, 'goal'))
+test('/goal auto-installs and sends the remainder', () => {
+  const { result, config } = handlePluginSlash('/goal ship 1.0.0', base)
   assert.deepEqual(result, { kind: 'send', text: 'ship 1.0.0' })
+  assert.ok(config.installed_plugins.includes('goal'))
   assert.ok(config.active_plugins.includes('goal'))
 })
 
@@ -55,10 +56,24 @@ test('/plan with text sends the remainder when installed', () => {
   assert.ok(config.active_plugins.includes('planner'))
 })
 
+test('activating swarm turns plan off', () => {
+  let cfg = setPluginActive(installPlugin(installPlugin(base, 'swarm'), 'planner'), 'planner', true)
+  cfg = setPluginActive(cfg, 'swarm', true)
+  assert.equal(cfg.active_plugins.includes('planner'), false)
+  assert.ok(cfg.active_plugins.includes('swarm'))
+})
+
 test('activating goal turns plan off and the reverse', () => {
   let cfg = setPluginActive(installPlugin(installPlugin(base, 'goal'), 'planner'), 'planner', true)
   cfg = setPluginActive(cfg, 'goal', true)
   assert.deepEqual(cfg.active_plugins.filter((id) => id === 'goal' || id === 'planner'), ['goal'])
   cfg = setPluginActive(cfg, 'planner', true)
   assert.deepEqual(cfg.active_plugins.filter((id) => id === 'goal' || id === 'planner'), ['planner'])
+})
+
+test('slash menu lists plan, goal, and swarm without installing', () => {
+  const names = slashPluginCommands().map((c) => c.name)
+  assert.ok(names.includes('/plan'))
+  assert.ok(names.includes('/goal'))
+  assert.ok(names.includes('/swarm'))
 })

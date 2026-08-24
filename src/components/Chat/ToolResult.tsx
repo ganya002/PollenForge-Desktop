@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { ToolCall, useStore } from '../../store/store'
 import { toolPath } from '../../lib/qol'
+import { fileName, lineDeltaFromTool } from '../../lib/agentActivity'
 import { currentWorkspace } from '../../lib/workspace'
 import { openWorkspaceFile } from '../../lib/workspaceFiles'
 import { isSafeBrowserUrl } from '../../lib/browserTargets'
@@ -50,6 +51,10 @@ const LABELS: Record<string, string> = {
   show_diff: 'Diff',
   worktree_list: 'Worktree',
   start_background_task: 'Task',
+  spawn_swarm: 'Swarm',
+  remember: 'Memory',
+  forget_memory: 'Memory',
+  list_memories: 'Memory',
   generate_image: 'Image',
   web_search: 'Web search',
   fetch_url: 'Fetch URL',
@@ -58,6 +63,8 @@ const LABELS: Record<string, string> = {
 function getPreview(tc: ToolCall): string {
   const a = tc.args as any
   if (tc.name === 'run_command' && a.command) return String(a.command).slice(0, 80)
+  if (tc.name === 'spawn_swarm') return String(a.goal || a.tasks || 'parallel agents').slice(0, 80)
+  if (tc.name === 'remember') return String(a.text || a.note || '').slice(0, 80)
   if (a.prompt) return String(a.prompt).slice(0, 80)
   if (a.query) return String(a.query).slice(0, 80)
   if (a.path) return String(a.path).slice(0, 80)
@@ -65,6 +72,16 @@ function getPreview(tc: ToolCall): string {
   if (a.url) return String(a.url).slice(0, 80)
   if (a.pattern) return String(a.pattern).slice(0, 60)
   return ''
+}
+
+function displayArgs(tc: ToolCall): string {
+  if (tc.name === 'run_command') return String((tc.args as { command?: string }).command || '')
+  const args: Record<string, unknown> = { ...(tc.args || {}) }
+  for (const key of ['content', 'new', 'old', 'text']) {
+    const v = args[key]
+    if (typeof v === 'string' && v.length > 480) args[key] = `${v.slice(0, 480)}…`
+  }
+  return JSON.stringify(args, null, 2)
 }
 
 function getOutput(tc: ToolCall): { text: string; isError: boolean; truncated?: boolean } {
@@ -79,6 +96,10 @@ function getOutput(tc: ToolCall): { text: string; isError: boolean; truncated?: 
   }
   if (r.content !== undefined) return { text: String(r.content).slice(0, 8000), isError: false }
   if (r.diff !== undefined) return { text: String(r.diff).slice(0, 8000) || '(no changes)', isError: false }
+  if (r.success && (r.bytes_written != null || r.path)) {
+    const bytes = r.bytes_written != null ? `${r.bytes_written} bytes` : 'saved'
+    return { text: `Wrote ${bytes}`, isError: false }
+  }
   if (Array.isArray(r.results)) {
     const lines = r.results.map((item: { title?: string; url?: string; snippet?: string }) => {
       const title = item?.title || item?.url || 'result'
@@ -95,13 +116,14 @@ function getOutput(tc: ToolCall): { text: string; isError: boolean; truncated?: 
 
 export default function ToolResult({ toolCall }: Props) {
   const isRunning = toolCall.status === 'running'
-  const [expanded, setExpanded] = useState(isRunning)
+  const [expanded, setExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
-  // Auto-expand when running, collapse when done is user-controlled
-  const shouldExpand = isRunning ? true : expanded
+  const shouldExpand = isRunning || expanded
   const status = STATUS[toolCall.status] || STATUS.pending
   const label = LABELS[toolCall.name] || toolCall.name.replace(/_/g, ' ')
   const preview = getPreview(toolCall)
+  const path = toolPath(toolCall.args)
+  const delta = lineDeltaFromTool(toolCall.name, toolCall.args, toolCall.result)
   const { text: output, isError } = getOutput(toolCall)
 
   const handleCopy = async () => {
@@ -132,34 +154,40 @@ export default function ToolResult({ toolCall }: Props) {
   }
 
   return (
-    <div className={`group relative rounded-lg border bg-surface-1 overflow-hidden animate-fade-in ${isError ? 'border-red-500/20' : isRunning ? 'border-amber-500/20' : 'border-border'}`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-px ${isRunning ? 'running-sheen bg-amber-400/70' : isError ? 'bg-red-400/50' : 'bg-white/15'}`} />
-      <div className="w-full flex items-center gap-2.5 pl-3 pr-2 py-2 hover:bg-surface-2/40 transition-smooth">
+    <div className={`group relative rounded-lg overflow-hidden animate-fade-in ${
+      isError ? 'border border-red-500/20 bg-surface-1' : isRunning ? 'bg-surface-1/80' : ''
+    }`}>
+      <div className="w-full flex items-center gap-2 pl-0.5 pr-1 py-1 hover:bg-surface-2/50 rounded-lg transition-smooth">
         <button
-          onClick={() => setExpanded(!shouldExpand)}
-          className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-2 min-w-0 flex-1 text-left"
         >
           <span className="w-4 h-4 flex items-center justify-center shrink-0"><StatusIcon status={toolCall.status} running={isRunning} /></span>
-          <span className="text-xs font-medium text-text-primary capitalize">{label}</span>
-          {preview && !toolPath(toolCall.args) && (
-            <span className="text-[11px] text-text-muted font-mono truncate max-w-[320px] hidden sm:inline">{preview}</span>
+          <span className="text-[13px] text-text-secondary">{label}</span>
+          {preview && !path && (
+            <span className="text-[12px] text-text-muted font-mono truncate max-w-[320px] hidden sm:inline">{preview}</span>
           )}
         </button>
-        {preview && !!toolPath(toolCall.args) && (
+        {preview && !!path && (
           <button
             type="button"
-            onClick={() => void openWorkspaceFile(toolPath(toolCall.args), { root: currentWorkspace() })}
-            className="text-[11px] text-text-muted font-mono truncate max-w-[320px] hidden sm:inline hover:text-text-primary underline-offset-2 hover:underline"
+            onClick={() => void openWorkspaceFile(path, { root: currentWorkspace() })}
+            className="text-[12px] text-text-muted font-mono truncate max-w-[280px] hidden sm:inline hover:text-text-primary"
             title="Open file"
           >
-            {preview}
+            {fileName(path) || preview}
           </button>
         )}
-        {duration && <span className="text-[10px] text-text-muted tabular-nums">{duration}</span>}
-        <button onClick={() => setExpanded(!shouldExpand)} className="flex items-center gap-1.5 shrink-0">
-          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isError ? 'bg-red-500/10 text-red-400' : isRunning ? 'bg-amber-500/10 text-amber-400' : 'bg-surface-2 text-text-muted'}`}>{status.label}</span>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" className={`text-text-muted shrink-0 transition-transform ${shouldExpand ? 'rotate-180' : ''}`}><path d="M3 4.5l3 3 3-3z" /></svg>
-        </button>
+        {(delta.added > 0 || delta.removed > 0) && (
+          <span className="text-[11px] tabular-nums shrink-0 inline-flex items-center gap-1.5">
+            {delta.added > 0 && <span className="text-emerald-400">+{delta.added}</span>}
+            {delta.removed > 0 && <span className="text-red-400">-{delta.removed}</span>}
+          </span>
+        )}
+        {duration && isRunning && <span className="text-[10px] text-text-muted tabular-nums">{duration}</span>}
+        {(isRunning || isError || toolCall.status === 'approval_needed') && (
+          <span className={`text-[10px] shrink-0 ${isError ? 'text-red-400' : isRunning ? 'text-amber-400' : 'text-violet-400'}`}>{status.label}</span>
+        )}
       </div>
 
       {shouldExpand && (
@@ -172,7 +200,7 @@ export default function ToolResult({ toolCall }: Props) {
               </button>
             </div>
             <pre className="text-xs font-mono bg-surface-2 border border-border rounded-md px-2.5 py-2 overflow-x-auto whitespace-pre-wrap break-words text-text-secondary max-h-40 overflow-y-auto">
-              {toolCall.name === 'run_command' ? (toolCall.args as any).command : JSON.stringify(toolCall.args, null, 2)}
+              {toolCall.name === 'run_command' ? (toolCall.args as any).command : displayArgs(toolCall)}
             </pre>
           </div>
 

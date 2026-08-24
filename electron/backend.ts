@@ -356,16 +356,14 @@ export class BackendManager {
       return;
     }
     if (status === 401) {
-      // A backend is on our port but rejects our token: typically a manual
-      // `npm run dev:backend` started without NEXUM_AUTH_TOKEN.
       const hint = app.isPackaged
-        ? ''
-        : ` Start it with NEXUM_AUTH_TOKEN=${this.authToken} or NEXUM_INSECURE_NO_AUTH=1.`;
-      this.log(
+        ? ' Quit the other Nexum instance and reopen this one.'
+        : ` Stop the process on this port, or restart it with NEXUM_AUTH_TOKEN set to this app's token.`;
+      const err = new Error(
         `Port ${this.port} is served by a backend that rejected our auth token.${hint}`,
       );
-      this.startHealthPolling();
-      return;
+      this.log(err.message);
+      throw err;
     }
 
     this.isStarting = true;

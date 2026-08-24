@@ -67,7 +67,7 @@ export default function CommandMenu({ filter, pluginCommands, onSelect, onClose 
   return (
     <div
       ref={ref}
-      className="absolute bottom-full left-0 right-0 mb-2 bg-surface-2 border border-border rounded-lg overflow-hidden z-50"
+      className="absolute bottom-full left-0 right-0 mb-2 bg-surface-2 border border-border rounded-lg z-[90] max-h-64 overflow-y-auto shadow-xl"
     >
       {filtered.map((cmd, i) => (
         <button

@@ -1,7 +1,7 @@
 import { apiFetch } from '../../lib/api'
 import { useEffect, useRef, useState } from 'react'
 import { useStore, Session } from '../../store/store'
-import { sessionMatches } from '../../lib/chatActions'
+import { sidebarSessions } from '../../lib/chatActions'
 import { refreshSessions, sessionTimestampMs, setSessionArchived, setSessionPinned, loadSession, createChatSession, deleteChatSession, persistCurrentSession } from '../../lib/sessions'
 import { displaySessionTitle, relativeTime } from '../../lib/chatTitle'
 import { folderName, pickAndSetProjectFolder, refreshFileTree } from '../../lib/workspace'
@@ -39,8 +39,9 @@ export default function SessionList() {
   const [query, setQuery] = useState('')
   const renameRef = useRef<HTMLInputElement>(null)
   const showArchived = useStore((s) => s.showArchived)
+  const setShowArchived = useStore((s) => s.setShowArchived)
 
-  const visible = sessions.filter((s) => (showArchived ? !!s.archived : !s.archived) && sessionMatches(s, query, displaySessionTitle(s)))
+  const visible = sidebarSessions(sessions, showArchived, query, displaySessionTitle)
   const archivedCount = sessions.filter((s) => s.archived).length
   const grouped = groupSessions(visible)
 
@@ -49,6 +50,7 @@ export default function SessionList() {
   }, [renamingId])
 
   const handleNew = async () => {
+    setShowArchived(false)
     const id = await createChatSession('New Chat')
     if (!id) return
     setCurrentSessionId(id)
@@ -97,7 +99,21 @@ export default function SessionList() {
   return (
     <div className="flex flex-col border-b border-border min-h-0 max-h-[50%] overflow-hidden">
       <div className="flex items-center justify-between px-3 h-9 shrink-0">
-        <span className="sidebar-label">Chats</span>
+        {showArchived ? (
+          <button
+            type="button"
+            onClick={() => setShowArchived(false)}
+            className="no-drag flex items-center gap-1 min-w-0 text-[12px] text-text-secondary hover:text-text-primary"
+            aria-label="Back to chats"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="shrink-0" aria-hidden>
+              <path d="M7.5 2.5L3.5 6l4 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="truncate">Chats</span>
+          </button>
+        ) : (
+          <span className="sidebar-label">Chats</span>
+        )}
         <button
           onClick={handleNew}
           className="no-drag p-1 rounded hover:bg-surface-2 transition-smooth text-text-muted hover:text-accent"
@@ -110,7 +126,10 @@ export default function SessionList() {
         </button>
       </div>
 
-      <div className="px-2.5 pb-1.5">
+      <div className="px-2.5 pb-1.5 shrink-0">
+        {showArchived && (
+          <div className="px-0.5 pb-1.5 sidebar-label">Archived</div>
+        )}
         <div className="relative">
           <svg
             width="12"
@@ -126,15 +145,16 @@ export default function SessionList() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search"
-            className="h-8 w-full pl-7 pr-2.5 rounded-md bg-transparent border border-border text-[12px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-hover"
+            className="no-drag h-8 w-full pl-7 pr-2.5 rounded-md bg-transparent border border-border text-[12px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-hover"
           />
         </div>
-        {archivedCount > 0 && (
+        {(archivedCount > 0 || showArchived) && (
           <button
-            onClick={() => useStore.getState().setShowArchived(!showArchived)}
-            className="mt-1.5 w-full h-7 px-2 rounded-md text-left text-[11px] text-text-muted hover:text-text-secondary hover:bg-surface-2"
+            type="button"
+            onClick={() => setShowArchived(!showArchived)}
+            className="no-drag mt-1.5 w-full h-7 px-2 rounded-md text-left text-[11px] text-text-muted hover:text-text-secondary hover:bg-surface-2"
           >
-            {showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}
+            {showArchived ? 'Show chats' : `Show archived (${archivedCount})`}
           </button>
         )}
       </div>
@@ -171,10 +191,10 @@ export default function SessionList() {
                       e.preventDefault()
                       setContextMenu({ x: e.clientX, y: e.clientY, id: s.id })
                     }}
-                    className={`relative w-full text-left rounded-md pl-3 pr-2 py-2 cursor-pointer transition-smooth ${
+                    className={`relative w-full text-left rounded-lg pl-3 pr-2 py-1.5 cursor-pointer transition-smooth ${
                       active
                         ? 'bg-surface-2 text-text-primary'
-                        : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'
+                        : 'text-text-secondary hover:bg-surface-2/80 hover:text-text-primary'
                     }`}
                   >
                     {active && (
