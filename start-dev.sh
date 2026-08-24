@@ -15,7 +15,14 @@ echo ""
 # Start backend
 echo "Starting Python backend on port $BACKEND_PORT..."
 cd "$BACKEND_DIR"
-.venv/bin/python -m uvicorn server:app --host 127.0.0.1 --port $BACKEND_PORT &
+if command -v uv >/dev/null 2>&1; then
+  uv run uvicorn server:app --host 127.0.0.1 --port $BACKEND_PORT &
+elif [ -x .venv/bin/python ]; then
+  .venv/bin/python -m uvicorn server:app --host 127.0.0.1 --port $BACKEND_PORT &
+else
+  echo "Install uv from https://docs.astral.sh/uv/ then rerun."
+  exit 1
+fi
 BACKEND_PID=$!
 
 # Wait for backend to be ready

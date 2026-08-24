@@ -2,12 +2,15 @@
 
 Installers: [GitHub Releases](https://github.com/ganya002/PollenForge-Desktop/releases/latest) — use the **Releases** tab, not Tags.
 
-You also need **Python 3** on your PATH. The desktop UI is packaged; the local tools backend is Python.
+You need **[uv](https://docs.astral.sh/uv/)** (recommended) or **Python 3**. The desktop UI is packaged; the local tools backend is Python.
 
-- Windows: https://www.python.org/downloads/ — enable **Add python.exe to PATH**
-- macOS: Python 3 from python.org, or `brew install python`
+- uv: `brew install uv`, or `curl -LsSf https://astral.sh/uv/install.sh | sh` ([docs](https://docs.astral.sh/uv/))
+- Windows uv: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
+- Or Python 3 from https://www.python.org/downloads/ (Windows: enable **Add python.exe to PATH**)
 
-Then install Nexum and open **Settings** to paste an API key. Pollinations works without a key.
+First launch may download a Python runtime into app data. Later launches are fast.
+
+Then install Nexum and open **Settings** to paste an API key.
 
 ## Windows: Smart App Control / SmartScreen is blocking it
 

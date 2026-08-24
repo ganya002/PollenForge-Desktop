@@ -1,6 +1,6 @@
 {
   "name": "nexum",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Desktop AI coding assistant with multi-provider support",
   "main": "dist-electron/electron/main.js",
   "author": "Nexum",
@@ -9,7 +9,7 @@
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:electron\"",
     "dev:frontend": "vite",
     "dev:electron": "wait-on http://localhost:5173 && electron .",
-    "dev:backend": "cd backend && python3 -m uvicorn server:app --port 8765 --reload",
+    "dev:backend": "uv run --directory backend uvicorn server:app --host 127.0.0.1 --port 8765 --reload",
     "build": "vite build && tsc -p tsconfig.node.json",
     "dist": "npm run build && electron-builder --publish never",
     "dist:mac": "npm run build && electron-builder --mac --publish never",
@@ -130,6 +130,7 @@
         "filter": [
           "**/*",
           "!.venv/**",
+          "!**/.venv/**",
           "!**/__pycache__/**",
           "!**/*.pyc",
           "!.pytest_cache/**",

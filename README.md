@@ -24,10 +24,10 @@ Installers are on **[Releases](https://github.com/ganya002/PollenForge-Desktop/r
 
 Full steps (including Windows Smart App Control): **[docs/INSTALL.md](docs/INSTALL.md)**.
 
-1. Install [Python 3](https://www.python.org/downloads/) (Windows: tick **Add python.exe to PATH**).
+1. Install [uv](https://docs.astral.sh/uv/) (`brew install uv` or the official installer). Python 3 still works as a fallback.
 2. **Mac:** open the `.dmg`, drag Nexum to Applications, then right-click → **Open**.
 3. **Windows:** run the Setup `.exe`. If Windows blocks it, see [docs/INSTALL.md](docs/INSTALL.md) (More info → Run anyway, or turn off Smart App Control, or Unblock the file).
-4. Open the app → Settings → paste an API key. Pollinations works without a key.
+4. Open the app → Settings → paste an API key.
 
 Later versions install from **Update** inside the app. You do not clone again.
 
@@ -71,8 +71,8 @@ cd PollenForge-Desktop
 # 2. Install JS deps
 npm install
 
-# 3. Python backend (creates .venv, installs fastapi/uvicorn/httpx)
-cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+# 3. Python backend (uv creates .venv and installs fastapi/uvicorn/httpx/websockets)
+uv sync --directory backend
 cd ..
 
 # 4. Dev (frontend :5173 + backend :8765 + Electron)

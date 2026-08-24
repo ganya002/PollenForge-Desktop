@@ -28,7 +28,7 @@ Blocked by Windows Smart App Control / SmartScreen or macOS Gatekeeper: send use
 
 User data (chats, settings, skills) lives in Electron `userData` and survives restarts and updates. Installing an older version can delete or hide that data — Settings → Updates warns before a downgrade.
 
-Packaged builds still need **system Python** on PATH. Do not ship `.venv`.
+Packaged builds use **[uv](https://docs.astral.sh/uv/)** to install Python and backend packages into Electron `userData` (`backend-venv`). Do not ship `.venv`. System Python is only a fallback if uv is unavailable.
 
 ## How to ship an update
 
@@ -69,7 +69,7 @@ Installers land in `release/`. Builds are **unsigned**. Windows Smart App Contro
 - Do not tell users to `git clone` / `git pull` / open **Tags** as the install or update path.
 - Do not tell users the Smart App Control / Gatekeeper block means the installer is malware or a bad download. Point to [docs/INSTALL.md](docs/INSTALL.md).
 - Do not retag an existing version. Bump semver (or let CI patch-bump) and make a new tag.
-- Do not put secrets, `.venv`, `dist/`, `dist-electron/`, or `release/` in git.
+- Do not put secrets, `.venv`, `dist/`, `dist-electron/`, or `release/` in git. Do commit `backend/uv.lock` when backend dependencies change.
 - Do not change `build.publish` owner/repo unless the GitHub remote moved. Current feed: `ganya002/PollenForge-Desktop`.
 - Do not enable prereleases in `electron-updater` unless you also mark the GitHub Release as prerelease **and** intend testers to get it.
 - Do not rename installer files away from `Mac-arm64` / `Mac-x64` / `Windows-Setup` without updating this file, the workflow notes, and `electron/releases.ts`.

@@ -18,12 +18,12 @@ On a Mac, Apple menu → About This Mac. If the chip says Apple, use Apple Silic
 
 ## Setup
 
-Nexum needs **Python 3** on your PATH (the UI is packaged; the local tools backend is Python).
+Nexum uses **[uv](https://docs.astral.sh/uv/)** for the Python tools backend (or Python 3 as a fallback).
 
-1. Install Python 3 from https://www.python.org/downloads/
-   - Windows: enable **Add python.exe to PATH**
+1. Install uv from https://docs.astral.sh/uv/ — or Python 3 from https://www.python.org/downloads/
+   - Windows Python: enable **Add python.exe to PATH**
 2. Install Nexum with the file above.
-3. Open the app → **Settings** → paste an API key (Pollinations works without a key).
+3. Open the app → **Settings** → paste an API key.
 
 ### macOS install
 

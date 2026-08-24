@@ -1,8 +1,27 @@
+import { useEffect, useRef } from 'react'
 import { useStore } from '../store/store'
+
+const DISMISS_MS: Record<'error' | 'info', number> = {
+  error: 5000,
+  info: 3500,
+}
 
 export default function ToastHost() {
   const toasts = useStore((s) => s.toasts)
   const dismissToast = useStore((s) => s.dismissToast)
+  const timed = useRef(new Set<string>())
+
+  useEffect(() => {
+    for (const toast of toasts) {
+      if (timed.current.has(toast.id)) continue
+      timed.current.add(toast.id)
+      window.setTimeout(() => {
+        useStore.getState().dismissToast(toast.id)
+        timed.current.delete(toast.id)
+      }, DISMISS_MS[toast.kind] ?? 4000)
+    }
+  }, [toasts])
+
   if (toasts.length === 0) return null
   return (
     <div className="fixed bottom-10 right-3 z-[90] flex flex-col gap-2 max-w-sm pointer-events-none">
