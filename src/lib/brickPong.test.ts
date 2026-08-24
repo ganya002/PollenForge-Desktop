@@ -7,10 +7,12 @@ import {
   bounceOffPaddle,
   clampPaddle,
   createPong,
+  dopamineBrickColor,
   konamiComplete,
   konamiProgress,
   launch,
   stepPong,
+  togglePause,
 } from './brickPong.ts'
 
 test('paddle stays on the field', () => {
@@ -71,4 +73,33 @@ test('wrong konami key resets', () => {
 test('ball radius is used for ready rest height', () => {
   const g = createPong()
   assert.ok(g.ballY < 288 - BALL_R)
+})
+
+test('paused game does not move the ball', () => {
+  const g = createPong()
+  launch(g)
+  const y = g.ballY
+  g.paused = true
+  stepPong(g, 0.05, 0)
+  assert.equal(g.ballY, y)
+})
+
+test('togglePause flips ready and playing games', () => {
+  const g = createPong()
+  assert.equal(g.paused, false)
+  assert.equal(togglePause(g), true)
+  launch(g)
+  assert.equal(g.phase, 'ready')
+  g.paused = false
+  launch(g)
+  assert.equal(g.phase, 'playing')
+  assert.equal(togglePause(g), true)
+  assert.equal(togglePause(g), false)
+})
+
+test('dopamine brick color is a cycling hsl', () => {
+  const a = dopamineBrickColor(0, 0)
+  const b = dopamineBrickColor(0, 1)
+  assert.ok(a.startsWith('hsl('))
+  assert.notEqual(a, b)
 })

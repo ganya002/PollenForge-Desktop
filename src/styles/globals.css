@@ -429,3 +429,69 @@ input::placeholder, textarea::placeholder {
   background: var(--warning);
   animation: pulse-dot 1.5s ease-in-out infinite;
 }
+
+@keyframes nx-dopamine-border {
+  0% { border-color: #ff2bd6; box-shadow: 0 0 22px #ff2bd688, 0 0 48px #00f0ff44; }
+  25% { border-color: #00f6ff; box-shadow: 0 0 22px #00f6ff88, 0 0 48px #c8ff0044; }
+  50% { border-color: #c8ff00; box-shadow: 0 0 22px #c8ff0088, 0 0 48px #ff7a0044; }
+  75% { border-color: #ff7a00; box-shadow: 0 0 22px #ff7a0088, 0 0 48px #ff2bd644; }
+  100% { border-color: #ff2bd6; box-shadow: 0 0 22px #ff2bd688, 0 0 48px #00f0ff44; }
+}
+
+@keyframes nx-dopamine-title {
+  0% { color: #ff2bd6; text-shadow: 0 0 12px #ff2bd6; }
+  33% { color: #00f6ff; text-shadow: 0 0 12px #00f6ff; }
+  66% { color: #c8ff00; text-shadow: 0 0 12px #c8ff00; }
+  100% { color: #ff2bd6; text-shadow: 0 0 12px #ff2bd6; }
+}
+
+.nx-dopamine-frame {
+  animation: nx-dopamine-border 1.4s linear infinite;
+}
+
+.nx-dopamine-title {
+  animation: nx-dopamine-title 1.1s linear infinite;
+}
+
+@keyframes nx-dopamine-btn {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes nx-dopamine-wobble {
+  0%, 100% { transform: rotate(-1.2deg) scale(1); }
+  50% { transform: rotate(1.4deg) scale(1.04); }
+}
+
+.nx-dopamine-btn {
+  background-image: linear-gradient(90deg, #ff2bd6, #00f6ff, #c8ff00, #ff7a00, #ff2bd6);
+  background-size: 200% 100%;
+  animation: nx-dopamine-btn 0.7s linear infinite, nx-dopamine-wobble 0.55s ease-in-out infinite;
+  color: #0a0a0a;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 #fff8;
+  box-shadow: 0 0 18px #ff2bd666, 0 6px 0 #7a0d6a;
+}
+
+.nx-dopamine-scan::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgba(255, 255, 255, 0.04) 2px 3px
+  );
+  mix-blend-mode: overlay;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-dopamine-frame,
+  .nx-dopamine-title,
+  .nx-dopamine-btn {
+    animation: none;
+  }
+}

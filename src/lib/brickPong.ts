@@ -30,6 +30,7 @@ export type PongState = {
   level: number
   phase: Phase
   combo: number
+  paused: boolean
 }
 
 const ROW_COLORS = 6
@@ -37,6 +38,11 @@ const ROW_COLORS = 6
 export function brickColor(row: number): string {
   const colors = ['#c45c54', '#d4a05a', '#6fbf73', '#5a9fd4', '#8b7ec8', '#c47aa8']
   return colors[row % colors.length]
+}
+
+export function dopamineBrickColor(row: number, t: number): string {
+  const hue = (row * 47 + t * 140) % 360
+  return `hsl(${hue}, 100%, 62%)`
 }
 
 export function makeBricks(level: number): Brick[] {
@@ -75,6 +81,7 @@ export function createPong(level = 1): PongState {
     level,
     phase: 'ready',
     combo: 0,
+    paused: false,
   }
 }
 
@@ -83,7 +90,7 @@ export function clampPaddle(x: number): number {
 }
 
 export function launch(state: PongState): void {
-  if (state.phase !== 'ready') return
+  if (state.phase !== 'ready' || state.paused) return
   const dir = state.paddleX + PADDLE_W / 2 < FIELD_W / 2 ? 1 : -1
   const speed = 210 + state.level * 18
   state.vx = dir * speed * 0.55
@@ -107,7 +114,14 @@ export function bounceOffPaddle(ballX: number, paddleX: number, paddleW: number,
   return { vx, vy }
 }
 
+export function togglePause(state: PongState): boolean {
+  if (state.phase !== 'playing' && state.phase !== 'ready') return state.paused
+  state.paused = !state.paused
+  return state.paused
+}
+
 export function stepPong(state: PongState, dt: number, move: number): void {
+  if (state.paused) return
   if (state.phase !== 'playing' && state.phase !== 'ready') return
 
   if (move) {
