@@ -12,8 +12,15 @@ interface FileEntry {
 }
 
 interface SessionInfo {
-  id: string;
-  modified: string;
+  id: string
+  name?: string
+  modified?: string
+  message_count?: number
+  updated_at?: number
+  directory?: string
+  preview?: string
+  pinned?: boolean
+  archived?: boolean
 }
 
 contextBridge.exposeInMainWorld('api', {
@@ -88,6 +95,12 @@ contextBridge.exposeInMainWorld('api', {
     },
     save: (id: string, data: unknown): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke('sessions:save', id, data);
+    },
+    saveSync: (id: string, data: unknown): { success: boolean; error?: string } => {
+      return ipcRenderer.sendSync('sessions:save-sync', id, data);
+    },
+    delete: (id: string): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('sessions:delete', id);
     },
   },
 

@@ -24,6 +24,7 @@ test('isPopularModel treats first-party Pollinations and flagship OpenRouter ids
   assert.equal(isPopularModel({ id: 'google/gemini-3.5-flash' }), true)
   assert.equal(isPopularModel({ id: 'deepseek/deepseek-v4-pro' }), true)
   assert.equal(isPopularModel({ id: 'moonshotai/kimi-k3' }), true)
+  assert.equal(isPopularModel({ id: 'stealth/ox-alpha' }), true)
   assert.equal(isPopularModel({ id: 'somebody/random-finetune' }), false)
 })
 

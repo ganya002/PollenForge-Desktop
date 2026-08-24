@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import os
 import time
 import uuid
 from app_paths import sessions_dir, legacy_sessions_dir
@@ -82,7 +83,9 @@ def save_session(session_id: str, messages: list, meta: dict = None):
     meta = meta or {}
     meta["updated_at"] = time.time()
     path = _path_for(session_id, for_write=True)
-    path.write_text(json.dumps({"messages": messages, "meta": meta}, indent=2))
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps({"messages": messages, "meta": meta}, indent=2))
+    tmp.replace(path)
 
 
 def delete_session(session_id: str):

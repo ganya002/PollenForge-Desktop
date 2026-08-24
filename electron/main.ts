@@ -14,6 +14,13 @@ import WebSocket from 'ws';
 import { BackendManager } from './backend';
 import { checkForUpdatesOnStartup, setupUpdater } from './updater';
 import { browserWindowOptions, windowsChromiumSwitches, clampWindowBounds, resolveRenderer } from './windowOptions';
+import {
+  deleteSessionFile,
+  importLegacySessions,
+  listSessionSummaries,
+  loadSessionFile,
+  saveSessionFile,
+} from './sessionFiles';
 
 if (process.platform === 'win32') {
   app.disableHardwareAcceleration();
@@ -219,6 +226,11 @@ function setupIpcHandlers(): void {
   if (!fs.existsSync(sessionsDir)) {
     fs.mkdirSync(sessionsDir, { recursive: true });
   }
+  try {
+    importLegacySessions(configDir);
+  } catch (err) {
+    console.error('session import failed', err);
+  }
 
   // Window controls
   ipcMain.on('debug:log', (_event, line: string) => {
@@ -420,18 +432,10 @@ function setupIpcHandlers(): void {
     }
   });
 
-  // Sessions
+  // Sessions — same JSON files the Python backend uses under userData/sessions
   ipcMain.handle('sessions:list', async () => {
     try {
-      const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('.json'));
-      const sessions = files.map((file) => {
-        const id = path.basename(file, '.json');
-        const filePath = path.join(sessionsDir, file);
-        const stat = fs.statSync(filePath);
-        return { id, modified: stat.mtime.toISOString() };
-      });
-      sessions.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
-      return { success: true, sessions };
+      return { success: true, sessions: listSessionSummaries(configDir) };
     } catch (err: any) {
       return { success: false, error: err.message };
     }
@@ -439,9 +443,7 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('sessions:load', async (_event, id: string) => {
     try {
-      const filePath = path.join(sessionsDir, `${id}.json`);
-      const data = fs.readFileSync(filePath, 'utf-8');
-      return { success: true, data: JSON.parse(data) };
+      return { success: true, data: loadSessionFile(configDir, id) };
     } catch (err: any) {
       return { success: false, error: err.message };
     }
@@ -449,8 +451,25 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('sessions:save', async (_event, id: string, data: unknown) => {
     try {
-      const filePath = path.join(sessionsDir, `${id}.json`);
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      saveSessionFile(configDir, id, data);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.on('sessions:save-sync', (event, id: string, data: unknown) => {
+    try {
+      saveSessionFile(configDir, String(id || ''), data);
+      event.returnValue = { success: true };
+    } catch (err: any) {
+      event.returnValue = { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('sessions:delete', async (_event, id: string) => {
+    try {
+      deleteSessionFile(configDir, id);
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message };

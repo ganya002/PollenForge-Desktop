@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore, Session } from '../../store/store'
 import { sessionMatches } from '../../lib/chatActions'
-import { refreshSessions, sessionTimestampMs, setSessionArchived, setSessionPinned } from '../../lib/sessions'
+import { refreshSessions, sessionTimestampMs, setSessionArchived, setSessionPinned, loadSession, createChatSession, deleteChatSession, persistCurrentSession } from '../../lib/sessions'
 import { displaySessionTitle, relativeTime } from '../../lib/chatTitle'
-import { currentWorkspace, folderName, pickAndSetProjectFolder, refreshFileTree } from '../../lib/workspace'
+import { folderName, pickAndSetProjectFolder, refreshFileTree } from '../../lib/workspace'
 
 function groupSessions(sessions: Session[]) {
   const now = new Date()
@@ -48,52 +48,23 @@ export default function SessionList() {
   }, [renamingId])
 
   const handleNew = async () => {
-    try {
-      const res = await fetch('http://127.0.0.1:8765/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'New Chat', directory: currentWorkspace() || '' }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      setCurrentSessionId(data.id)
-      clearMessages()
-      await refreshSessions()
-      await refreshFileTree()
-    } catch (e) {
-      console.error('Failed to create session:', e)
-    }
+    const id = await createChatSession('New Chat')
+    if (!id) return
+    setCurrentSessionId(id)
+    clearMessages()
+    await refreshSessions()
+    await refreshFileTree()
   }
 
   const handleLoad = async (id: string) => {
     if (renamingId === id) return
-    setCurrentSessionId(id)
-    try {
-      const res = await fetch(`http://127.0.0.1:8765/sessions/${id}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      if (data.messages) {
-        useStore.getState().loadSessionMessages(data.messages)
-      }
-      await refreshFileTree()
-    } catch (e) {
-      console.error('Failed to load session:', e)
-    }
+    await persistCurrentSession()
+    await loadSession(id)
+    await refreshFileTree()
   }
 
   const handleDelete = async (id: string) => {
-    try {
-      const res = await fetch(`http://127.0.0.1:8765/sessions/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const curSessions = useStore.getState().sessions
-      useStore.getState().setSessions(curSessions.filter((s) => s.id !== id))
-      if (currentSessionId === id) {
-        setCurrentSessionId(null)
-        clearMessages()
-      }
-    } catch (e) {
-      console.error('Failed to delete session:', e)
-    }
+    await deleteChatSession(id)
     setContextMenu(null)
   }
 

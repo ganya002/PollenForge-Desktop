@@ -63,6 +63,13 @@ declare global {
         set: (key: string, value: unknown) => Promise<{ success: boolean; error?: string }>
         save: (config: unknown) => Promise<{ success: boolean; error?: string }>
       }
+      sessions?: {
+        list: () => Promise<{ success: boolean; sessions?: Record<string, unknown>[]; error?: string }>
+        load: (id: string) => Promise<{ success: boolean; data?: unknown; error?: string }>
+        save: (id: string, data: unknown) => Promise<{ success: boolean; error?: string }>
+        saveSync: (id: string, data: unknown) => { success: boolean; error?: string }
+        delete: (id: string) => Promise<{ success: boolean; error?: string }>
+      }
       debug?: {
         log: (line: string) => void
       }

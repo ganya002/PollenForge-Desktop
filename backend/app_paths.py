@@ -89,6 +89,19 @@ def _copy_dir_files_if_missing(src: Path, dest: Path) -> None:
             _copy_file_if_missing(item, dest / item.name)
 
 
+def extra_session_dirs() -> list[Path]:
+    home = Path.home()
+    return [
+        home / "Library" / "Application Support" / "Nexum" / "sessions",
+        home / "Library" / "Application Support" / "nexum" / "sessions",
+        home / "Library" / "Application Support" / "pollenforge" / "sessions",
+        home / "AppData" / "Roaming" / "Nexum" / "sessions",
+        home / "AppData" / "Roaming" / "nexum" / "sessions",
+        home / ".local" / "share" / APP / "sessions",
+        home / ".local" / "share" / LEGACY / "sessions",
+    ]
+
+
 def migrate_legacy_data() -> None:
     dest = user_data_dir()
     _copy_file_if_missing(Path.home() / ".config" / APP / "config.json", dest / "config.json")
@@ -102,6 +115,14 @@ def migrate_legacy_data() -> None:
     _copy_file_if_missing(Path.home() / ".local" / "share" / LEGACY / ".env", dest / ".env")
     _copy_dir_files_if_missing(Path.home() / ".local" / "share" / LEGACY / "sessions", dest / "sessions")
     _copy_dir_files_if_missing(Path.home() / ".local" / "share" / LEGACY / "skills", dest / "skills")
+    dest_sessions = dest / "sessions"
+    for source in extra_session_dirs():
+        try:
+            if source.resolve() == dest_sessions.resolve():
+                continue
+        except OSError:
+            pass
+        _copy_dir_files_if_missing(source, dest_sessions)
 
 
 migrate_legacy_data()

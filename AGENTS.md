@@ -26,7 +26,7 @@ Blocked by Windows Smart App Control / SmartScreen or macOS Gatekeeper: send use
    - **Older versions:** Settings → Updates lists releases, downloads the installer for this OS, launches it, then quits.
 5. `npm run dev` is unpackaged. The Updates UI still lists versions, but Check / Download / Install stay disabled.
 
-User data (chats, settings, skills) lives in Electron `userData` and survives restarts and updates. Installing an older version can delete or hide that data — Settings → Updates warns before a downgrade.
+User data (chats, settings, skills) lives in Electron `userData` (`sessions/` for chats) and survives restarts and updates. Installing an older version can delete or hide that data — Settings → Updates warns before a downgrade.
 
 Packaged builds install Python packages into Electron `userData` (`backend-venv`) via **[uv](https://docs.astral.sh/uv/)** or `python3 -m venv`. Do not ship `.venv`. Never `pip install` into Homebrew/system Python (PEP 668).
 

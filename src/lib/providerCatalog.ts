@@ -98,6 +98,7 @@ export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
     needsKey: true,
     base_url: 'https://openrouter.ai/api/v1',
     models: [
+      m('stealth/ox-alpha', 'Ox Alpha', 0, 1048576),
       m('anthropic/claude-sonnet-5', 'Claude Sonnet 5', 0.003, 1000000),
       m('anthropic/claude-opus-4.7', 'Claude Opus 4.7', 0.015, 1000000),
       m('anthropic/claude-haiku-4.5', 'Claude Haiku 4.5', 0.001, 200000),

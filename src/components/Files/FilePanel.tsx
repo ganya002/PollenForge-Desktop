@@ -52,7 +52,7 @@ export default function FilePanel() {
   const isMd = /\.mdx?$/i.test(active.name)
 
   return (
-    <div className="h-full min-h-0 w-[min(28rem,42%)] shrink-0 border-l border-border bg-surface-0 flex flex-col">
+    <div className="h-full min-h-0 w-[min(28rem,40vw)] max-w-full shrink-0 border-l border-border bg-surface-0 flex flex-col overflow-hidden">
       <div className="h-10 shrink-0 flex items-center gap-1 px-1 border-b border-border overflow-x-auto">
         {openFiles.map((file) => {
           const on = file.path === active.path

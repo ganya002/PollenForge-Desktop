@@ -383,7 +383,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
   }
 
   return (
-    <div className="bg-surface-0 px-4 pt-2 pb-2">
+    <div className="bg-surface-0 px-4 pt-2 pb-2 shrink-0 min-w-0 overflow-hidden">
       <div className="composer-col relative">
         {showCommands && (
           <CommandMenu
@@ -458,7 +458,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
         )}
 
         <div
-          className={`composer-shell grid grid-cols-[1fr_auto] items-center min-h-12 bg-surface-1 rounded-xl border ${isDragging ? 'border-accent' : 'border-border'}`}
+          className={`composer-shell flex flex-wrap items-end min-h-12 bg-surface-1 rounded-xl border ${isDragging ? 'border-accent' : 'border-border'}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -471,10 +471,10 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
             onPaste={handlePaste}
             placeholder={attachedFiles.length > 0 ? `${attachedFiles.length} file(s) attached — add a message…` : "Ask anything… (@ files, / commands)"}
             rows={1}
-            className="w-full bg-transparent px-4 text-[14px] leading-6 text-text-primary resize-none focus:outline-none placeholder:text-text-muted min-h-12 max-h-[200px] py-3 box-border"
+            className="flex-1 min-w-[12rem] w-full bg-transparent px-4 text-[14px] leading-6 text-text-primary resize-none focus:outline-none placeholder:text-text-muted min-h-12 max-h-[200px] py-3 box-border"
           />
 
-          <div className="flex items-center justify-center gap-1.5 pr-3 pl-1 h-12 shrink-0">
+          <div className="flex flex-wrap items-center justify-end gap-1.5 pr-3 pl-1 py-2 min-h-12 shrink-0">
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.c,.cpp,.h,.css,.html,.json,.yaml,.yml,.md,.sh,.zsh,.bash,.sql,.xml,.toml,.cfg,.ini,.env,.log,.csv" />
             <button onClick={() => fileInputRef.current?.click()} className="h-8 w-8 flex items-center justify-center rounded-md bg-surface-2 hover:bg-surface-3 text-text-muted hover:text-text-primary transition-smooth" title="Attach files">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 7l-5 5a3 3 0 01-4.24-4.24l5-5A2 2 0 0111 4.5l-5 5a1 1 0 01-1.42-1.42l5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -576,11 +576,11 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
           </div>
         </div>
 
-        <div className="flex items-center justify-center mt-2 h-5 text-[11px] leading-5 text-text-muted">
+        <div className="flex items-center justify-center mt-2 h-5 text-[11px] leading-5 text-text-muted overflow-hidden">
           {isDragging ? (
-            <span className="text-text-secondary">Drop files to attach</span>
+            <span className="text-text-secondary truncate">Drop files to attach</span>
           ) : (
-            <span>{listening ? 'Listening… click the mic to stop' : isStreaming ? 'Enter queues the next message · Esc stops' : 'Enter to send · ↑↓ prompt history · mic to talk'}</span>
+            <span className="truncate">{listening ? 'Listening… click the mic to stop' : isStreaming ? 'Enter queues the next message · Esc stops' : 'Enter to send · ↑↓ prompt history · mic to talk'}</span>
           )}
         </div>
       </div>

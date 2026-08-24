@@ -18,7 +18,7 @@ import ToastHost from './components/ToastHost'
 import { useAvailableUpdate } from './hooks/useAvailableUpdate'
 import { mergeFetchedConfig, persistConfig, refreshProviderModels } from './lib/appConfig'
 import { applyTheme, normalizeTheme } from './lib/qol'
-import { refreshSessions } from './lib/sessions'
+import { restoreLastSession, flushCurrentSession } from './lib/sessions'
 import { writeWorkspaceFile } from './lib/workspace'
 import FilePanel from './components/Files/FilePanel'
 import BrowserPanel from './components/Browser/BrowserPanel'
@@ -63,6 +63,7 @@ export default function App() {
   }, [theme])
 
   const handleNewChat = useCallback(() => {
+    flushCurrentSession()
     useStore.getState().clearMessages()
     useStore.getState().setCurrentSessionId(null)
   }, [])
@@ -74,7 +75,7 @@ export default function App() {
 
   useEffect(() => {
     const API = 'http://127.0.0.1:8765'
-    void refreshSessions()
+    void restoreLastSession()
 
     const loadLocal = window.api?.config?.get
       ? window.api.config.get()
@@ -173,6 +174,19 @@ export default function App() {
     const openFind = () => setFindOpen(true)
     document.addEventListener('open-find', openFind)
     return () => document.removeEventListener('open-find', openFind)
+  }, [])
+
+  useEffect(() => {
+    const flush = () => flushCurrentSession()
+    window.addEventListener('pagehide', flush)
+    window.addEventListener('beforeunload', flush)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flush()
+    })
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      window.removeEventListener('beforeunload', flush)
+    }
   }, [])
 
   const setAgentMode = useCallback((mode: 'ask' | 'agent') => {
@@ -306,57 +320,59 @@ export default function App() {
         </div>
 
         {/* Main content */}
-        <div className="flex flex-1 min-h-0">
-          <div className="flex flex-col flex-1 min-w-0">
-            {!wsConnected && (
-              <div className="flex items-center justify-between gap-3 px-4 py-2 bg-danger/10 border-b border-danger/20 text-[12px] text-text-secondary shrink-0">
-                <span>Backend is disconnected. Chat will retry automatically.</span>
-                <button
-                  onClick={() => reconnect()}
-                  className="h-6 px-2 rounded-md border border-border bg-surface-2 text-text-primary hover:bg-surface-3"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-            {findOpen && (
-              <div className="flex items-center gap-2 px-3 h-9 border-b border-border bg-surface-1 shrink-0">
-                <input
-                  autoFocus
-                  value={chatFind}
-                  onChange={(e) => useStore.getState().setChatFind(e.target.value)}
-                  placeholder="Find in this thread"
-                  className="flex-1 h-7 px-2 rounded-md bg-surface-2 border border-border text-[12px] text-text-primary placeholder:text-text-muted focus:outline-none"
-                />
-                <button
-                  onClick={() => {
-                    setFindOpen(false)
-                    useStore.getState().setChatFind('')
-                  }}
-                  className="h-6 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary"
-                >
-                  Close
-                </button>
-              </div>
-            )}
-            <ChatArea messages={messages} scrollRef={scrollRef} onRetry={retryLastMessage} onEdit={editAndResend} />
-            <ApprovalPrompt />
-            <InputBar onSend={sendMessage} onStop={stopGeneration} onCompact={compactChat} isStreaming={isStreaming} />
-          </div>
-          <AnimatePresence>
-            {hasOpenFiles && (
-              <motion.div
-                key="file-panel"
-                initial={slidePanel.initial}
-                animate={slidePanel.animate}
-                exit={slidePanel.exit}
-                transition={slidePanel.transition}
-                className="h-full min-h-0"
+        <div className="flex flex-col flex-1 min-h-0 min-w-0">
+          {!wsConnected && (
+            <div className="flex items-center justify-between gap-3 px-4 py-2 bg-danger/10 border-b border-danger/20 text-[12px] text-text-secondary shrink-0">
+              <span>Backend is disconnected. Chat will retry automatically.</span>
+              <button
+                onClick={() => reconnect()}
+                className="h-6 px-2 rounded-md border border-border bg-surface-2 text-text-primary hover:bg-surface-3"
               >
-                <FilePanel />
-              </motion.div>
-            )}
-          </AnimatePresence>
+                Retry
+              </button>
+            </div>
+          )}
+          {findOpen && (
+            <div className="flex items-center gap-2 px-3 h-9 border-b border-border bg-surface-1 shrink-0">
+              <input
+                autoFocus
+                value={chatFind}
+                onChange={(e) => useStore.getState().setChatFind(e.target.value)}
+                placeholder="Find in this thread"
+                className="flex-1 h-7 px-2 rounded-md bg-surface-2 border border-border text-[12px] text-text-primary placeholder:text-text-muted focus:outline-none"
+              />
+              <button
+                onClick={() => {
+                  setFindOpen(false)
+                  useStore.getState().setChatFind('')
+                }}
+                className="h-6 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary"
+              >
+                Close
+              </button>
+            </div>
+          )}
+          <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
+            <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+              <ChatArea messages={messages} scrollRef={scrollRef} onRetry={retryLastMessage} onEdit={editAndResend} />
+            </div>
+            <AnimatePresence>
+              {hasOpenFiles && (
+                <motion.div
+                  key="file-panel"
+                  initial={slidePanel.initial}
+                  animate={slidePanel.animate}
+                  exit={slidePanel.exit}
+                  transition={slidePanel.transition}
+                  className="h-full min-h-0 min-w-0 shrink-0 overflow-hidden"
+                >
+                  <FilePanel />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <ApprovalPrompt />
+          <InputBar onSend={sendMessage} onStop={stopGeneration} onCompact={compactChat} isStreaming={isStreaming} />
         </div>
 
         {/* Status bar */}

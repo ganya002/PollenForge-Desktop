@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { emptyProviderConfig } from '../lib/providerCatalog'
 import type { AgentMode, ThemeId } from '../lib/qol'
+import { rememberSessionId } from '../lib/sessionPersist'
 
 export interface Message {
   id: string
@@ -320,7 +321,10 @@ export const useStore = create<AppState>((set, get) => ({
   setConfig: (config) => set({ config }),
   setFileTree: (tree) => set({ fileTree: tree }),
   clearMessages: () => set({ messages: [], checkpoints: [], undoWrite: null, agentStep: null }),
-  setCurrentSessionId: (id) => set({ currentSessionId: id, checkpoints: [], undoWrite: null }),
+  setCurrentSessionId: (id) => {
+    rememberSessionId(id)
+    set({ currentSessionId: id, checkpoints: [], undoWrite: null })
+  },
   loadSessionMessages: (msgs) => set({
     messages: msgs.map((m, i) => ({
       id: `loaded-${Date.now()}-${i}`,

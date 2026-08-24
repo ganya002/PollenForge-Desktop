@@ -4,7 +4,7 @@ import { findProviderModel } from '../lib/appConfig'
 import { applyActivePlugins, activePluginIds } from '../lib/plugins'
 import { compactMessages, htmlUrlFromTool, messagesThroughUser } from '../lib/chatActions'
 import { ASK_PROMPT, WEB_PROMPT, hasWebMention, isHtmlWriteTool, toolPath } from '../lib/qol'
-import { refreshSessions, nameSessionFromPrompt } from '../lib/sessions'
+import { refreshSessions, nameSessionFromPrompt, persistCurrentSession, createChatSession } from '../lib/sessions'
 import { currentWorkspace, savePlanMarkdown, scheduleFileTreeRefresh } from '../lib/workspace'
 import { titleFromPrompt } from '../lib/chatTitle'
 import { shouldRefreshFileTree } from '../lib/fileTreeSync'
@@ -169,6 +169,7 @@ export function useChat() {
         void savePlanMarkdown(plan)
       }
       useStore.getState().setAgentStep(null)
+      void persistCurrentSession()
       void refreshSessions()
       scrollToBottom()
       const queued = useStore.getState().queuedMessage
@@ -212,21 +213,10 @@ export function useChat() {
 
     let sessionId = state.currentSessionId
     if (!sessionId) {
-      try {
-        const preview = titleFromPrompt(content) || 'New Chat'
-        const res = await fetch('http://127.0.0.1:8765/sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: preview, directory: currentWorkspace() || '' }),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          sessionId = data.id
-          state.setCurrentSessionId(sessionId)
-          await refreshSessions()
-        }
-      } catch (e) {
-        console.error('Failed to create session:', e)
+      sessionId = await createChatSession(titleFromPrompt(content) || 'New Chat')
+      if (sessionId) {
+        state.setCurrentSessionId(sessionId)
+        await refreshSessions()
       }
     } else {
       void nameSessionFromPrompt(sessionId, content)
@@ -263,6 +253,7 @@ export function useChat() {
       state.setStreaming(false)
       state.pushToast({ kind: 'error', text: 'Backend is disconnected. Retrying…' })
     }
+    void persistCurrentSession()
     scrollToBottom()
   }, [ws, scrollToBottom])
 

@@ -10,6 +10,7 @@ class OpenRouterProvider(Provider):
     name = "openrouter"
     API_URL = "https://openrouter.ai/api/v1/chat/completions"
     models = [
+        {"id": "stealth/ox-alpha", "name": "Ox Alpha (OR)", "cost_per_1k": 0.0, "context_length": 1048576, "free": True},
         {"id": "anthropic/claude-sonnet-5", "name": "Claude Sonnet 5 (OR)", "cost_per_1k": 0.003, "context_length": 1000000},
         {"id": "anthropic/claude-opus-4.7", "name": "Claude Opus 4.7 (OR)", "cost_per_1k": 0.015, "context_length": 1000000},
         {"id": "anthropic/claude-haiku-4.5", "name": "Claude Haiku 4.5 (OR)", "cost_per_1k": 0.001, "context_length": 200000},

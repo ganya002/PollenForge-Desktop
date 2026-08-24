@@ -41,7 +41,7 @@ export default function ApprovalPrompt() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 8 }}
         transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-        className="composer-col mb-3 px-4"
+        className="composer-col mb-3 px-4 shrink-0"
       >
         <div className={`rounded-xl border overflow-hidden ${isDangerous ? 'border-warning/40 bg-warning/5' : 'border-border bg-surface-2'}`}>
           <div className="flex items-center gap-2 px-4 py-2.5">

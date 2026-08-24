@@ -45,6 +45,7 @@ const POPULAR_PREFIXES = [
   'x-ai/grok-5',
   'moonshotai/kimi-k2',
   'moonshotai/kimi-k3',
+  'stealth/ox',
   'minimax/minimax-m',
   'perplexity/sonar',
 ]

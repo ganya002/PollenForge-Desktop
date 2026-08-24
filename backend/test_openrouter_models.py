@@ -79,6 +79,18 @@ class MapOpenRouterModelTests(unittest.TestCase):
         })
         self.assertEqual([m["id"] for m in rows], ["openai/gpt-5.6-sol"])
 
+    def test_ox_alpha_is_kept_as_a_free_chat_model(self):
+        mapped = map_openrouter_model({
+            "id": "stealth/ox-alpha",
+            "name": "Ox Alpha",
+            "context_length": 1048576,
+            "architecture": {"output_modalities": ["text"]},
+            "pricing": {"prompt": "0", "completion": "0"},
+        })
+        self.assertEqual(mapped["id"], "stealth/ox-alpha")
+        self.assertTrue(mapped["free"])
+        self.assertEqual(mapped["context_length"], 1048576)
+
 
 if __name__ == "__main__":
     unittest.main()
