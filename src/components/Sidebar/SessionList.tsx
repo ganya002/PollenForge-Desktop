@@ -190,10 +190,10 @@ export default function SessionList() {
                       e.preventDefault()
                       setContextMenu({ x: e.clientX, y: e.clientY, id: s.id })
                     }}
-                    className={`relative w-full text-left rounded-md pl-3 pr-2 py-2 cursor-pointer transition-smooth ${
+                    className={`relative w-full text-left rounded-lg pl-3 pr-2 py-1.5 cursor-pointer transition-smooth ${
                       active
                         ? 'bg-surface-2 text-text-primary'
-                        : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'
+                        : 'text-text-secondary hover:bg-surface-2/80 hover:text-text-primary'
                     }`}
                   >
                     {active && (

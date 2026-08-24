@@ -7,7 +7,7 @@ import { projectPathFromDrop } from '../../lib/chatActions'
 import { PLUGIN_CATALOG_MAP, pluginByCommand } from '../../lib/pluginCatalog'
 import { pushPromptHistory, speechSupported } from '../../lib/qol'
 import { addFileToChat } from '../../lib/workspaceFiles'
-import { activePluginIds, handlePluginSlash, installPlugin, installedPluginCommands, installedPluginIds, setPluginActive } from '../../lib/plugins'
+import { activePluginIds, handlePluginSlash, setPluginActive, slashPluginCommands } from '../../lib/plugins'
 import { ensurePlanFile, setChatDirectory } from '../../lib/workspace'
 
 interface Props {
@@ -320,7 +320,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
       const s = useStore.getState()
       onSend(`Token usage: ${s.totalTokensUsed} total. Model ${s.currentModel} on ${s.currentProvider}.`)
     } else if (command === '/help') {
-      const extras = installedPluginCommands(useStore.getState().config).map((c) => c.name)
+      const extras = slashPluginCommands().map((c) => c.name)
       const cmds = ['/clear', '/compact', '/cost', '/help', '/image', '/web', ...extras, '@files', '@web'].join(', ')
       onSend(`Show available commands: ${cmds}. Install more from Settings → Plugins.`)
     } else if (command === '/web') {
@@ -383,12 +383,12 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
   }
 
   return (
-    <div className="bg-surface-0 px-4 pt-2 pb-2 shrink-0 min-w-0 overflow-hidden">
-      <div className="composer-col relative">
+    <div className="bg-surface-0 px-4 pt-3 pb-3 shrink-0 min-w-0 overflow-visible">
+      <div className="composer-col relative z-20">
         {showCommands && (
           <CommandMenu
             filter={value.slice(1)}
-            pluginCommands={installedPluginCommands(config)}
+            pluginCommands={slashPluginCommands()}
             onSelect={handleCommandSelect}
             onClose={() => setShowCommands(false)}
           />
@@ -457,8 +457,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
           </div>
         )}
 
-        <div
-          className={`composer-shell flex flex-nowrap items-end min-h-12 min-w-0 bg-surface-1 rounded-xl border ${isDragging ? 'border-accent' : 'border-border'}`}
+        <div className={`composer-shell flex flex-nowrap items-end min-h-12 min-w-0 bg-surface-1 rounded-2xl border ${isDragging ? 'border-accent' : 'border-border'}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -474,124 +473,51 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
             className="flex-1 min-w-0 bg-transparent px-4 text-[14px] leading-6 text-text-primary resize-none focus:outline-none placeholder:text-text-muted min-h-12 max-h-[200px] py-3 box-border"
           />
 
-          <div className="flex flex-nowrap items-center justify-end gap-1.5 pr-3 pl-1 h-12 shrink-0">
+          <div className="flex flex-nowrap items-center justify-end gap-0.5 pr-2 pl-1 h-12 shrink-0">
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.c,.cpp,.h,.css,.html,.json,.yaml,.yml,.md,.sh,.zsh,.bash,.sql,.xml,.toml,.cfg,.ini,.env,.log,.csv" />
-            <button onClick={() => fileInputRef.current?.click()} className="h-8 w-8 flex items-center justify-center rounded-md bg-surface-2 hover:bg-surface-3 text-text-muted hover:text-text-primary transition-smooth" title="Attach files">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13 7l-5 5a3 3 0 01-4.24-4.24l5-5A2 2 0 0111 4.5l-5 5a1 1 0 01-1.42-1.42l5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <button onClick={() => fileInputRef.current?.click()} className="h-7 w-7 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-2 transition-smooth" title="Attach files">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M13 7l-5 5a3 3 0 01-4.24-4.24l5-5A2 2 0 0111 4.5l-5 5a1 1 0 01-1.42-1.42l5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
             <button
               onClick={toggleVoice}
-              className={`h-8 w-8 flex items-center justify-center rounded-md border transition-smooth ${
+              className={`h-7 w-7 flex items-center justify-center rounded-lg transition-smooth ${
                 listening
-                  ? 'bg-danger/15 text-danger border-danger/40'
-                  : 'bg-surface-2 hover:bg-surface-3 text-text-muted hover:text-text-primary border-transparent'
+                  ? 'bg-danger/15 text-danger'
+                  : 'text-text-muted hover:text-text-primary hover:bg-surface-2'
               }`}
               title={listening ? 'Stop listening' : canVoice ? 'Voice input' : 'Voice input is unavailable'}
               aria-label={listening ? 'Stop voice input' : 'Voice input'}
               aria-pressed={listening}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
                 <rect x="6" y="2" width="4" height="7" rx="2" stroke="currentColor" strokeWidth="1.3" />
                 <path d="M4 8a4 4 0 008 0M8 12v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
               </svg>
             </button>
 
-            <button onClick={toggleAutoApprove} className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${autoApprove ? 'bg-surface-3 text-success border-border' : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'}`} title="Auto-approve tool execution">
+            <button onClick={toggleAutoApprove} className={`h-7 px-2 text-[11px] rounded-lg transition-smooth inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${autoApprove ? 'text-success' : 'text-text-muted hover:text-text-primary hover:bg-surface-2'}`} title="Auto-approve tool execution">
               Auto {autoApprove && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-            </button>
-
-            <button
-              onClick={async () => {
-                const cfg = useStore.getState().config
-                const on = !activePluginIds(cfg).includes('planner')
-                if (on && !installedPluginIds(cfg).includes('planner')) {
-                  setPluginNotice('Plan is not installed. Install it from Settings → Plugins.')
-                  return
-                }
-                if (on) {
-                  const path = await ensurePlanFile()
-                  if (!path) {
-                    setPluginNotice('Pick a project folder to save plan.md')
-                    return
-                  }
-                }
-                const next = setPluginActive(cfg, 'planner', on)
-                setConfig(next)
-                persistConfig(next)
-                setPluginNotice(on ? 'Plan on. Replies save to plan.md' : 'Plan off')
-              }}
-              className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${
-                activePluginIds(config).includes('planner')
-                  ? 'bg-surface-3 text-text-primary border-border'
-                  : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'
-              }`}
-              title="Planning mode — /plan"
-            >
-              Plan {activePluginIds(config).includes('planner') && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-            </button>
-
-            <button
-              onClick={() => {
-                const cfg = useStore.getState().config
-                const on = !activePluginIds(cfg).includes('goal')
-                if (on && !installedPluginIds(cfg).includes('goal')) {
-                  setPluginNotice('Goal is not installed. Install it from Settings → Plugins.')
-                  return
-                }
-                const next = setPluginActive(cfg, 'goal', on)
-                setConfig(next)
-                persistConfig(next)
-                setPluginNotice(on ? 'Goal on. Next prompt is an objective.' : 'Goal off')
-              }}
-              className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${
-                activePluginIds(config).includes('goal')
-                  ? 'bg-surface-3 text-text-primary border-border'
-                  : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'
-              }`}
-              title="Goal mode — /goal"
-            >
-              Goal {activePluginIds(config).includes('goal') && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-            </button>
-
-            <button
-              onClick={() => {
-                let cfg = useStore.getState().config
-                const on = !activePluginIds(cfg).includes('swarm')
-                if (on && !installedPluginIds(cfg).includes('swarm')) cfg = installPlugin(cfg, 'swarm')
-                const next = setPluginActive(cfg, 'swarm', on)
-                setConfig(next)
-                persistConfig(next)
-                setPluginNotice(on ? 'Swarm on. Large tasks split across workers.' : 'Swarm off')
-              }}
-              className={`h-8 px-2.5 text-[11px] font-medium rounded-md border transition-smooth inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${
-                activePluginIds(config).includes('swarm')
-                  ? 'bg-surface-3 text-text-primary border-border'
-                  : 'bg-surface-2 text-text-muted border-border hover:text-text-primary'
-              }`}
-              title="Swarm mode — /swarm"
-            >
-              Swarm {activePluginIds(config).includes('swarm') && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </button>
 
             {isStreaming && (
               <button
                 onClick={onStop}
-                className="h-8 w-8 flex items-center justify-center rounded-md bg-surface-3 hover:bg-red-500/20 text-text-secondary hover:text-red-400 transition-smooth"
+                className="h-7 w-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-smooth"
                 aria-label="Stop"
                 title="Stop generation (Esc)"
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5" /></svg>
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5" /></svg>
               </button>
             )}
 
             <button
               onClick={handleSend}
               disabled={!canSend}
-              className="h-8 w-8 flex items-center justify-center rounded-md bg-accent hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-smooth text-accent-ink"
+              className="h-7 w-7 flex items-center justify-center rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-25 disabled:cursor-not-allowed transition-smooth text-accent-ink"
               aria-label={isStreaming ? 'Queue' : 'Send'}
               title={isStreaming ? 'Queue next message' : 'Send'}
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l8-4v8L3 7z" fill="currentColor" /></svg>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 7l8-4v8L3 7z" fill="currentColor" /></svg>
             </button>
           </div>
         </div>

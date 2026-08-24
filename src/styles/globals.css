@@ -3,20 +3,20 @@
 @tailwind utilities;
 
 :root {
-  /* Flat matte black */
-  --surface-0: #111111;
-  --surface-1: #161616;
-  --surface-2: #1c1c1c;
+  /* Quiet matte — Cursor-adjacent, still Nexum */
+  --surface-0: #0e0e0e;
+  --surface-1: #141414;
+  --surface-2: #1b1b1b;
   --surface-3: #252525;
-  --text-primary: #e8e8e8;
-  --text-secondary: #a8a8a8;
+  --text-primary: #ececec;
+  --text-secondary: #a3a3a3;
   --text-muted: #737373;
-  --accent: #e8e8e8;
+  --accent: #ececec;
   --accent-hover: #ffffff;
-  --accent-ink: #111111;
-  --accent-muted: #ffffff14;
-  --border: #2a2a2a;
-  --border-hover: #3d3d3d;
+  --accent-ink: #0e0e0e;
+  --accent-muted: #ffffff12;
+  --border: #262626;
+  --border-hover: #3a3a3a;
   --success: #6fbf73;
   --warning: #d4a05a;
   --danger: #c45c54;
@@ -138,7 +138,7 @@ html, body, #root {
 }
 .composer-shell:focus-within {
   border-color: var(--border-hover);
-  box-shadow: 0 0 0 3px var(--accent-muted), 0 10px 28px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 0 0 1px var(--border-hover);
 }
 
 /* Drag region for Electron */
@@ -151,12 +151,12 @@ html, body, #root {
 .sidebar-label {
   font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 .composer-col {
-  width: min(100%, 64rem);
+  width: min(100%, 48rem);
   margin-inline: auto;
 }
 .welcome-col {

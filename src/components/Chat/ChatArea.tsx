@@ -94,7 +94,7 @@ export default function ChatArea({ messages, scrollRef, onRetry, onEdit, onScrol
       {empty ? (
         <WelcomeScreen />
       ) : (
-        <div className="composer-col px-4 py-6">
+        <div className="composer-col px-5 py-8">
           <AnimatePresence initial={false}>
             {messages.map((msg) => (
               <motion.div

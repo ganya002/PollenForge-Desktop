@@ -265,17 +265,17 @@ export default function App() {
                 Swarm
               </span>
             )}
-            <div className="flex items-center rounded-md border border-border overflow-hidden mr-1">
+            <div className="flex items-center rounded-lg overflow-hidden mr-1">
               <button
                 onClick={() => setAgentMode('ask')}
-                className={`h-6 px-2 text-[11px] ${agentMode === 'ask' ? 'bg-surface-3 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+                className={`h-6 px-2.5 text-[11px] rounded-md ${agentMode === 'ask' ? 'bg-surface-2 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
                 title="Ask — inspect only, no writes"
               >
                 Ask
               </button>
               <button
                 onClick={() => setAgentMode('agent')}
-                className={`h-6 px-2 text-[11px] ${agentMode === 'agent' ? 'bg-surface-3 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+                className={`h-6 px-2.5 text-[11px] rounded-md ${agentMode === 'agent' ? 'bg-surface-2 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
                 title="Agent — can write files and run commands"
               >
                 Agent

@@ -313,7 +313,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                       className="h-9 w-full px-3 text-[13px] bg-surface-2 border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-hover"
                     />
                     <p className="text-[12px] text-text-muted">
-                      Installed plugins add instructions to the next prompt. Use /caveman, /goal, /plan, or /swarm. Plan cannot run with Goal or Swarm.
+                      Installed plugins add instructions to the next prompt. Use /caveman, /goal, /plan, or /swarm. Goal, Plan, and Swarm work as slash commands; Plan cannot run with Goal or Swarm.
                     </p>
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-2">
