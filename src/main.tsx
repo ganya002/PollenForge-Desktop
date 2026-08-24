@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { useStore } from './store/store'
+import { isBenignGuestViewError } from './lib/guestView'
 import './styles/globals.css'
 
 function logDebug(message: string) {
@@ -29,6 +30,7 @@ function showCrash(message: string) {
 
 function toastOrCrash(message: string) {
   logDebug(message)
+  if (isBenignGuestViewError(message)) return
   try {
     useStore.getState().pushToast({ kind: 'error', text: message.slice(0, 280) })
   } catch {
@@ -37,20 +39,35 @@ function toastOrCrash(message: string) {
 }
 
 window.addEventListener('error', (event) => {
-  toastOrCrash(event.error?.stack || event.message || 'Unknown window error')
+  const message = event.error?.stack || event.message || 'Unknown window error'
+  if (isBenignGuestViewError(message)) {
+    event.preventDefault()
+    logDebug(message)
+    return
+  }
+  toastOrCrash(message)
 })
 window.addEventListener('unhandledrejection', (event) => {
   const reason = event.reason
-  toastOrCrash(reason instanceof Error ? reason.stack || reason.message : String(reason))
+  const message = reason instanceof Error ? reason.stack || reason.message : String(reason)
+  if (isBenignGuestViewError(message)) {
+    event.preventDefault()
+    logDebug(message)
+    return
+  }
+  toastOrCrash(message)
 })
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
   static getDerivedStateFromError(error: Error) {
-    return { error: error.stack || error.message }
+    const text = error.stack || error.message
+    if (isBenignGuestViewError(text)) return { error: null }
+    return { error: text }
   }
   componentDidCatch(error: Error) {
     logDebug(error.stack || error.message)
+    if (isBenignGuestViewError(error.stack || error.message)) return
     try {
       useStore.getState().pushToast({ kind: 'error', text: (error.message || 'UI error').slice(0, 280) })
     } catch {

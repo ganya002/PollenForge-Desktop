@@ -5,7 +5,7 @@ import { useStore } from '../../store/store'
 import { currentWorkspace } from '../../lib/workspace'
 import { isSafeBrowserUrl, resolveBrowserUrl } from '../../lib/browserTargets'
 import { pushBrowserHistory } from '../../lib/chatActions'
-import { callGuest, guestCurrentUrl, navigateGuest, type GuestLike } from '../../lib/guestView'
+import { callGuest, guestCurrentUrl, navigateGuest, urlsLooselyEqual, type GuestLike } from '../../lib/guestView'
 
 type GuestView = HTMLElement & GuestLike
 
@@ -72,6 +72,7 @@ export default function BrowserPanel() {
   const [ready, setReady] = useState(false)
   const widthRef = useRef(width)
   const urlRef = useRef(url)
+  const tickRef = useRef(browserTick)
   const viewRef = useRef<GuestView | null>(null)
   const asideRef = useRef<HTMLElement | null>(null)
   urlRef.current = url
@@ -94,14 +95,10 @@ export default function BrowserPanel() {
     if (!mounted) return
     const guest = viewRef.current
     if (!guest) return
-    const onReady = () => {
-      setReady(true)
-      const next = urlRef.current
-      if (next && next !== 'about:blank') navigateGuest(guest, next)
-    }
+    const onReady = () => setReady(true)
     const onNav = () => {
       const next = guestCurrentUrl(guest)
-      if (next && next !== 'about:blank') {
+      if (next && next !== 'about:blank' && !urlsLooselyEqual(next, urlRef.current)) {
         setDraft(next)
         setUrl(next)
       }
@@ -126,7 +123,9 @@ export default function BrowserPanel() {
 
   useEffect(() => {
     if (!ready || !url) return
-    navigateGuest(viewRef.current, url)
+    const force = browserTick !== tickRef.current
+    tickRef.current = browserTick
+    navigateGuest(viewRef.current, url, force)
   }, [url, ready, browserTick])
 
   useEffect(() => {
@@ -308,7 +307,7 @@ export default function BrowserPanel() {
       <div className="flex-1 min-h-0 bg-surface-0 relative">
         {createElement('webview', {
           ref: viewRef,
-          src: url || 'about:blank',
+          src: 'about:blank',
           partition: 'persist:nexum-preview',
           allowpopups: 'true',
           style: { width: '100%', height: '100%', background: '#111' },

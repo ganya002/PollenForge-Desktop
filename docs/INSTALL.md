@@ -2,13 +2,12 @@
 
 Installers: [GitHub Releases](https://github.com/ganya002/PollenForge-Desktop/releases/latest) — use the **Releases** tab, not Tags.
 
-You need **[uv](https://docs.astral.sh/uv/)** (recommended) or **Python 3**. The desktop UI is packaged; the local tools backend is Python.
+The desktop UI is packaged. On first launch Nexum installs a **private Python env** into app data (`backend-venv`). It does not pip-install into Homebrew or system Python.
 
-- uv: `brew install uv`, or `curl -LsSf https://astral.sh/uv/install.sh | sh` ([docs](https://docs.astral.sh/uv/))
-- Windows uv: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
-- Or Python 3 from https://www.python.org/downloads/ (Windows: enable **Add python.exe to PATH**)
+- **[uv](https://docs.astral.sh/uv/)** is used when available (`brew install uv`, or the official installer). Nexum also downloads uv into app data if needed.
+- Or any **Python 3** on PATH (used only to create the private env). Windows: enable **Add python.exe to PATH**.
 
-First launch may download a Python runtime into app data. Later launches are fast.
+First launch may take a minute while packages download. Later launches are fast.
 
 Then install Nexum and open **Settings** to paste an API key.
 

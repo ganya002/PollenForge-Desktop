@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
 import * as os from 'os';
+import { seedPythonCandidates, venvPythonPath } from './backendPython';
 
 const PYTHON_VERSION = '3.12';
 const DEPS_IMPORT = 'import fastapi, uvicorn, httpx, websockets';
@@ -40,9 +41,7 @@ export class BackendManager {
   }
 
   private venvPython(): string {
-    return process.platform === 'win32'
-      ? path.join(this.venvDir(), 'Scripts', 'python.exe')
-      : path.join(this.venvDir(), 'bin', 'python');
+    return venvPythonPath(this.venvDir(), process.platform);
   }
 
   private log(line: string): void {
@@ -203,6 +202,52 @@ export class BackendManager {
     return this.findUv() || this.bootstrapUv();
   }
 
+  private markVenvCurrent(): void {
+    try {
+      fs.writeFileSync(path.join(this.venvDir(), '.nexum-req'), this.requirementsHash());
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private requirementsFile(): string {
+    return path.join(this.getBackendRoot(), 'requirements.txt');
+  }
+
+  private clearVenv(): void {
+    try {
+      fs.rmSync(this.venvDir(), { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private installIntoVenv(py: string): boolean {
+    const req = this.requirementsFile();
+    if (!fs.existsSync(req)) {
+      this.log('backend/requirements.txt is missing');
+      return false;
+    }
+    this.log(`Installing backend deps into ${py}`);
+    let result = this.run(py, ['-m', 'pip', 'install', '--disable-pip-version-check', '-r', req], 180_000);
+    if (!result.ok) {
+      this.log('venv pip missing; trying ensurepip');
+      this.run(py, ['-m', 'ensurepip', '--upgrade'], 60_000);
+      result = this.run(py, ['-m', 'pip', 'install', '--disable-pip-version-check', '-r', req], 180_000);
+    }
+    return result.ok && this.hasBackendDeps(py);
+  }
+
+  private finishVenv(py: string, via: string): string | null {
+    if (!this.hasBackendDeps(py) && !this.installIntoVenv(py)) {
+      this.log(`${via} env is missing fastapi/uvicorn/httpx/websockets`);
+      return null;
+    }
+    this.markVenvCurrent();
+    this.log(`Using ${via} venv ${py}`);
+    return py;
+  }
+
   private ensureUvEnv(uv: string): string | null {
     const venvDir = this.venvDir();
     const py = this.venvPython();
@@ -210,114 +255,86 @@ export class BackendManager {
       this.log(`Using uv venv ${py}`);
       return py;
     }
-    fs.mkdirSync(venvDir, { recursive: true });
-    const req = path.join(this.getBackendRoot(), 'requirements.txt');
-    const lock = path.join(this.getBackendRoot(), 'uv.lock');
-    const pyproject = path.join(this.getBackendRoot(), 'pyproject.toml');
     this.run(uv, ['python', 'install', PYTHON_VERSION], 180_000);
     if (!fs.existsSync(py)) {
+      fs.mkdirSync(path.dirname(venvDir), { recursive: true });
+      this.run(uv, ['venv', '--python', PYTHON_VERSION, venvDir], 120_000);
+    }
+    if (!fs.existsSync(py)) {
+      this.log('uv venv did not create a Python interpreter; recreating');
+      this.clearVenv();
       this.run(uv, ['venv', '--python', PYTHON_VERSION, venvDir], 120_000);
     }
     if (!fs.existsSync(py)) {
       this.log('uv venv did not create a Python interpreter');
       return null;
     }
-    const env = { UV_PROJECT_ENVIRONMENT: venvDir };
-    let installed = false;
-    if (fs.existsSync(pyproject) && fs.existsSync(lock)) {
-      installed = this.run(
-        uv,
-        ['sync', '--directory', this.getBackendRoot(), '--python', PYTHON_VERSION, '--frozen'],
-        180_000,
-        env,
-      ).ok;
+    const req = this.requirementsFile();
+    if (fs.existsSync(req)) {
+      this.run(uv, ['pip', 'install', '-r', req, '--python', py], 180_000);
     }
-    if (!installed && fs.existsSync(pyproject)) {
-      installed = this.run(
-        uv,
-        ['sync', '--directory', this.getBackendRoot(), '--python', PYTHON_VERSION],
-        180_000,
-        env,
-      ).ok;
-    }
-    if (!installed && fs.existsSync(req)) {
-      installed = this.run(uv, ['pip', 'install', '-r', req, '--python', py], 180_000).ok;
-    }
-    if (!this.hasBackendDeps(py)) {
-      this.log('uv env is missing fastapi/uvicorn/httpx/websockets');
-      return null;
-    }
-    try {
-      fs.writeFileSync(path.join(venvDir, '.nexum-req'), this.requirementsHash());
-    } catch {
-      /* ignore */
-    }
-    this.log(`Using uv venv ${py}${installed ? '' : ' (deps already present)'}`);
-    return py;
+    return this.finishVenv(py, 'uv');
   }
 
-  private pythonCandidates(): string[] {
-    const root = this.getBackendRoot();
-    const venvPython = process.platform === 'win32'
-      ? path.join(root, '.venv', 'Scripts', 'python.exe')
-      : path.join(root, '.venv', 'bin', 'python');
-    const extras = this.extraBinDirs().map((dir) => path.join(dir, process.platform === 'win32' ? 'python.exe' : 'python3'));
-    return [
-      this.venvPython(),
-      venvPython,
-      process.env.PYTHON3 || '',
-      process.env.PYTHON || '',
-      ...extras,
-      process.platform === 'win32' ? 'python' : 'python3',
-      'python',
-    ].filter(Boolean);
-  }
-
-  private installBackendDeps(command: string): void {
-    const req = path.join(this.getBackendRoot(), 'requirements.txt');
-    if (!fs.existsSync(req)) return;
-    this.log(`Installing backend deps with ${command} -m pip`);
-    const result = spawnSync(command, ['-m', 'pip', 'install', '-r', req], {
-      encoding: 'utf8',
-      timeout: 180_000,
-      cwd: this.getBackendRoot(),
-      env: this.withPythonPath(),
-      windowsHide: true,
+  private seedPythons(): string[] {
+    return seedPythonCandidates({
+      isPackaged: app.isPackaged,
+      backendRoot: this.getBackendRoot(),
+      extraBinDirs: this.extraBinDirs(),
+      platform: process.platform,
+      env: process.env,
     });
-    if (result.stdout) this.log(`[pip] ${result.stdout.trim().slice(-800)}`);
-    if (result.stderr) this.log(`[pip] ${result.stderr.trim().slice(-800)}`);
-    if (result.status !== 0) this.log(`pip install exited ${result.status}`);
+  }
+
+  private createStdlibVenv(seed: string): boolean {
+    this.log(`Creating userData venv with ${seed} -m venv`);
+    this.clearVenv();
+    fs.mkdirSync(path.dirname(this.venvDir()), { recursive: true });
+    return this.run(seed, ['-m', 'venv', this.venvDir()], 90_000).ok && fs.existsSync(this.venvPython());
+  }
+
+  private ensureStdlibVenv(): string | null {
+    const py = this.venvPython();
+    const tried: string[] = [];
+    for (const seed of this.seedPythons()) {
+      if (tried.includes(seed)) continue;
+      tried.push(seed);
+      if (!this.probePython(seed, 'import sys; print(sys.version)', 8_000)) continue;
+      if (!fs.existsSync(py) && !this.createStdlibVenv(seed)) continue;
+      const ready = this.finishVenv(py, 'stdlib');
+      if (ready) return ready;
+      if (!this.createStdlibVenv(seed)) continue;
+      const retry = this.finishVenv(py, 'stdlib');
+      if (retry) return retry;
+    }
+    return null;
   }
 
   private resolvePython(): string {
+    if (this.venvIsCurrent()) {
+      this.log(`Using userData venv ${this.venvPython()}`);
+      return this.venvPython();
+    }
+
     const uv = this.resolveUv();
     if (uv) {
       const fromUv = this.ensureUvEnv(uv);
       if (fromUv) return fromUv;
-      this.log('uv could not prepare the backend; falling back to system Python');
+      this.log('uv could not prepare userData venv; trying python -m venv');
     }
 
-    const tried: string[] = [];
-    let installer: string | null = null;
-    for (const command of this.pythonCandidates()) {
-      if (tried.includes(command)) continue;
-      tried.push(command);
-      if (!this.probePython(command, 'import sys; print(sys.version)', 8_000)) continue;
+    const fromStdlib = this.ensureStdlibVenv();
+    if (fromStdlib) return fromStdlib;
+
+    for (const command of this.seedPythons()) {
       if (this.hasBackendDeps(command)) {
-        this.log(`Using Python ${command}`);
+        this.log(`Using existing Python with deps ${command}`);
         return command;
       }
-      installer = installer || command;
     }
-    if (installer) {
-      this.installBackendDeps(installer);
-      if (this.hasBackendDeps(installer)) {
-        this.log(`Using Python ${installer} after pip install`);
-        return installer;
-      }
-    }
+
     throw new Error(
-      'Python backend is not ready. Install uv from https://docs.astral.sh/uv/ (or Python 3), then reopen Nexum.',
+      'Python backend is not ready. Nexum installs its own packages into app data; it will not pip-install into Homebrew Python. Reopen the app after a network connection is available, or install uv from https://docs.astral.sh/uv/.',
     );
   }
 
@@ -383,7 +400,7 @@ export class BackendManager {
         this.log(`[backend] ${data.toString().trim()}`);
       });
 
-      await this.waitForHealth(45_000);
+      await this.waitForHealth(90_000);
       this.startHealthPolling();
       this.isStarting = false;
     } catch (err) {

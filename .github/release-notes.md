@@ -18,10 +18,9 @@ On a Mac, Apple menu → About This Mac. If the chip says Apple, use Apple Silic
 
 ## Setup
 
-Nexum uses **[uv](https://docs.astral.sh/uv/)** for the Python tools backend (or Python 3 as a fallback).
+On first launch Nexum installs a private Python env into app data. It will not pip-install into Homebrew Python.
 
-1. Install uv from https://docs.astral.sh/uv/ — or Python 3 from https://www.python.org/downloads/
-   - Windows Python: enable **Add python.exe to PATH**
+1. Optional: install [uv](https://docs.astral.sh/uv/) — Nexum downloads it if missing. Or have Python 3 on PATH (Windows: enable **Add python.exe to PATH**).
 2. Install Nexum with the file above.
 3. Open the app → **Settings** → paste an API key.
 

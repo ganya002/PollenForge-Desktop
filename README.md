@@ -24,7 +24,7 @@ Installers are on **[Releases](https://github.com/ganya002/PollenForge-Desktop/r
 
 Full steps (including Windows Smart App Control): **[docs/INSTALL.md](docs/INSTALL.md)**.
 
-1. Install [uv](https://docs.astral.sh/uv/) (`brew install uv` or the official installer). Python 3 still works as a fallback.
+1. First launch installs a private Python env into app data. Optional: [uv](https://docs.astral.sh/uv/) (`brew install uv`) — Nexum also downloads uv if needed. Do not `pip install` into Homebrew Python.
 2. **Mac:** open the `.dmg`, drag Nexum to Applications, then right-click → **Open**.
 3. **Windows:** run the Setup `.exe`. If Windows blocks it, see [docs/INSTALL.md](docs/INSTALL.md) (More info → Run anyway, or turn off Smart App Control, or Unblock the file).
 4. Open the app → Settings → paste an API key.

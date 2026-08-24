@@ -1,10 +1,25 @@
 export type GuestLike = {
   src?: string
   getURL?: () => string
-  loadURL?: (url: string) => void
+  loadURL?: (url: string) => void | Promise<void>
   goBack?: () => void
   goForward?: () => void
   reload?: () => void
+}
+
+export function isBenignGuestViewError(message: string): boolean {
+  const text = message || ''
+  return (
+    /GUEST_VIEW_MANAGER/i.test(text) ||
+    /ERR_ABORTED/i.test(text) ||
+    /WebView must be attached/i.test(text) ||
+    /webview is destroyed/i.test(text)
+  )
+}
+
+export function urlsLooselyEqual(a: string, b: string): boolean {
+  const norm = (url: string) => url.trim().replace(/\/+$/, '').toLowerCase()
+  return Boolean(a) && norm(a) === norm(b)
 }
 
 export function guestCurrentUrl(guest: GuestLike | null | undefined): string {
@@ -18,14 +33,24 @@ export function guestCurrentUrl(guest: GuestLike | null | undefined): string {
   return typeof guest.src === 'string' ? guest.src : ''
 }
 
-export function navigateGuest(guest: GuestLike | null | undefined, url: string): boolean {
+function swallowGuestError(err: unknown): void {
+  const text = err instanceof Error ? err.message : String(err || '')
+  if (isBenignGuestViewError(text)) return
+}
+
+export function navigateGuest(guest: GuestLike | null | undefined, url: string, force = false): boolean {
   if (!guest || !url) return false
+  if (!force && urlsLooselyEqual(guestCurrentUrl(guest), url)) return true
   try {
     if (typeof guest.loadURL === 'function') {
-      guest.loadURL(url)
+      const result = guest.loadURL(url)
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        void (result as Promise<void>).catch(swallowGuestError)
+      }
       return true
     }
-  } catch {
+  } catch (err) {
+    swallowGuestError(err)
     /* not attached yet — fall through to src */
   }
   try {
@@ -38,8 +63,11 @@ export function navigateGuest(guest: GuestLike | null | undefined, url: string):
 
 export function callGuest(guest: GuestLike | null | undefined, method: 'goBack' | 'goForward' | 'reload'): void {
   try {
-    guest?.[method]?.()
-  } catch {
-    /* ignore */
+    const result = guest?.[method]?.() as unknown
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      void (result as Promise<void>).catch(swallowGuestError)
+    }
+  } catch (err) {
+    swallowGuestError(err)
   }
 }

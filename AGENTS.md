@@ -28,7 +28,7 @@ Blocked by Windows Smart App Control / SmartScreen or macOS Gatekeeper: send use
 
 User data (chats, settings, skills) lives in Electron `userData` and survives restarts and updates. Installing an older version can delete or hide that data — Settings → Updates warns before a downgrade.
 
-Packaged builds use **[uv](https://docs.astral.sh/uv/)** to install Python and backend packages into Electron `userData` (`backend-venv`). Do not ship `.venv`. System Python is only a fallback if uv is unavailable.
+Packaged builds install Python packages into Electron `userData` (`backend-venv`) via **[uv](https://docs.astral.sh/uv/)** or `python3 -m venv`. Do not ship `.venv`. Never `pip install` into Homebrew/system Python (PEP 668).
 
 ## How to ship an update
 
