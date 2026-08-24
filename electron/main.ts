@@ -545,6 +545,7 @@ async function startBackend(): Promise<void> {
 app.whenReady().then(async () => {
   setupIpcHandlers();
   setupUpdater(() => mainWindow);
+  await startBackend();
   createWindow();
   createTray();
 
@@ -559,7 +560,6 @@ app.whenReady().then(async () => {
     }
   });
 
-  await startBackend();
   checkForUpdatesOnStartup();
 });
 

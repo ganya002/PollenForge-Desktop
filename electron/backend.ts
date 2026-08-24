@@ -21,9 +21,74 @@ export class BackendManager {
 
   constructor(port: number = 8765, authToken?: string) {
     this.port = port;
-    // T1: per-launch shared secret handed to the backend via env and to the
-    // renderer via IPC. Requests without it are rejected with 401.
-    this.authToken = authToken || crypto.randomBytes(32).toString('hex');
+    this.authToken =
+      authToken ||
+      process.env.NEXUM_AUTH_TOKEN ||
+      (app.isPackaged ? crypto.randomBytes(32).toString('hex') : this.readOrCreateSharedToken());
+    this.persistSharedToken(this.authToken);
+  }
+
+  private sharedTokenPath(): string {
+    if (process.env.NEXUM_AUTH_TOKEN_FILE) return process.env.NEXUM_AUTH_TOKEN_FILE;
+    return path.join(os.homedir(), '.nexum', 'backend-auth-token');
+  }
+
+  private readOrCreateSharedToken(): string {
+    const file = this.sharedTokenPath();
+    try {
+      const existing = fs.readFileSync(file, 'utf8').trim();
+      if (existing.length >= 16) return existing;
+    } catch {
+      /* first run */
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    this.writeTokenFile(file, token);
+    return token;
+  }
+
+  private persistSharedToken(token: string): void {
+    this.writeTokenFile(this.sharedTokenPath(), token);
+  }
+
+  private writeTokenFile(file: string, token: string): void {
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, token, { encoding: 'utf8', mode: 0o600 });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private freePort(): void {
+    this.log(`Freeing port ${this.port} so this app can start its own backend.`);
+    if (process.platform === 'win32') {
+      spawnSync(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-Command',
+          `Get-NetTCPConnection -LocalPort ${this.port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }`,
+        ],
+        { timeout: 8000, windowsHide: true },
+      );
+      return;
+    }
+    const result = spawnSync('lsof', ['-ti', `tcp:${this.port}`], {
+      encoding: 'utf8',
+      timeout: 5000,
+      windowsHide: true,
+    });
+    const pids = String(result.stdout || '')
+      .split(/\s+/)
+      .map((n) => Number(n))
+      .filter((n) => n > 0 && n !== process.pid);
+    for (const pid of pids) {
+      try {
+        process.kill(pid, 'SIGTERM');
+      } catch {
+        /* already gone */
+      }
+    }
   }
 
   private getBackendRoot(): string {
@@ -356,14 +421,11 @@ export class BackendManager {
       return;
     }
     if (status === 401) {
-      const hint = app.isPackaged
-        ? ' Quit the other Nexum instance and reopen this one.'
-        : ` Stop the process on this port, or restart it with NEXUM_AUTH_TOKEN set to this app's token.`;
-      const err = new Error(
-        `Port ${this.port} is served by a backend that rejected our auth token.${hint}`,
+      this.log(
+        `Port ${this.port} has a backend with a different auth token. Replacing it.`,
       );
-      this.log(err.message);
-      throw err;
+      this.freePort();
+      await new Promise((resolve) => setTimeout(resolve, 400));
     }
 
     this.isStarting = true;

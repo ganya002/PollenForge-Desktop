@@ -25,10 +25,15 @@ else
 fi
 BACKEND_PID=$!
 
-# Wait for backend to be ready
+# Wait for backend
 echo "Waiting for backend..."
+TOKEN_FILE="${HOME}/.nexum/backend-auth-token"
 for i in $(seq 1 30); do
-    if curl -s http://127.0.0.1:$BACKEND_PORT/health > /dev/null 2>&1; then
+    TOKEN=""
+    if [ -f "$TOKEN_FILE" ]; then
+        TOKEN="$(cat "$TOKEN_FILE" 2>/dev/null || true)"
+    fi
+    if curl -s -H "x-nexum-token: ${TOKEN}" "http://127.0.0.1:$BACKEND_PORT/health" > /dev/null 2>&1; then
         echo "✓ Backend ready"
         break
     fi

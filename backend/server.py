@@ -19,6 +19,7 @@ from tools import list_tools, execute_tool
 from openai_tools import prefer_native_tool_calls, to_openai_tools
 from agents_md import load_agents_md, agents_prompt_section
 from runtime import runtime_var
+from auth_token import resolve_auth_token
 from agent_loop import EXPLORE_TOOLS, KEEP_GOING_NUDGE, last_user_text, should_keep_going
 from tools.memory import forget_memory, list_memories, memory_prompt_section, remember, save_memories
 
@@ -29,11 +30,7 @@ from tools.memory import forget_memory, list_memories, memory_prompt_section, re
 # env and to the renderer via IPC. Websites can't know it -> drive-by requests
 # (fetch http://127.0.0.1:8765/config from any webpage) now die with 401.
 INSECURE_NO_AUTH = os.environ.get("NEXUM_INSECURE_NO_AUTH") == "1"
-AUTH_TOKEN = os.environ.get("NEXUM_AUTH_TOKEN", "")
-if not AUTH_TOKEN and not INSECURE_NO_AUTH:
-    AUTH_TOKEN = secrets.token_hex(32)
-    # Printed only when running server.py manually (no Electron parent).
-    print(f"NEXUM_AUTH_TOKEN={AUTH_TOKEN}", flush=True)
+AUTH_TOKEN = resolve_auth_token()
 
 
 def token_ok(supplied: str, expected: str | None = None, insecure: bool | None = None) -> bool:

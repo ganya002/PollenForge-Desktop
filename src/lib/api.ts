@@ -9,13 +9,25 @@ export function cachedBackendToken(): string {
   return cachedToken || ''
 }
 
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export async function backendToken(): Promise<string> {
   if (cachedToken) return cachedToken
-  try {
-    const res = await window.api?.backend?.token?.()
-    if (res?.token) cachedToken = res.token
-  } catch {
-    /* browser preview / unit tests: no bridge */
+  const hasBridge = typeof window !== 'undefined' && !!window.api?.backend?.token
+  for (let i = 0; i < 25; i++) {
+    try {
+      const res = await window.api?.backend?.token?.()
+      if (res?.token) {
+        cachedToken = res.token
+        return cachedToken
+      }
+    } catch {
+      /* bridge not ready yet */
+    }
+    if (!hasBridge) break
+    await sleep(80)
   }
   return cachedToken || ''
 }

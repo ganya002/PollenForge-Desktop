@@ -61,5 +61,41 @@ class AuthGateTests(unittest.TestCase):
         self.assertEqual(res.status_code, 401)
 
 
+class SharedTokenFileTests(unittest.TestCase):
+    def test_env_token_wins_over_file(self):
+        import os
+        import tempfile
+        from pathlib import Path
+        from auth_token import resolve_auth_token
+
+        with tempfile.TemporaryDirectory() as tmp:
+            token_file = Path(tmp) / "token"
+            token_file.write_text("file-token-file-token", encoding="utf-8")
+            env = {
+                "NEXUM_AUTH_TOKEN": "env-token-env-token-env-token-env",
+                "NEXUM_AUTH_TOKEN_FILE": str(token_file),
+                "NEXUM_INSECURE_NO_AUTH": "",
+            }
+            with patch.dict(os.environ, env, clear=False):
+                self.assertEqual(resolve_auth_token(), "env-token-env-token-env-token-env")
+
+    def test_reads_existing_file(self):
+        import os
+        import tempfile
+        from pathlib import Path
+        from auth_token import resolve_auth_token
+
+        with tempfile.TemporaryDirectory() as tmp:
+            token_file = Path(tmp) / "token"
+            token_file.write_text("shared-secret-token-value", encoding="utf-8")
+            env = {
+                "NEXUM_AUTH_TOKEN": "",
+                "NEXUM_AUTH_TOKEN_FILE": str(token_file),
+                "NEXUM_INSECURE_NO_AUTH": "",
+            }
+            with patch.dict(os.environ, env, clear=False):
+                self.assertEqual(resolve_auth_token(), "shared-secret-token-value")
+
+
 if __name__ == "__main__":
     unittest.main()

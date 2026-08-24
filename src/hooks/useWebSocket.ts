@@ -69,6 +69,10 @@ export function useWebSocket(options: UseWebSocketOptions) {
     void backendToken()
       .then((token) => {
         if (!shouldReconnect.current || isUsableSocket(wsRef.current)) return
+        if (!token && typeof window !== 'undefined' && window.api?.backend?.token) {
+          reconnectTimer.current = setTimeout(connect, 400)
+          return
+        }
         const ws = new WebSocket(
           token ? `${WS_URL}?token=${encodeURIComponent(token)}` : WS_URL,
         )
