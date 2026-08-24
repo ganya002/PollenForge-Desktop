@@ -58,6 +58,11 @@ declare global {
         watch: (dirPath: string) => Promise<{ ok: boolean; error?: string }>
         onChanged: (cb: () => void) => () => void
       }
+      config?: {
+        get: () => Promise<{ success: boolean; config?: Record<string, unknown>; error?: string }>
+        set: (key: string, value: unknown) => Promise<{ success: boolean; error?: string }>
+        save: (config: unknown) => Promise<{ success: boolean; error?: string }>
+      }
       debug?: {
         log: (line: string) => void
       }

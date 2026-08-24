@@ -76,7 +76,19 @@ export default function App() {
     const API = 'http://127.0.0.1:8765'
     void refreshSessions()
 
-    fetch(`${API}/config`)
+    const loadLocal = window.api?.config?.get
+      ? window.api.config.get()
+          .then((result) => {
+            if (result?.success && result.config && Object.keys(result.config).length > 0) {
+              const state = useStore.getState()
+              state.setConfig(mergeFetchedConfig(state.config, result.config))
+            }
+          })
+          .catch(() => {})
+      : Promise.resolve()
+
+    void loadLocal
+      .then(() => fetch(`${API}/config`))
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.providers) {

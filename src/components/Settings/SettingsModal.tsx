@@ -108,7 +108,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
     setConfig(next)
     const ok = await persistConfig(next)
     if (!ok) {
-      setSaveError('Could not save. Start the backend, then try again.')
+      setSaveError('Could not write settings to disk.')
       setSaved(false)
       return
     }

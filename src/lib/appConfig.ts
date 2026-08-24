@@ -141,16 +141,26 @@ export function removeEnabledProvider(config: Config, id: string): Config {
 }
 
 export async function persistConfig(config: Config): Promise<boolean> {
+  let saved = false
+  try {
+    if (typeof window !== 'undefined' && window.api?.config?.save) {
+      const result = await window.api.config.save(config)
+      if (result?.success) saved = true
+    }
+  } catch {
+    /* packaged save is optional in tests / browser */
+  }
   try {
     const resp = await fetch('http://127.0.0.1:8765/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
     })
-    return resp.ok
+    if (resp.ok) saved = true
   } catch {
-    return false
+    /* backend may be starting */
   }
+  return saved
 }
 
 export function mergeProviderModels(

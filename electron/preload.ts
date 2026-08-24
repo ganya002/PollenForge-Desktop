@@ -74,6 +74,9 @@ contextBridge.exposeInMainWorld('api', {
     ): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke('config:set', key, value);
     },
+    save: (config: unknown): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('config:save', config);
+    },
   },
 
   sessions: {

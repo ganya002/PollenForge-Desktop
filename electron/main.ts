@@ -395,6 +395,16 @@ function setupIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle('config:save', async (_event, body: unknown) => {
+    try {
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configFilePath, JSON.stringify(body, null, 2), 'utf-8');
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('config:set', async (_event, key: string, value: unknown) => {
     try {
       let config: Record<string, unknown> = {};
