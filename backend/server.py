@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -8,6 +8,8 @@ import time
 import asyncio
 import re
 import uuid
+import os
+import secrets
 
 from config import load_config, resolve_provider_api_key, save_config
 from sessions import list_sessions, load_session, save_session, delete_session, create_session
@@ -19,17 +21,81 @@ from agents_md import load_agents_md, agents_prompt_section
 from runtime import runtime_var
 from tools.memory import forget_memory, list_memories, memory_prompt_section, remember, save_memories
 
-app = FastAPI(title="Nexum Backend", version="1.0.0")
+# --- Auth (T1) -----------------------------------------------------------------
+# Every HTTP route requires the X-Nexum-Token header (Authorization: Bearer also works).
+# WebSocket may use ?token= because browsers cannot set WS headers.
+# The Electron main process generates the token and hands it to the backend via
+# env and to the renderer via IPC. Websites can't know it -> drive-by requests
+# (fetch http://127.0.0.1:8765/config from any webpage) now die with 401.
+INSECURE_NO_AUTH = os.environ.get("NEXUM_INSECURE_NO_AUTH") == "1"
+AUTH_TOKEN = os.environ.get("NEXUM_AUTH_TOKEN", "")
+if not AUTH_TOKEN and not INSECURE_NO_AUTH:
+    AUTH_TOKEN = secrets.token_hex(32)
+    # Printed only when running server.py manually (no Electron parent).
+    print(f"NEXUM_AUTH_TOKEN={AUTH_TOKEN}", flush=True)
+
+
+def token_ok(supplied: str, expected: str | None = None, insecure: bool | None = None) -> bool:
+    """Constant-time compare that never raises on length mismatch (401, not 500)."""
+    if insecure is None:
+        insecure = INSECURE_NO_AUTH
+    if insecure:
+        return True
+    token = AUTH_TOKEN if expected is None else expected
+    got = supplied or ""
+    if not token or len(got) != len(token):
+        return False
+    return secrets.compare_digest(got, token)
+
+
+def _bearer_or_header(header_token: str, authorization: str, query_token: str = "") -> str:
+    raw = (header_token or "").strip()
+    if not raw:
+        auth = (authorization or "").strip()
+        if auth.lower().startswith("bearer "):
+            raw = auth[7:].strip()
+    return raw or (query_token or "").strip()
+
+
+async def require_auth(request: Request):
+    if INSECURE_NO_AUTH:
+        return
+    # /media/* serves generated images that chat markdown embeds via <img>,
+    # and <img> requests cannot carry headers. Names are strictly
+    # traversal-validated in resolve_generated_image(), so this stays local-only.
+    if request.url.path.startswith("/media/"):
+        return
+    supplied = _bearer_or_header(
+        request.headers.get("x-nexum-token") or "",
+        request.headers.get("authorization") or "",
+    )
+    if not token_ok(supplied):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+app = FastAPI(title="Nexum Backend", version="1.0.0", dependencies=[Depends(require_auth)])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    # Renderer origins only (packaged = file:// -> Origin "null"; dev = Vite).
+    # Requests still need the auth token, so this is defense-in-depth, not the gate.
+    allow_origins=["null", "http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-DANGEROUS_TOOLS = {"run_command", "write_file", "edit_file", "close_app"}
+# Tools that mutate the system -> require user approval in Agent mode (T2).
+# Previously start_background_task/delete_file/git_* could run with NO prompt.
+DANGEROUS_TOOLS = {
+    "run_command", "write_file", "edit_file", "close_app",
+    "delete_file", "start_background_task",
+    "git_commit", "git_add", "git_push", "git_checkout", "git_clone",
+    "run_build", "run_formatter",
+    "apply_patch", "revert_file",
+    "clear_tasks",
+    "save_skill", "delete_skill",
+}
 
 # Per-connection state
 approval_queues: dict[str, asyncio.Queue] = {}
@@ -57,13 +123,41 @@ async def pollinations_status():
     return info
 
 
+API_KEY_MASK = "__MASKED__"
+
+
+def _mask_config(cfg: dict) -> dict:
+    """Return config with provider API keys replaced by a sentinel (T1)."""
+    masked = json.loads(json.dumps(cfg))  # deep copy
+    for prov in (masked.get("providers") or {}).values():
+        if not isinstance(prov, dict):
+            continue
+        key = prov.get("api_key") or ""
+        prov["has_key"] = bool(key)
+        prov["api_key"] = API_KEY_MASK if key else ""
+    return masked
+
+
+def _effective_api_key(raw, provider_name: str, config: dict) -> str:
+    key = str(raw or "").strip()
+    if not key or key == API_KEY_MASK:
+        key = ""
+    return key or resolve_provider_api_key(provider_name, config)
+
+
 @app.get("/config")
 async def get_config():
-    return load_config()
+    return _mask_config(load_config())
 
 
 @app.post("/config")
 async def update_config(body: dict):
+    # A masked round-trip must never clobber real keys (T1).
+    current = load_config()
+    for name, prov in (body.get("providers") or {}).items():
+        if isinstance(prov, dict) and prov.get("api_key") == API_KEY_MASK:
+            existing = ((current.get("providers") or {}).get(name) or {}).get("api_key")
+            prov["api_key"] = existing
     save_config(body)
     return {"success": True}
 
@@ -706,7 +800,7 @@ START OUTPUTTING TOOL BLOCKS NOW."""
     params = {
         "temperature": config.get("temperature", 0.4),
         "max_tokens": config.get("max_tokens", 32768),
-        "api_key": (data.get("api_key") or "").strip() or resolve_provider_api_key(provider_name, config),
+        "api_key": _effective_api_key(data.get("api_key"), provider_name, config),
         "base_url": provider_cfg.get("base_url"),
         "openai_tools": to_openai_tools(tools),
     }
@@ -955,7 +1049,16 @@ START OUTPUTTING TOOL BLOCKS NOW."""
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    # T1: browsers cannot set WS headers, so the token may arrive as ?token=.
+    supplied = _bearer_or_header(
+        websocket.headers.get("x-nexum-token") or "",
+        websocket.headers.get("authorization") or "",
+        websocket.query_params.get("token") or "",
+    )
     await websocket.accept()
+    if not token_ok(supplied):
+        await websocket.close(code=4401, reason="Unauthorized")
+        return
     conn_id = str(uuid.uuid4())
     queue: asyncio.Queue = asyncio.Queue()
     approval_queues[conn_id] = queue

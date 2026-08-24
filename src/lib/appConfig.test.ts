@@ -104,3 +104,18 @@ test('mergeProviderModels replaces the live Pollinations catalog', () => {
   assert.equal(merged.providers.pollinations.models.length, 2)
   assert.equal(merged.providers.pollinations.models[0].free, false)
 })
+
+test('mergeFetchedConfig does not replace a real key with the mask', () => {
+  const withKey: Config = {
+    ...current,
+    providers: {
+      pollinations: { ...current.providers.pollinations, api_key: 'sk_live_real' },
+    },
+  }
+  const merged = mergeFetchedConfig(withKey, {
+    providers: {
+      pollinations: { enabled: true, api_key: '__MASKED__', has_key: true },
+    },
+  })
+  assert.equal(merged.providers.pollinations.api_key, 'sk_live_real')
+})

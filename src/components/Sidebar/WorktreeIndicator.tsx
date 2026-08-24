@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api'
 import { useEffect } from 'react'
 import { useStore } from '../../store/store'
 
@@ -8,7 +9,7 @@ export default function WorktreeIndicator() {
   useEffect(() => {
     const fetchWorktrees = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:8765/tools/worktree_list', {
+        const res = await apiFetch('http://127.0.0.1:8765/tools/worktree_list', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: '.' })
         })
         const data = await res.json()

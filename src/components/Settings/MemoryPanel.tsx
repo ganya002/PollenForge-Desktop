@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { apiFetch } from '../../lib/api'
 
 type MemoryItem = { id: string; text: string; created_at?: number }
 
@@ -11,7 +12,7 @@ export default function MemoryPanel() {
 
   const refresh = async () => {
     try {
-      const res = await fetch(API)
+      const res = await apiFetch(API)
       if (!res.ok) throw new Error('Could not load memory')
       const data = await res.json()
       setItems(Array.isArray(data.memories) ? data.memories : [])
@@ -29,7 +30,7 @@ export default function MemoryPanel() {
     const text = draft.trim()
     if (!text) return
     try {
-      const res = await fetch(API, {
+      const res = await apiFetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -44,7 +45,7 @@ export default function MemoryPanel() {
 
   const remove = async (id: string) => {
     try {
-      await fetch(`${API}/${id}`, { method: 'DELETE' })
+      await apiFetch(`${API}/${id}`, { method: 'DELETE' })
       await refresh()
     } catch {
       setError('Could not delete that note.')

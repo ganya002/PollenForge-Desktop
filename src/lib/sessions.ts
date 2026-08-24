@@ -1,3 +1,4 @@
+import { apiFetch } from './api'
 import { useStore, type Session } from '../store/store'
 import { sortSessions } from './chatActions'
 import { normalizeSession } from './sessionMeta'
@@ -27,7 +28,7 @@ function electronSessions() {
 
 async function listFromPython(): Promise<Session[] | null> {
   try {
-    const res = await fetch(`${API}/sessions`)
+    const res = await apiFetch(`${API}/sessions`)
     if (!res.ok) return null
     const data = await res.json()
     if (!Array.isArray(data)) return null
@@ -101,7 +102,7 @@ export async function loadSession(id: string): Promise<boolean> {
   rememberSessionId(id)
   useStore.getState().setCurrentSessionId(id)
   try {
-    const res = await fetch(`${API}/sessions/${id}`)
+    const res = await apiFetch(`${API}/sessions/${id}`)
     if (res.ok) {
       const data = (await res.json()) as SessionFile
       if (Array.isArray(data.messages)) {
@@ -128,7 +129,7 @@ export async function loadSession(id: string): Promise<boolean> {
 export async function createChatSession(name = 'New Chat'): Promise<string | null> {
   const directory = currentWorkspace() || ''
   try {
-    const res = await fetch(`${API}/sessions`, {
+    const res = await apiFetch(`${API}/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, directory }),
@@ -166,7 +167,7 @@ export async function restoreLastSession(): Promise<void> {
 export async function deleteChatSession(id: string): Promise<boolean> {
   let ok = false
   try {
-    const res = await fetch(`${API}/sessions/${id}`, { method: 'DELETE' })
+    const res = await apiFetch(`${API}/sessions/${id}`, { method: 'DELETE' })
     ok = res.ok
   } catch {
     /* fall through */
@@ -194,7 +195,7 @@ export async function nameSessionFromPrompt(sessionId: string, content: string):
   const current = useStore.getState().sessions.find((s) => s.id === sessionId)
   if (current && titleFromPrompt(current.name)) return
   try {
-    await fetch(`${API}/sessions/${sessionId}`, {
+    await apiFetch(`${API}/sessions/${sessionId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
@@ -210,7 +211,7 @@ export async function nameSessionFromPrompt(sessionId: string, content: string):
 export async function setSessionArchived(sessionId: string, archived: boolean): Promise<void> {
   if (!sessionId) return
   try {
-    await fetch(`${API}/sessions/${sessionId}`, {
+    await apiFetch(`${API}/sessions/${sessionId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ archived }),
@@ -228,7 +229,7 @@ export async function setSessionArchived(sessionId: string, archived: boolean): 
 export async function setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
   if (!sessionId) return
   try {
-    await fetch(`${API}/sessions/${sessionId}`, {
+    await apiFetch(`${API}/sessions/${sessionId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pinned }),

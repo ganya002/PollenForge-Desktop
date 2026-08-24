@@ -1,6 +1,7 @@
+import { apiFetch } from '../lib/api'
 import { useCallback, useRef, useEffect, type UIEvent, type WheelEvent } from 'react'
 import { useStore, Message, ToolCall } from '../store/store'
-import { findProviderModel } from '../lib/appConfig'
+import { findProviderModel, MASKED_API_KEY } from '../lib/appConfig'
 import { applyActivePlugins, activePluginIds } from '../lib/plugins'
 import { compactMessages, htmlUrlFromTool, messagesThroughUser } from '../lib/chatActions'
 import { ASK_PROMPT, WEB_PROMPT, hasWebMention, isHtmlWriteTool, toolPath } from '../lib/qol'
@@ -114,7 +115,7 @@ export function useChat() {
       state.setAgentStep(path ? `${tool} ${path}` : tool)
       const root = currentWorkspace()
       if ((tool === 'write_file' || tool === 'edit_file') && path) {
-        void fetch('http://127.0.0.1:8765/files/read', {
+        void apiFetch('http://127.0.0.1:8765/files/read', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ path, root: root || undefined }),
@@ -352,7 +353,10 @@ export function useChat() {
       provider: state.currentProvider,
       session_id: sessionId,
       workspace: currentWorkspace() || '',
-      api_key: state.config.providers[state.currentProvider]?.api_key || '',
+      api_key: (() => {
+        const key = state.config.providers[state.currentProvider]?.api_key || ''
+        return key === MASKED_API_KEY ? '' : key
+      })(),
     })
     if (!sent) {
       state.updateMessage(assistantMsg.id, { content: '**Error:** Not connected. Reconnecting...', isError: true })

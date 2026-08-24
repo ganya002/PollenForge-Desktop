@@ -310,7 +310,9 @@ function setupIpcHandlers(): void {
   // Chat - streaming via WebSocket
   ipcMain.handle('chat:send', async (_event, messages: unknown[], model: string, provider: string) => {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(`ws://localhost:${backendManager?.port || 8765}/ws`);
+      const ws = new WebSocket(
+        `ws://localhost:${backendManager?.port || 8765}/ws?token=${encodeURIComponent(backendManager?.authToken || '')}`,
+      );
 
       const chunks: string[] = [];
 
@@ -508,13 +510,17 @@ function setupIpcHandlers(): void {
     }
   });
 
-  // Backend status
+  // Backend status + per-launch auth token for renderer fetch/WS
   ipcMain.handle('backend:status', async () => {
     if (!backendManager) {
       return { running: false };
     }
     const isHealthy = await backendManager.checkHealth();
     return { running: isHealthy, port: backendManager.port };
+  });
+
+  ipcMain.handle('backend:token', () => {
+    return { token: backendManager?.authToken || '' };
   });
 }
 

@@ -40,6 +40,10 @@ export interface UpdateProgress {
 declare global {
   interface Window {
     api: {
+      backend?: {
+        status: () => Promise<{ running: boolean; port?: number }>
+        token: () => Promise<{ token: string }>
+      }
       app: {
         quit: () => void
         minimize: () => void

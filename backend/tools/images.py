@@ -91,6 +91,21 @@ def _image_headers(api_key: str) -> dict:
 def _resolve_save_path(save_path: str, root: str | None) -> Path | dict:
     from tools.filesystem import _resolve
 
+    # T2 hardening: with no workspace open this used to accept ANY absolute
+    # path, letting the agent overwrite arbitrary files with image bytes
+    # without an approval prompt. Now: no-root saves are confined to the
+    # generated-images folder, and traversal out of it is rejected.
+    candidate = Path(str(save_path)).expanduser()
+    if not root:
+        if candidate.is_absolute():
+            return {"error": "save_path must be relative when no workspace is open"}
+        folder = generated_images_dir().resolve()
+        dest = (folder / candidate).resolve()
+        try:
+            dest.relative_to(folder)
+        except ValueError:
+            return {"error": "save_path escapes the generated-images directory"}
+        return dest
     dest = _resolve(save_path, root)
     if root:
         try:

@@ -1,3 +1,4 @@
+import { apiFetch } from '../../lib/api'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../../store/store'
@@ -77,7 +78,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    fetch('http://127.0.0.1:8765/pollinations/status')
+    apiFetch('http://127.0.0.1:8765/pollinations/status')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!cancelled && data) setPollinationsStatus(data)
@@ -412,7 +413,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                         onClick={() => {
                           const cfg = useStore.getState().config
                           setConfig({ ...cfg, auto_approve: !cfg.auto_approve })
-                          fetch('http://127.0.0.1:8765/config', {
+                          apiFetch('http://127.0.0.1:8765/config', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ ...cfg, auto_approve: !cfg.auto_approve }),
@@ -490,7 +491,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                           setConfig({ ...cfg, temperature: val })
                         }}
                         onMouseUp={() => {
-                          fetch('http://127.0.0.1:8765/config', {
+                          apiFetch('http://127.0.0.1:8765/config', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(config),
@@ -513,7 +514,7 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                         setConfig({ ...cfg, max_tokens: val })
                       }}
                       onBlur={() => {
-                        fetch('http://127.0.0.1:8765/config', {
+                        apiFetch('http://127.0.0.1:8765/config', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(config),

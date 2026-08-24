@@ -17,8 +17,13 @@ export class BackendManager {
   private isStarting = false;
   public readonly port: number;
 
-  constructor(port: number = 8765) {
+  readonly authToken: string;
+
+  constructor(port: number = 8765, authToken?: string) {
     this.port = port;
+    // T1: per-launch shared secret handed to the backend via env and to the
+    // renderer via IPC. Requests without it are rejected with 401.
+    this.authToken = authToken || crypto.randomBytes(32).toString('hex');
   }
 
   private getBackendRoot(): string {
@@ -344,10 +349,21 @@ export class BackendManager {
       return;
     }
 
-    if (await this.checkHealth()) {
+    const status = await this.checkHealthStatus();
+    if (status === 200) {
       console.log(`Backend already listening on port ${this.port}; not starting another.`);
       this.startHealthPolling();
       return;
+    }
+    if (status === 401) {
+      const hint = app.isPackaged
+        ? ' Quit the other Nexum instance and reopen this one.'
+        : ` Stop the process on this port, or restart it with NEXUM_AUTH_TOKEN set to this app's token.`;
+      const err = new Error(
+        `Port ${this.port} is served by a backend that rejected our auth token.${hint}`,
+      );
+      this.log(err.message);
+      throw err;
     }
 
     this.isStarting = true;
@@ -371,6 +387,7 @@ export class BackendManager {
           ...this.withPythonPath(),
           PORT: String(this.port),
           NEXUM_USER_DATA: app.getPath('userData'),
+          NEXUM_AUTH_TOKEN: this.authToken,
         },
         stdio: ['ignore', 'pipe', 'pipe'],
       });
@@ -434,22 +451,32 @@ export class BackendManager {
     }
   }
 
-  async checkHealth(): Promise<boolean> {
+  /** Returns the raw /health status code, 0 if unreachable. */
+  async checkHealthStatus(): Promise<number> {
     return new Promise((resolve) => {
-      const req = http.get(`http://127.0.0.1:${this.port}/health`, (res) => {
-        resolve(res.statusCode === 200);
-        res.resume();
-      });
+      const req = http.get(
+        `http://127.0.0.1:${this.port}/health`,
+        { headers: { 'x-nexum-token': this.authToken } },
+        (res) => {
+          const code = res.statusCode || 0;
+          res.resume();
+          resolve(code);
+        },
+      );
 
       req.on('error', () => {
-        resolve(false);
+        resolve(0);
       });
 
       req.setTimeout(3000, () => {
         req.destroy();
-        resolve(false);
+        resolve(0);
       });
     });
+  }
+
+  async checkHealth(): Promise<boolean> {
+    return (await this.checkHealthStatus()) === 200;
   }
 
   private async waitForHealth(timeoutMs: number): Promise<void> {
