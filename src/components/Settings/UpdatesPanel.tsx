@@ -118,7 +118,7 @@ export default function UpdatesPanel() {
             <p className="text-[11px] text-red-400 mt-3">{status.message}</p>
           )}
 
-          {busy && progress && (
+          {(busy || status.status === 'downloading-version') && progress && (
             <div className="mt-3">
               <div className="h-1.5 bg-surface-3 rounded-full overflow-hidden">
                 <div className="h-full bg-accent transition-all" style={{ width: `${percent}%` }} />

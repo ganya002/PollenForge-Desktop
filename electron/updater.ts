@@ -12,6 +12,22 @@ function send(window: BrowserWindow | null, channel: string, payload: unknown): 
   }
 }
 
+let updateBusy = false;
+
+async function withUpdateLock<T extends { ok: boolean }>(
+  work: () => Promise<T>,
+): Promise<T | { ok: false; error: string }> {
+  if (updateBusy) {
+    return { ok: false, error: 'An update is already downloading.' };
+  }
+  updateBusy = true;
+  try {
+    return await work();
+  } finally {
+    updateBusy = false;
+  }
+}
+
 function friendlyUpdateError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err || 'Update check failed');
   if (/signature|ShipIt|code has no resources|did not pass validation/i.test(message)) {
@@ -102,29 +118,32 @@ export function setupUpdater(getWindow: () => BrowserWindow | null): void {
     if (!app.isPackaged) {
       return { ok: false, error: PACKAGED_ONLY };
     }
-    if (process.platform === 'darwin') {
-      try {
-        const releases = await listReleases();
-        const latest = releases.find((r) => !r.prerelease);
-        if (!latest) return { ok: false, error: 'No Mac release found.' };
-        send(getWindow(), 'updates:status', { status: 'downloading-version', tag: latest.tag });
-        const result = await installReleaseVersion(latest.tag, (percent, transferred, total) => {
-          send(getWindow(), 'updates:progress', { percent, transferred, total });
-        });
-        if (result.ok === false) {
-          send(getWindow(), 'updates:status', { status: 'error', message: result.error });
+    return withUpdateLock(async () => {
+      if (process.platform === 'darwin') {
+        try {
+          const releases = await listReleases();
+          const latest = releases.find((r) => !r.prerelease);
+          if (!latest) return { ok: false, error: 'No Mac release found.' };
+          send(getWindow(), 'updates:status', { status: 'downloading-version', tag: latest.tag });
+          const result = await installReleaseVersion(latest.tag, (percent, transferred, total) => {
+            send(getWindow(), 'updates:progress', { percent, transferred, total });
+          });
+          if (result.ok === false) {
+            send(getWindow(), 'updates:status', { status: 'error', message: result.error });
+          }
+          return result;
+        } catch (err) {
+          return { ok: false, error: friendlyUpdateError(err) };
         }
-        return result;
-      } catch (err) {
+      }
+      try {
+        send(getWindow(), 'updates:status', { status: 'downloading-version', version: app.getVersion() });
+        await autoUpdater.downloadUpdate();
+        return { ok: true };
+      } catch (err: any) {
         return { ok: false, error: friendlyUpdateError(err) };
       }
-    }
-    try {
-      await autoUpdater.downloadUpdate();
-      return { ok: true };
-    } catch (err: any) {
-      return { ok: false, error: friendlyUpdateError(err) };
-    }
+    });
   });
 
   ipcMain.handle('updates:install', () => {
@@ -155,15 +174,17 @@ export function setupUpdater(getWindow: () => BrowserWindow | null): void {
       return { ok: false, error: 'Missing release tag.' };
     }
 
-    send(getWindow(), 'updates:status', { status: 'downloading-version', tag });
-    const result = await installReleaseVersion(tag, (percent, transferred, total) => {
-      send(getWindow(), 'updates:progress', { percent, transferred, total });
-    });
+    return withUpdateLock(async () => {
+      send(getWindow(), 'updates:status', { status: 'downloading-version', tag });
+      const result = await installReleaseVersion(tag, (percent, transferred, total) => {
+        send(getWindow(), 'updates:progress', { percent, transferred, total });
+      });
 
-    if (result.ok === false) {
-      send(getWindow(), 'updates:status', { status: 'error', message: result.error });
-    }
-    return result;
+      if (result.ok === false) {
+        send(getWindow(), 'updates:status', { status: 'error', message: result.error });
+      }
+      return result;
+    });
   });
 }
 

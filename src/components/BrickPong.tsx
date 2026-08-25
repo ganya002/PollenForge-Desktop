@@ -4,15 +4,17 @@ import {
   FIELD_H,
   FIELD_W,
   PADDLE_H,
-  PADDLE_W,
   PADDLE_Y,
+  POWER_META,
   brickColor,
+  clampPaddle,
   createPong,
   dopamineBrickColor,
   konamiComplete,
   konamiProgress,
   launch,
   nextLevel,
+  paddleWidth,
   stepPong,
   togglePause,
   type PongState,
@@ -102,6 +104,22 @@ function draw(
   }
   ctx.globalAlpha = 1
 
+  for (const drop of state.drops) {
+    const meta = POWER_META[drop.kind]
+    ctx.fillStyle = meta.color
+    if (opts.dopamine) {
+      ctx.shadowColor = meta.color
+      ctx.shadowBlur = 14
+    }
+    roundRect(ctx, drop.x, drop.y, drop.w, drop.h, 4)
+    ctx.fill()
+    ctx.shadowBlur = 0
+    ctx.fillStyle = '#0e0e0e'
+    ctx.font = '700 10px Geist Sans, Inter, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(meta.label, drop.x + drop.w / 2, drop.y + drop.h - 3)
+  }
+
   if (opts.dopamine && !opts.reducedMotion) {
     for (let i = 0; i < opts.trail.length; i++) {
       const p = opts.trail[i]
@@ -123,9 +141,10 @@ function draw(
     ctx.globalAlpha = 1
   }
 
+  const width = paddleWidth(state)
   const paddlePulse = opts.dopamine && !opts.reducedMotion ? 1 + Math.sin(opts.t * 8) * 0.08 : 1
-  const paddleW = PADDLE_W * paddlePulse
-  const paddleX = state.paddleX - (paddleW - PADDLE_W) / 2
+  const paddleW = width * paddlePulse
+  const paddleX = state.paddleX - (paddleW - width) / 2
   ctx.fillStyle = opts.dopamine
     ? hsl(opts.t * 160, 100, 72)
     : getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#ececec'
@@ -137,14 +156,16 @@ function draw(
   ctx.fill()
   ctx.shadowBlur = 0
 
-  if (opts.dopamine) {
-    ctx.shadowColor = hsl(opts.t * 220, 100, 70)
-    ctx.shadowBlur = 16
-    ctx.fillStyle = '#fff'
+  for (const ball of state.balls) {
+    if (opts.dopamine) {
+      ctx.shadowColor = hsl(opts.t * 220, 100, 70)
+      ctx.shadowBlur = 16
+      ctx.fillStyle = '#fff'
+    }
+    ctx.beginPath()
+    ctx.arc(ball.x, ball.y, opts.dopamine ? BALL_R + 1.2 : BALL_R, 0, Math.PI * 2)
+    ctx.fill()
   }
-  ctx.beginPath()
-  ctx.arc(state.ballX, state.ballY, opts.dopamine ? BALL_R + 1.2 : BALL_R, 0, Math.PI * 2)
-  ctx.fill()
   ctx.shadowBlur = 0
 
   if (opts.overlay && !state.paused) {
@@ -160,7 +181,7 @@ function draw(
     ctx.fillText(title, FIELD_W / 2, FIELD_H / 2 - 6)
     ctx.font = '12px Geist Sans, Inter, sans-serif'
     ctx.fillStyle = '#a3a3a3'
-    ctx.fillText(opts.dopamine ? 'Esc pauses · juice is on' : '← → or mouse to move · Esc pauses', FIELD_W / 2, FIELD_H / 2 + 16)
+    ctx.fillText(opts.dopamine ? 'Esc pauses · juice is on' : 'catch falling upgrades · Esc pauses', FIELD_W / 2, FIELD_H / 2 + 16)
   }
 }
 
@@ -189,6 +210,7 @@ export default function BrickPongHost() {
   const [score, setScore] = useState(0)
   const [lives, setLives] = useState(3)
   const [level, setLevel] = useState(1)
+  const [ballCount, setBallCount] = useState(1)
   const [screen, setScreen] = useState<Screen>('menu')
   const [paused, setPaused] = useState(false)
   const [dopamine, setDopamine] = useState(false)
@@ -222,6 +244,7 @@ export default function BrickPongHost() {
     setScore(next.score)
     setLives(next.lives)
     setLevel(next.level)
+    setBallCount(next.balls.length)
     setPaused(false)
   }, [])
 
@@ -339,15 +362,17 @@ export default function BrickPongHost() {
       setScore((n) => (n === s.score ? n : s.score))
       setLives((n) => (n === s.lives ? n : s.lives))
       setLevel((n) => (n === s.level ? n : s.level))
+      setBallCount((n) => (n === s.balls.length ? n : s.balls.length))
 
       if (inGame && dopamineRef.current) {
         if (s.phase === 'playing' && !s.paused) {
           const trail = trailRef.current
-          trail.push({ x: s.ballX, y: s.ballY })
-          if (trail.length > 14) trail.shift()
+          for (const ball of s.balls) trail.push({ x: ball.x, y: ball.y })
+          if (trail.length > 18) trail.splice(0, trail.length - 18)
         }
         if (s.bricks.length < brickCountRef.current) {
-          spawnBurst(particlesRef.current, s.ballX, s.ballY, Math.min(18, s.combo * 3))
+          const hit = s.balls[0]
+          spawnBurst(particlesRef.current, hit?.x ?? FIELD_W / 2, hit?.y ?? FIELD_H / 2, Math.min(18, s.combo * 3))
           shakeRef.current = Math.min(7, shakeRef.current + 3.5)
         }
         brickCountRef.current = s.bricks.length
@@ -414,8 +439,9 @@ export default function BrickPongHost() {
   const onCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (screen !== 'game' || paused) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * FIELD_W - PADDLE_W / 2
-    stateRef.current.paddleX = Math.max(6, Math.min(FIELD_W - PADDLE_W - 6, x))
+    const w = paddleWidth(stateRef.current)
+    const x = ((e.clientX - rect.left) / rect.width) * FIELD_W - w / 2
+    stateRef.current.paddleX = clampPaddle(x, w)
   }
 
   if (!open) return null
@@ -466,7 +492,7 @@ export default function BrickPongHost() {
           </span>
           {screen === 'game' && (
             <span className={`text-[10px] tabular-nums shrink-0 ${juice ? 'nx-dopamine-title' : 'text-text-muted'}`}>
-              {score} · L{level} · {'●'.repeat(Math.max(0, lives))}
+              {score} · L{level}{ballCount > 1 ? ` · ${ballCount}●` : ''} · {'●'.repeat(Math.max(0, lives))}
             </span>
           )}
         </div>
@@ -485,7 +511,7 @@ export default function BrickPongHost() {
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 bg-black/55">
                 <div className="text-center">
                   <div className="nx-dopamine-title text-[22px] font-black tracking-tight">BRICK PONG</div>
-                  <div className="text-[11px] text-text-secondary mt-1">break stuff. get juice. wait in style.</div>
+                  <div className="text-[11px] text-text-secondary mt-1">break bricks. catch upgrades. wait in style.</div>
                 </div>
                 <button
                   type="button"

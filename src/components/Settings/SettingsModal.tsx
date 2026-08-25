@@ -38,6 +38,11 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
   const [pluginSearch, setPluginSearch] = useState('')
   const [pollinationsStatus, setPollinationsStatus] = useState<{ connected?: boolean; error?: string } | null>(null)
   const [aboutClicks, setAboutClicks] = useState(0)
+  const [keepUpdates, setKeepUpdates] = useState(false)
+
+  useEffect(() => {
+    if (activeTab === 'updates') setKeepUpdates(true)
+  }, [activeTab])
 
   useEffect(() => {
     if (!open) return
@@ -535,8 +540,8 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                 </div>
               )}
 
-              {activeTab === 'updates' && (
-                <div className="h-full min-h-0">
+              {(keepUpdates || activeTab === 'updates') && (
+                <div className={`h-full min-h-0 ${activeTab === 'updates' ? '' : 'hidden'}`}>
                   <UpdatesPanel />
                 </div>
               )}
