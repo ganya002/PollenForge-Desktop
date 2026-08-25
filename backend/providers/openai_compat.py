@@ -2,6 +2,7 @@ from .base import Provider
 from collections.abc import AsyncGenerator
 
 from openai_tools import attach_openai_tools, stream_openai_chat
+from vision import normalize_messages
 
 
 class OpenAICompatProvider(Provider):
@@ -16,6 +17,7 @@ class OpenAICompatProvider(Provider):
         if not api_key:
             raise Exception(f"{self.name} API key required")
 
+        messages, _dropped = normalize_messages(messages, self.name, model, flavor="openai")
         url = params.get("base_url") or self.API_URL
         if not str(url).endswith("/chat/completions"):
             url = str(url).rstrip("/") + "/chat/completions"

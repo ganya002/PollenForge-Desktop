@@ -8,6 +8,7 @@ export interface Message {
   role: 'user' | 'assistant' | 'system'
   content: string
   timestamp: number
+  images?: string[]
   reasoning?: string
   toolCalls?: ToolCall[]
   stats?: MessageStats

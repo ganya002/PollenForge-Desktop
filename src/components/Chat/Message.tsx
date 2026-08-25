@@ -65,6 +65,22 @@ export default function Message({ message, onRetry, onEdit }: Props) {
         className={`flex justify-end mb-5 group ${findHit ? 'chat-find-hit' : ''}`}
       >
         <div className="max-w-[78%]">
+          {message.images && message.images.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 justify-end mb-1.5">
+              {message.images.map((src, i) => (
+                <motion.img
+                  key={i}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={snappySpring}
+                  src={src}
+                  alt={`attachment ${i + 1}`}
+                  className="max-h-40 max-w-[240px] rounded-xl border border-border object-cover cursor-zoom-in hover:border-border-hover transition-snappy"
+                  onClick={() => window.open(src, '_blank')}
+                />
+              ))}
+            </div>
+          )}
           <motion.div
             whileHover={{ scale: 1.005 }}
             transition={{ duration: 0.12, ease: easeSnappy }}

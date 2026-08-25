@@ -2,6 +2,7 @@ from .base import Provider
 import httpx
 from collections.abc import AsyncGenerator
 
+from vision import normalize_messages
 from openai_tools import attach_openai_tools, stream_openai_chat
 
 
@@ -21,6 +22,7 @@ class OpenAIProvider(Provider):
         if not api_key:
             raise Exception("OpenAI API key required")
 
+        messages, _dropped = normalize_messages(messages, self.name, model, flavor="openai")
         payload = attach_openai_tools({
             "model": model,
             "messages": messages,

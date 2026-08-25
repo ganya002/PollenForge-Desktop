@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 
 from openai_tools import attach_openai_tools, stream_openai_chat
 from openrouter_models import map_openrouter_models
+from vision import normalize_messages
 
 
 class OpenRouterProvider(Provider):
@@ -33,6 +34,7 @@ class OpenRouterProvider(Provider):
             raise Exception("OpenRouter API key required (get at https://openrouter.ai/keys)")
 
         # OpenRouter is OpenAI-compatible
+        messages, _dropped = normalize_messages(messages, self.name, model, flavor="openai")
         payload = attach_openai_tools({
             "model": model,
             "messages": messages,

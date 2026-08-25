@@ -1,4 +1,5 @@
 from .base import Provider
+from vision import model_supports_vision, google_parts
 import json
 import httpx
 from collections.abc import AsyncGenerator
@@ -17,10 +18,19 @@ class GoogleProvider(Provider):
         if not api_key:
             raise Exception("Google API key required")
 
+        vision = model_supports_vision(self.name, model)
         contents = []
         for m in messages:
             role = "user" if m["role"] == "user" else "model"
-            contents.append({"role": role, "parts": [{"text": m["content"]}]})
+            imgs = m.get("images") or []
+            if imgs and vision and m["role"] == "user":
+                contents.append({"role": role, "parts": google_parts(m.get("content", ""), imgs)})
+            else:
+                if imgs and m["role"] == "user":
+                    note = f"\n\n[{len(imgs)} image(s) attached — {model} is text-only, images not shown.]"
+                    contents.append({"role": role, "parts": [{"text": m["content"] + note}]})
+                else:
+                    contents.append({"role": role, "parts": [{"text": m["content"]}]})
 
         url = f"{self.API_BASE}/models/{model}:streamGenerateContent?key={api_key}"
         payload = {

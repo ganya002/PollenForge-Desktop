@@ -1,4 +1,5 @@
 from .base import Provider
+from vision import normalize_messages
 import json
 import httpx
 from collections.abc import AsyncGenerator
@@ -16,6 +17,7 @@ class OllamaProvider(Provider):
 
     async def chat_stream(self, messages: list[dict], model: str, params: dict) -> AsyncGenerator[str, None]:
         base_url = await self._get_base_url(params)
+        messages, _dropped = normalize_messages(messages, self.name, model, flavor="ollama")
         payload = {
             "model": model,
             "messages": messages,

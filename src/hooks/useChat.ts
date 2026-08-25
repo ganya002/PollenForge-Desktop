@@ -325,7 +325,7 @@ export function useChat() {
     useStore.getState().setWsSend(ws.send)
   }, [ws.send])
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, images?: string[]) => {
     if (!content.trim()) return
     const state = useStore.getState()
     if (state.isStreaming) {
@@ -346,7 +346,7 @@ export function useChat() {
       void nameSessionFromPrompt(sessionId, content)
     }
 
-    const userMsg: Message = { id: genId(), role: 'user', content, timestamp: Date.now() }
+    const userMsg: Message = { id: genId(), role: 'user', content, timestamp: Date.now(), ...(images?.length ? { images } : {}) }
     state.addMessage(userMsg)
 
     const assistantMsg: Message = { id: genId(), role: 'assistant', content: '', timestamp: Date.now(), toolCalls: [] }
@@ -370,7 +370,9 @@ export function useChat() {
         let text = isLastUser ? applyActivePlugins(m.content, state.config) : m.content
         if (isLastUser && hasWebMention(m.content)) text = `${WEB_PROMPT}\n\n${text}`
         if (isLastUser && state.config.agent_mode === 'ask') text = `${ASK_PROMPT}\n\n${text}`
-        return { role: m.role, content: text }
+        const out: { role: string; content: string; images?: string[] } = { role: m.role, content: text }
+        if (m.role === 'user' && m.images?.length) out.images = m.images
+        return out
       })
 
     const sent = ws.send({

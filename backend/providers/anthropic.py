@@ -1,4 +1,10 @@
 from .base import Provider
+from vision import model_supports_vision, normalize_messages
+
+
+def _vision_anthropic(m: dict) -> list[dict]:
+    out, _ = normalize_messages([m], "anthropic", "claude", flavor="anthropic")
+    return out[0]["content"]
 import json
 import httpx
 from collections.abc import AsyncGenerator
@@ -20,9 +26,12 @@ class AnthropicProvider(Provider):
 
         system_msg = ""
         chat_messages = []
+        vision = model_supports_vision(self.name, model)
         for m in messages:
             if m["role"] == "system":
                 system_msg = m["content"]
+            elif isinstance(m.get("images"), list) and m["images"]:
+                chat_messages.append({"role": m["role"], "content": _vision_anthropic(m)})
             else:
                 chat_messages.append({"role": m["role"], "content": m["content"]})
 

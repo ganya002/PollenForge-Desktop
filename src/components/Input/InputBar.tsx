@@ -15,14 +15,16 @@ import { ensurePlanFile, setChatDirectory } from '../../lib/workspace'
 import { openBrickPong } from '../../lib/brickPong'
 
 interface Props {
-  onSend: (content: string) => void
+  onSend: (content: string, images?: string[]) => void
   onStop?: () => void
   onCompact?: () => void
   isStreaming: boolean
 }
 
-const MAX_ATTACH_SIZE = 2_000_000 // 2MB
-const HISTORY_KEY = 'nx-prompt-history'
+  const MAX_ATTACH_SIZE = 2_000_000 // 2MB
+  const MAX_IMAGE_SIZE = 6_000_000 // 6MB per image (base64 data URL)
+  const MAX_IMAGES = 4
+  const HISTORY_KEY = 'nx-prompt-history'
 
 function readPromptHistory(): string[] {
   try {
@@ -50,7 +52,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
   const [showFileMention, setShowFileMention] = useState(false)
   const [fileMentionQuery, setFileMentionQuery] = useState('')
   const [cursorPos, setCursorPos] = useState(0)
-  const [attachedFiles, setAttachedFiles] = useState<{ name: string; content: string }[]>([])
+  const [attachedFiles, setAttachedFiles] = useState<{ name: string; content: string; dataUrl?: string }[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [pluginNotice, setPluginNotice] = useState('')
   const autoApprove = useStore((s) => s.config.auto_approve)
@@ -166,6 +168,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
 
   const handleSend = () => {
     if (!canSend) return
+    const imageUrls = attachedFiles.map(f => f.dataUrl).filter((u): u is string => !!u)
     let message = value
     if (message.trim().startsWith('/')) {
       if (/^\/pong\b/i.test(message.trim())) {
@@ -192,14 +195,14 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
       const fileContext = attachedFiles.map(f => `[File: ${f.name}]\n${f.content.slice(0, 15000)}`).join('\n\n')
       message = message ? `${message}\n\n${fileContext}` : fileContext
     }
-    if (!message.trim()) return
+    if (!message.trim() && imageUrls.length === 0) return
     try {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(pushPromptHistory(readPromptHistory(), message)))
     } catch {
       /* ignore */
     }
     historyIndex.current = -1
-    onSend(message)
+    onSend(message, imageUrls.length ? imageUrls : undefined)
     setValue('')
     setAttachedFiles([])
     setShowCommands(false)
@@ -246,6 +249,27 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
   }
 
   const processFile = (file: File) => {
+    if (file.type.startsWith('image/')) {
+      // Vision: keep the image as a data URL for multimodal models
+      if (file.size > MAX_IMAGE_SIZE) {
+        useStore.getState().pushToast({ kind: 'error', text: `${file.name} is too large (max 6MB per image).` })
+        return
+      }
+      setAttachedFiles(prev => {
+        if (prev.filter(f => f.dataUrl).length >= MAX_IMAGES) {
+          useStore.getState().pushToast({ kind: 'error', text: `Max ${MAX_IMAGES} images per message.` })
+          return prev
+        }
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+          const dataUrl = ev.target?.result as string
+          setAttachedFiles(cur => cur.map(f => f.name === file.name && !f.dataUrl ? { ...f, dataUrl } : f))
+        }
+        reader.readAsDataURL(file)
+        return [...prev, { name: file.name || 'image.png', content: '', dataUrl: '' }]
+      })
+      return
+    }
     if (file.size > MAX_ATTACH_SIZE) {
       // For large files, just send name + truncated preview
       const reader = new FileReader()
@@ -258,9 +282,9 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
     }
     // Check if text file
     const isText = file.type.startsWith('text/') || /\.(txt|js|ts|tsx|jsx|py|json|md|css|html|yaml|yml|toml|xml|sh|zsh|bash|sql|cfg|ini|env|log|csv|rs|go|java|c|cpp|h)$/.test(file.name)
-    if (!isText && file.type.startsWith('image/')) {
-      // For images, note that model may not support vision - include as placeholder
-      setAttachedFiles(prev => [...prev, { name: file.name, content: `[Image: ${file.name} - ${file.type} ${file.size} bytes. Note: vision not yet supported, please describe the image.]` }])
+    if (!isText) {
+      // Unknown binary type — send name + size so the model can decide next steps
+      setAttachedFiles(prev => [...prev, { name: file.name, content: `[Binary file: ${file.name} — ${file.type || 'unknown type'}, ${file.size} bytes]` }])
       return
     }
     const reader = new FileReader()
@@ -287,7 +311,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
         const file = item.getAsFile()
         if (file) {
           e.preventDefault()
-          setAttachedFiles(prev => [...prev, { name: file.name || 'pasted-image.png', content: `[Pasted image: ${file.name || 'image'} - vision not yet supported]` }])
+          processFile(new File([file], file.name || 'pasted-image.png', { type: file.type }))
         }
         break
       }
@@ -512,7 +536,15 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
                   layout
                   className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-2 border border-border rounded-lg text-xs text-text-secondary max-w-[240px] hover:border-border-hover hover:shadow-sm transition-snappy"
                 >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-accent shrink-0"><path d="M7 1H3a1 1 0 00-1 1v8a1 1 0 001 1h6a1 1 0 001-1V4L7 1z" stroke="currentColor" strokeWidth="1" /></svg>
+                  {file.dataUrl !== undefined ? (
+                    file.dataUrl ? (
+                      <img src={file.dataUrl} alt={file.name} className="w-8 h-8 rounded object-cover border border-border shrink-0" />
+                    ) : (
+                      <span className="w-8 h-8 rounded bg-surface-3 border border-border shrink-0 flex items-center justify-center text-[9px] text-text-muted">…</span>
+                    )
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-accent shrink-0"><path d="M7 1H3a1 1 0 00-1 1v8a1 1 0 001 1h6a1 1 0 001-1V4L7 1z" stroke="currentColor" strokeWidth="1" /></svg>
+                  )}
                   <span className="truncate flex-1">{file.name}</span>
                   <motion.button
                     whileHover={{ scale: 1.1 }}
@@ -549,7 +581,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
           />
 
           <div className="flex flex-nowrap items-center justify-end gap-0.5 pr-2 pl-1 h-12 shrink-0">
-            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.c,.cpp,.h,.css,.html,.json,.yaml,.yml,.md,.sh,.zsh,.bash,.sql,.xml,.toml,.cfg,.ini,.env,.log,.csv" />
+            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.c,.cpp,.h,.css,.html,.json,.yaml,.yml,.md,.sh,.zsh,.bash,.sql,.xml,.toml,.cfg,.ini,.env,.log,.csv,image/*" />
             <motion.button
               whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.92 }}

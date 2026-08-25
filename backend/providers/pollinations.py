@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 
 from openai_tools import attach_openai_tools, stream_openai_chat
 from pollinations_models import map_pollinations_models
+from vision import normalize_messages
 
 ACCOUNT_KEY_URL = "https://gen.pollinations.ai/account/key"
 ACCOUNT_BALANCE_URL = "https://gen.pollinations.ai/account/balance"
@@ -49,6 +50,7 @@ class PollinationsProvider(Provider):
             raise Exception(
                 "Pollinations API key required. Add a secret key (sk_…) in Settings → Providers, then Save."
             )
+        messages, _dropped = normalize_messages(messages, self.name, model, flavor="openai")
         payload = attach_openai_tools({
             "model": model,
             "messages": messages,

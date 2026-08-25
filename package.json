@@ -1,6 +1,6 @@
 {
   "name": "nexum-beta",
-  "version": "1.3.0-beta.2",
+  "version": "1.3.0-beta.3",
   "description": "Nexum Beta — Desktop AI coding assistant with multi-provider support",
   "main": "dist-electron/electron/main.js",
   "author": "Nexum",
