@@ -60,6 +60,21 @@ class AuthGateTests(unittest.TestCase):
         res = self.client.get(f"/health?token={AUTH_TOKEN}")
         self.assertEqual(res.status_code, 401)
 
+    def test_websocket_ping_with_token(self):
+        if INSECURE_NO_AUTH or not AUTH_TOKEN:
+            self.skipTest("auth disabled")
+        with self.client.websocket_connect(f"/ws?token={AUTH_TOKEN}") as ws:
+            ws.send_json({"type": "ping"})
+            self.assertEqual(ws.receive_json(), {"type": "pong"})
+
+    def test_websocket_without_token_closes(self):
+        if INSECURE_NO_AUTH:
+            self.skipTest("NEXUM_INSECURE_NO_AUTH is set")
+        with self.client.websocket_connect("/ws") as ws:
+            with self.assertRaises(Exception):
+                ws.send_json({"type": "ping"})
+                ws.receive_json()
+
 
 class SharedTokenFileTests(unittest.TestCase):
     def test_env_token_wins_over_file(self):

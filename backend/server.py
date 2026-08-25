@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -55,23 +55,7 @@ def _bearer_or_header(header_token: str, authorization: str, query_token: str = 
     return raw or (query_token or "").strip()
 
 
-async def require_auth(request: Request):
-    if INSECURE_NO_AUTH:
-        return
-    # /media/* serves generated images that chat markdown embeds via <img>,
-    # and <img> requests cannot carry headers. Names are strictly
-    # traversal-validated in resolve_generated_image(), so this stays local-only.
-    if request.url.path.startswith("/media/"):
-        return
-    supplied = _bearer_or_header(
-        request.headers.get("x-nexum-token") or "",
-        request.headers.get("authorization") or "",
-    )
-    if not token_ok(supplied):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-
-app = FastAPI(title="Nexum Backend", version="1.0.0", dependencies=[Depends(require_auth)])
+app = FastAPI(title="Nexum Backend", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -82,6 +66,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def require_auth_http(request: Request, call_next):
+    """HTTP-only gate. App-level Depends(Request) also ran on /ws and 500'd the socket."""
+    if INSECURE_NO_AUTH or request.method == "OPTIONS" or request.url.path.startswith("/media/"):
+        return await call_next(request)
+    supplied = _bearer_or_header(
+        request.headers.get("x-nexum-token") or "",
+        request.headers.get("authorization") or "",
+    )
+    if not token_ok(supplied):
+        return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    return await call_next(request)
+
 
 # Tools that mutate the system -> require user approval in Agent mode (T2).
 # Previously start_background_task/delete_file/git_* could run with NO prompt.
