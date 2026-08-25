@@ -1,6 +1,6 @@
 {
   "name": "nexum",
-  "version": "1.2.13",
+  "version": "1.2.14",
   "description": "Desktop AI coding assistant with multi-provider support",
   "main": "dist-electron/electron/main.js",
   "author": "Nexum",
