@@ -119,4 +119,14 @@ def load_config() -> dict:
 def save_config(cfg: dict):
     dest = config_dir() / "config.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(json.dumps(cfg, indent=2))
+    tmp = dest.with_name(f".{dest.name}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps(cfg, indent=2))
+    try:
+        tmp.chmod(0o600)
+    except Exception:
+        pass
+    tmp.replace(dest)
+    try:
+        dest.chmod(0o600)
+    except Exception:
+        pass

@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Ref, UIEventHandler, WheelEventHandler, useEffect } from 'react'
 import { Message as MessageType, useStore } from '../../store/store'
-import { easeOut, fadeUp } from '../../lib/motion'
+import { easeSnappy, fadeUpSnappy, staggerContainer, staggerItem, snappySpring } from '../../lib/motion'
 import { messageMatchesFind } from '../../lib/qol'
 import Message from './Message'
 
@@ -26,29 +26,39 @@ function WelcomeScreen() {
     <div className="flex-1 flex items-center justify-center px-4 py-8 min-h-0 overflow-y-auto">
       <motion.div
         className="welcome-col text-center my-auto w-full min-w-0 px-1"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: easeOut }}
+        initial={{ opacity: 0, y: 8, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={snappySpring}
       >
-        <div className="w-11 h-11 mx-auto mb-4 rounded-xl bg-surface-2 border border-border flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.92, y: 6 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ ...snappySpring, delay: 0.02 }}
+          className="w-11 h-11 mx-auto mb-4 rounded-xl bg-surface-2 border border-border flex items-center justify-center"
+        >
           <svg width="22" height="22" viewBox="0 0 32 32" fill="none" className="text-text-secondary">
             <path d="M16 4L4 10v12l12 6 12-6V10L16 4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
             <path d="M4 10l12 6m0 0l12-6m-12 6v12" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
           </svg>
-        </div>
-        <h1 className="text-[26px] font-semibold tracking-tight text-text-primary mb-1.5">Nexum</h1>
+        </motion.div>
+        <h1 className="text-[26px] font-semibold tracking-tight text-text-primary mb-1.5">Nexum Beta</h1>
         <p className="text-text-muted text-[13px] leading-relaxed mb-6 max-w-sm mx-auto">
           Local coding assistant. Read, write, and run things on this machine.
         </p>
 
-        <div className="grid grid-cols-1 min-[20rem]:grid-cols-2 gap-2 text-left w-full">
-          {suggestions.map((s, i) => (
+        <motion.div
+          className="grid grid-cols-1 min-[20rem]:grid-cols-2 gap-2 text-left w-full"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
+        >
+          {suggestions.map((s) => (
             <motion.button
               key={s.text}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.28, delay: 0.08 + i * 0.05, ease: easeOut }}
-              className="h-10 min-w-0 px-3 bg-surface-1 hover:bg-surface-2 rounded-lg text-[13px] leading-4 text-text-secondary hover:text-text-primary transition-smooth border border-border hover:border-border-hover flex items-center gap-2 overflow-hidden"
+              variants={staggerItem}
+              whileHover={{ y: -1, scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              className="h-10 min-w-0 px-3 bg-surface-1 hover:bg-surface-2 rounded-lg text-[13px] leading-4 text-text-secondary hover:text-text-primary border border-border hover:border-border-hover flex items-center gap-2 overflow-hidden transition-snappy hover:shadow-md"
               onClick={() => {
                 document.dispatchEvent(new CustomEvent('send-message', { detail: s.text }))
               }}
@@ -64,7 +74,7 @@ function WelcomeScreen() {
               <span className="truncate min-w-0">{s.text}</span>
             </motion.button>
           ))}
-        </div>
+        </motion.div>
       </motion.div>
     </div>
   )
@@ -95,13 +105,15 @@ export default function ChatArea({ messages, scrollRef, onRetry, onEdit, onScrol
         <WelcomeScreen />
       ) : (
         <div className="composer-col px-5 py-8">
-          <AnimatePresence initial={false}>
+          <AnimatePresence initial={false} mode="popLayout">
             {messages.map((msg) => (
               <motion.div
                 key={msg.id}
-                initial={fadeUp.initial}
-                animate={fadeUp.animate}
-                transition={fadeUp.transition}
+                layout
+                initial={fadeUpSnappy.initial}
+                animate={fadeUpSnappy.animate}
+                exit={fadeUpSnappy.exit}
+                transition={snappySpring}
               >
                 <Message
                   message={msg}

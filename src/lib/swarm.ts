@@ -21,10 +21,12 @@ export function parseSwarmTasks(tasks: unknown, goal = ''): SwarmTask[] {
       }
     }
   }
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) raw = [raw]
-  if (!Array.isArray(raw)) raw = []
+  // @ts-ignore - raw is unknown, handle safely
+  if ((raw as any) && typeof raw === 'object' && !Array.isArray(raw as any)) raw = [raw as any]
+  // @ts-ignore
+  if (!Array.isArray(raw as any)) raw = []
   const out: SwarmTask[] = []
-  for (const item of raw) {
+  for (const item of raw as any[]) {
     if (typeof item === 'string' && item.trim()) {
       out.push({ role: 'worker', task: item.trim().slice(0, 2000) })
     } else if (item && typeof item === 'object') {

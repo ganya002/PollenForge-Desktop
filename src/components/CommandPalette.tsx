@@ -133,9 +133,9 @@ export default function CommandPalette({ open, onClose, onNewChat, onCompact, on
       }
       case 'toggle-mode': {
         const cfg = useStore.getState().config
-        const updated = { ...cfg, agent_mode: cfg.agent_mode === 'ask' ? 'agent' : 'ask' as const }
+        const updated = { ...cfg, agent_mode: (cfg.agent_mode === 'ask' ? 'agent' : 'ask') as typeof cfg.agent_mode }
         useStore.getState().setConfig(updated)
-        persistConfig(updated)
+        persistConfig(updated as any)
         break
       }
       case 'theme-dark':
@@ -144,8 +144,8 @@ export default function CommandPalette({ open, onClose, onNewChat, onCompact, on
         const theme = id.replace('theme-', '') as ThemeId
         const cfg = useStore.getState().config
         const next = { ...cfg, theme }
-        useStore.getState().setConfig(next)
-        persistConfig(next)
+        useStore.getState().setConfig(next as any)
+        persistConfig(next as any)
         applyTheme(theme)
         break
       }

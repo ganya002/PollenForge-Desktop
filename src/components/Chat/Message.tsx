@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import { Message as MessageType, ToolCall } from '../../store/store'
 import ToolResult from './ToolResult'
 import MessageActions from './MessageActions'
@@ -10,6 +11,7 @@ import { extractBrowserTargets } from '../../lib/browserTargets'
 import { messageMatchesFind } from '../../lib/qol'
 import { lineDeltaFromTool } from '../../lib/agentActivity'
 import { useStore } from '../../store/store'
+import { snappySpring, easeSnappy } from '../../lib/motion'
 
 interface Props { message: MessageType; onRetry?: () => void; onEdit?: (c: string) => void }
 
@@ -55,72 +57,118 @@ export default function Message({ message, onRetry, onEdit }: Props) {
 
   if (isUser) {
     return (
-      <div id={`msg-${message.id}`} className={`flex justify-end mb-5 group ${findHit ? 'chat-find-hit' : ''}`}>
+      <motion.div
+        id={`msg-${message.id}`}
+        initial={{ opacity: 0, y: 6, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={snappySpring}
+        className={`flex justify-end mb-5 group ${findHit ? 'chat-find-hit' : ''}`}
+      >
         <div className="max-w-[78%]">
-          <div className="bg-surface-2/80 text-text-primary rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed whitespace-pre-wrap break-words">
+          <motion.div
+            whileHover={{ scale: 1.005 }}
+            transition={{ duration: 0.12, ease: easeSnappy }}
+            className="bg-surface-2/80 text-text-primary rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed whitespace-pre-wrap break-words shadow-sm hover:shadow-md transition-snappy"
+          >
             {message.content}
-          </div>
+          </motion.div>
           <div className="flex items-center gap-2 mt-1.5 justify-end">
             <span className="text-[10px] text-text-muted tabular-nums">{formatTime(message.timestamp)}</span>
             <MessageActions content={message.content} isUser={isUser} onRetry={onRetry} onEdit={onEdit} />
           </div>
         </div>
-      </div>
+      </motion.div>
     )
   }
 
   return (
-    <div id={`msg-${message.id}`} className={`mb-6 group ${findHit ? 'chat-find-hit' : ''}`}>
+    <motion.div
+      id={`msg-${message.id}`}
+      layout
+      className={`mb-6 group ${findHit ? 'chat-find-hit' : ''}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.14, ease: easeSnappy }}
+    >
       <ThinkingBlock reasoning={reasoning} active={isLive} toolCalls={message.toolCalls} />
 
       {hasTools && (
-        <div className="space-y-0.5 mb-3">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.16, ease: easeSnappy }}
+          className="space-y-0.5 mb-3"
+        >
           <FileChangeSummary toolCalls={message.toolCalls!} />
-          {message.toolCalls!.map(tc => (
-            <ToolResult key={tc.id} toolCall={tc} />
+          {message.toolCalls!.map((tc, i) => (
+            <motion.div
+              key={tc.id}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.02, ...snappySpring }}
+            >
+              <ToolResult toolCall={tc} />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {hasContent && (
         <div className={`relative ${message.isError ? 'bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3' : ''}`}>
           <div className={`${message.isError ? '' : 'px-1'} markdown-body text-[14px] leading-relaxed min-w-0`}>
             <MarkdownRenderer content={displayContent} />
-            {isStreaming && <span className="inline-block w-2 h-4 bg-accent/70 animate-pulse ml-0.5 -mb-1 rounded-sm" />}
+            {isStreaming && <span className="inline-block w-1.5 h-4 bg-accent animate-stream-caret ml-0.5 -mb-1 rounded-sm" />}
             {browserLinks.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.08, ...snappySpring }}
+                className="flex flex-wrap gap-1.5 mt-2"
+              >
                 {browserLinks.map((hit) => (
-                  <button
+                  <motion.button
                     key={hit.url}
                     onClick={() => useStore.getState().openInBrowser(hit.url)}
-                    className="h-7 px-2.5 rounded-md border border-border bg-surface-2 text-[12px] text-text-secondary hover:text-text-primary"
+                    whileHover={{ y: -1, scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="h-7 px-2.5 rounded-md border border-border bg-surface-2 text-[12px] text-text-secondary hover:text-text-primary hover:border-border-hover transition-snappy"
                   >
                     {hit.label.startsWith('Open ') ? hit.label : `Open ${hit.label}`}
-                  </button>
+                  </motion.button>
                 ))}
-              </div>
+              </motion.div>
             )}
           </div>
           {message.stats && (
-            <div className="mt-3 flex items-center gap-2.5 text-[10px] text-text-muted flex-wrap border-t border-border/40 pt-2.5">
-              <span className="tabular-nums">{message.stats.tokens.toLocaleString()} tokens</span>
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.18, ease: easeSnappy }}
+              className="mt-3 flex items-center gap-2.5 text-[10px] text-text-muted flex-wrap border-t border-border/40 pt-2.5"
+            >
+              <span className="tabular-nums inline-flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-success animate-pulse-dot" />{message.stats.tokens.toLocaleString()} tokens</span>
               <span>·</span>
               <span className="tabular-nums">{(message.stats.duration_ms / 1000).toFixed(1)}s</span>
               <span>·</span>
               <span className="font-mono">{message.stats.model}</span>
-              {message.stats.tools_used > 0 && <><span>·</span><span>{message.stats.tools_used} tool{message.stats.tools_used>1?'s':''}</span></>}
+              {message.stats.tools_used > 0 && <><span>·</span><span className="inline-flex items-center gap-1">{message.stats.tools_used} tool{message.stats.tools_used>1?'s':''} {message.stats.tools_used>2 && <span className="text-success">✓</span>}</span></>}
               {message.stats.iterations && message.stats.iterations > 1 && <><span>·</span><span>{message.stats.iterations} turns</span></>}
-            </div>
+            </motion.div>
           )}
         </div>
       )}
 
       {(hasContent || hasTools || reasoning.trim()) && !isLive && (
-        <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+        >
           <span className="text-[10px] text-text-muted tabular-nums">{formatTime(message.timestamp)}</span>
           <MessageActions content={displayContent} isUser={false} onRetry={onRetry} onEdit={onEdit} />
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   )
 }

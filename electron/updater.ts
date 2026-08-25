@@ -52,7 +52,6 @@ export function setupUpdater(getWindow: () => BrowserWindow | null): void {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowDowngrade = false;
-  (autoUpdater as { verifyUpdateCodeSignature?: boolean }).verifyUpdateCodeSignature = false;
   autoUpdater.setFeedURL({
     provider: 'github',
     owner: GITHUB_OWNER,

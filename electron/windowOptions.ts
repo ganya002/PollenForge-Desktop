@@ -6,11 +6,16 @@ const BACKGROUND = '#111111';
 
 /** Chromium switches that must be applied before app.ready(). */
 export function windowsChromiumSwitches(): Array<[string, string?]> {
-  return [
+  // T7: GPU sandbox is security-critical — only keep minimal switches.
+  // If Windows hardware acceleration breaks, gate behind opt-in env instead of always disabling.
+  const switches: Array<[string, string?]> = [
     ['disable-features', 'CalculateNativeWinOcclusion'],
-    ['disable-gpu-sandbox'],
-    ['in-process-gpu'],
   ];
+  if (process.env.NEXUM_DISABLE_GPU_SANDBOX === '1') {
+    switches.push(['disable-gpu-sandbox']);
+    switches.push(['in-process-gpu']);
+  }
+  return switches;
 }
 
 export function resolveRenderer(
@@ -63,10 +68,10 @@ export function browserWindowOptions(
     show: platform === 'win32',
     autoHideMenuBar: true,
     webPreferences: {
-      webviewTag: true,
+      webviewTag: false,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       backgroundThrottling: false,
     },
   };

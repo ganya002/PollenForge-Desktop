@@ -256,7 +256,7 @@ export function useChat() {
       if (!cancelled && (document.hidden || !document.hasFocus())) {
         const preview = sanitizeAssistantContent(last?.content || '').replace(/\s+/g, ' ').trim().slice(0, 140)
         void window.api?.app?.notifyDone?.({
-          title: 'Nexum',
+          title: 'Nexum Beta',
           body: preview || 'Agent finished',
         })
       }

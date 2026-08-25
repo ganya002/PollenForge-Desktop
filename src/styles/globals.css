@@ -21,7 +21,11 @@
   --warning: #d4a05a;
   --danger: #c45c54;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --duration: 180ms;
+  --ease-snappy: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --duration: 140ms;
+  --duration-fast: 110ms;
+  --duration-slow: 220ms;
 }
 
 [data-theme="light"] {
@@ -107,7 +111,7 @@ html, body, #root {
   outline-offset: 2px;
 }
 
-/* Smooth transitions */
+/* Smooth transitions — snappy by default, slow when needed */
 .chat-find-hit {
   outline: 1px solid var(--accent);
   outline-offset: 3px;
@@ -116,29 +120,57 @@ html, body, #root {
 
 .transition-smooth {
   transition:
-    color var(--duration) var(--ease-out),
-    background-color var(--duration) var(--ease-out),
-    border-color var(--duration) var(--ease-out),
-    box-shadow var(--duration) var(--ease-out),
-    opacity var(--duration) var(--ease-out),
-    transform var(--duration) var(--ease-out);
+    color var(--duration) var(--ease-snappy),
+    background-color var(--duration) var(--ease-snappy),
+    border-color var(--duration) var(--ease-snappy),
+    box-shadow var(--duration) var(--ease-snappy),
+    opacity var(--duration) var(--ease-snappy),
+    transform var(--duration) var(--ease-snappy);
+}
+
+.transition-snappy {
+  transition:
+    color var(--duration-fast) var(--ease-snappy),
+    background-color var(--duration-fast) var(--ease-snappy),
+    border-color var(--duration-fast) var(--ease-snappy),
+    opacity var(--duration-fast) var(--ease-snappy),
+    transform var(--duration-fast) var(--ease-snappy);
+}
+
+.transition-layout {
+  transition:
+    color var(--duration-slow) var(--ease-smooth),
+    background-color var(--duration-slow) var(--ease-smooth),
+    width var(--duration-slow) var(--ease-smooth),
+    height var(--duration-slow) var(--ease-smooth),
+    opacity var(--duration-slow) var(--ease-smooth);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   button:not(:disabled):active {
-    transform: scale(0.98);
+    transform: scale(0.985);
+    transition-duration: 80ms;
+  }
+  button:not(:disabled):hover {
+    transition-duration: var(--duration-fast);
   }
 }
 
 .composer-shell {
   transition:
-    border-color var(--duration) var(--ease-out),
-    box-shadow 220ms var(--ease-out),
-    background-color var(--duration) var(--ease-out);
+    border-color var(--duration) var(--ease-snappy),
+    box-shadow var(--duration) var(--ease-snappy),
+    background-color var(--duration) var(--ease-snappy),
+    transform var(--duration) var(--ease-snappy);
+  will-change: border-color, box-shadow, transform;
 }
 .composer-shell:focus-within {
   border-color: var(--border-hover);
-  box-shadow: 0 0 0 1px var(--border-hover);
+  box-shadow: 0 0 0 1px var(--border-hover), 0 4px 20px rgba(0,0,0,0.35);
+  transform: translateY(-1px);
+}
+.composer-shell:hover {
+  border-color: var(--border-hover);
 }
 
 /* Drag region for Electron */
@@ -176,15 +208,15 @@ code {
   font-family: 'JetBrains Mono', 'Geist Mono', 'SF Mono', Menlo, monospace;
 }
 
-/* Animation */
+/* Animation — snappy & insightful */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 1; }
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
 }
 
 @keyframes sheen {
@@ -193,12 +225,45 @@ code {
   100% { transform: translateY(100%); opacity: 0; }
 }
 
+@keyframes stream-caret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.15; }
+}
+
+@keyframes tool-progress {
+  0% { transform: scaleX(0); opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0.9; }
+}
+
+@keyframes insight-slide {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 .animate-fade-in {
-  animation: fadeIn 220ms var(--ease-out) both;
+  animation: fadeIn 160ms var(--ease-snappy) both;
+}
+
+.animate-fade-in-slow {
+  animation: fadeIn 220ms var(--ease-smooth) both;
 }
 
 .animate-pulse-dot {
-  animation: pulse-dot 1.6s ease-in-out infinite;
+  animation: pulse-dot 1.4s var(--ease-out) infinite;
+}
+
+.animate-stream-caret {
+  animation: stream-caret 0.9s steps(1) infinite;
+}
+
+.animate-insight {
+  animation: insight-slide 180ms var(--ease-snappy) both;
 }
 
 .running-sheen {
@@ -210,16 +275,35 @@ code {
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.08), transparent);
-  animation: sheen 1.8s var(--ease-out) infinite;
+  animation: sheen 1.6s var(--ease-out) infinite;
+}
+
+.tool-running-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--warning), var(--success));
+  transform-origin: left;
+  animation: tool-progress 1.2s var(--ease-snappy) infinite;
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, var(--text-muted) 0%, var(--text-primary) 50%, var(--text-muted) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shimmer 1.4s linear infinite;
 }
 
 @keyframes thinking-pulse {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
+  0%, 100% { opacity: 0.5; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-0.5px); }
 }
 
 .thinking-shimmer {
-  animation: thinking-pulse 1.4s ease-in-out infinite;
+  animation: thinking-pulse 1.2s ease-in-out infinite;
 }
 
 .thinking-body.markdown-body,

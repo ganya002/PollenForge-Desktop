@@ -349,10 +349,14 @@ async def fetch_url(url: str = "") -> dict:
     if "html" in ctype or "<html" in text[:400].lower():
         text = _html_to_text(text)
     truncated = len(text) > FETCH_MAX_CHARS
+    clipped = text[:FETCH_MAX_CHARS]
+    # T10: wrap in untrusted delimiter so model knows this is DATA not instructions
+    wrapped = f'<untrusted_source url="{str(response.url)}">\n{clipped}\n</untrusted_source>'
     return {
         "url": str(response.url),
         "status": response.status_code,
-        "content": text[:FETCH_MAX_CHARS],
+        "content": wrapped,
+        "raw_content": clipped,
         "truncated": truncated,
         "chars": len(text),
     }

@@ -1,6 +1,8 @@
+import { motion, AnimatePresence } from 'framer-motion'
 import { apiFetch } from '../../lib/api'
 import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react'
 import { useStore } from '../../store/store'
+import { snappySpring, easeSnappy, staggerContainer, staggerItem } from '../../lib/motion'
 import CommandMenu from './CommandMenu'
 import FileMentionMenu from './FileMentionMenu'
 import { persistConfig } from '../../lib/appConfig'
@@ -397,82 +399,143 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
   return (
     <div className="bg-surface-0 px-4 pt-3 pb-3 shrink-0 min-w-0 overflow-visible">
       <div className="composer-col relative z-20">
-        {showCommands && (
-          <CommandMenu
-            filter={value.slice(1)}
-            pluginCommands={slashPluginCommands()}
-            onSelect={handleCommandSelect}
-            onClose={() => setShowCommands(false)}
-          />
-        )}
-        {showFileMention && (
-          <FileMentionMenu query={fileMentionQuery} onSelect={handleFileSelect} onClose={() => setShowFileMention(false)} />
-        )}
+        <AnimatePresence>
+          {showCommands && (
+            <motion.div initial={{ opacity: 0, y: 4, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4 }} transition={snappySpring}>
+              <CommandMenu
+                filter={value.slice(1)}
+                pluginCommands={slashPluginCommands()}
+                onSelect={handleCommandSelect}
+                onClose={() => setShowCommands(false)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {showFileMention && (
+            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} transition={snappySpring}>
+              <FileMentionMenu query={fileMentionQuery} onSelect={handleFileSelect} onClose={() => setShowFileMention(false)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {previewOffer && (
-          <div className="flex items-center justify-center gap-2 mb-2 animate-fade-in">
-            <button
-              onClick={() => useStore.getState().openInBrowser(previewOffer.url)}
-              className="h-7 px-2.5 rounded-md border border-border bg-surface-2 text-[12px] text-text-secondary hover:text-text-primary"
+        <AnimatePresence>
+          {previewOffer && (
+            <motion.div
+              initial={{ opacity: 0, y: 4, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={snappySpring}
+              className="flex items-center justify-center gap-2 mb-2"
             >
-              Open {previewOffer.label} in browser
-            </button>
-            <button
-              onClick={() => useStore.getState().setPreviewOffer(null)}
-              className="h-7 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-        {queuedMessage && (
-          <div className="flex items-center justify-center gap-2 mb-2 text-[12px] text-text-secondary animate-fade-in">
-            <span className="truncate max-w-[28rem]">Queued: {queuedMessage}</span>
-            <button
-              onClick={() => useStore.getState().setQueuedMessage(null)}
-              className="h-6 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary"
-            >
-              Clear
-            </button>
-          </div>
-        )}
-        {(activePluginIds(config).length > 0 || pluginNotice) && (
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-2 min-h-6">
-            {activePluginIds(config).map((id) => (
-              <button
-                key={id}
-                onClick={() => {
-                  const next = setPluginActive(config, id, false)
-                  setConfig(next)
-                  persistConfig(next)
-                }}
-                className="h-6 px-2.5 rounded-md border border-border bg-surface-2 text-[11px] leading-6 text-text-secondary hover:text-text-primary"
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => useStore.getState().openInBrowser(previewOffer.url)}
+                className="h-7 px-2.5 rounded-md border border-border bg-surface-2 text-[12px] text-text-secondary hover:text-text-primary hover:border-border-hover transition-snappy"
               >
-                {PLUGIN_CATALOG_MAP[id]?.name || id} · on
+                Open {previewOffer.label} in browser
+              </motion.button>
+              <button
+                onClick={() => useStore.getState().setPreviewOffer(null)}
+                className="h-7 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary transition-snappy"
+              >
+                Dismiss
               </button>
-            ))}
-            {pluginNotice && <span className="text-[11px] leading-6 text-text-muted">{pluginNotice}</span>}
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {queuedMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={snappySpring}
+              className="flex items-center justify-center gap-2 mb-2 text-[12px] text-text-secondary"
+            >
+              <span className="truncate max-w-[28rem] animate-insight">Queued: {queuedMessage}</span>
+              <button
+                onClick={() => useStore.getState().setQueuedMessage(null)}
+                className="h-6 px-2 rounded-md text-[11px] text-text-muted hover:text-text-primary transition-snappy"
+              >
+                Clear
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {(activePluginIds(config).length > 0 || pluginNotice) && (
+            <motion.div
+              initial={{ opacity: 0, y: 2 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={snappySpring}
+              className="flex flex-wrap items-center justify-center gap-2 mb-2 min-h-6"
+            >
+              {activePluginIds(config).map((id) => (
+                <motion.button
+                  key={id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => {
+                    const next = setPluginActive(config, id, false)
+                    setConfig(next)
+                    persistConfig(next)
+                  }}
+                  className="h-6 px-2.5 rounded-md border border-border bg-surface-2 text-[11px] leading-6 text-text-secondary hover:text-text-primary transition-snappy"
+                >
+                  {PLUGIN_CATALOG_MAP[id]?.name || id} · on
+                </motion.button>
+              ))}
+              {pluginNotice && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[11px] leading-6 text-text-muted">{pluginNotice}</motion.span>}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {attachedFiles.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-2 mb-2.5">
-            {attachedFiles.map((file, i) => (
-              <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-2 border border-border rounded-lg text-xs text-text-secondary max-w-[240px]">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-accent shrink-0"><path d="M7 1H3a1 1 0 00-1 1v8a1 1 0 001 1h6a1 1 0 001-1V4L7 1z" stroke="currentColor" strokeWidth="1" /></svg>
-                <span className="truncate flex-1">{file.name}</span>
-                <button onClick={() => removeAttached(i)} className="p-0.5 rounded hover:bg-surface-3 text-text-muted hover:text-danger transition-smooth">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 2.5l5 5m0-5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        <AnimatePresence>
+          {attachedFiles.length > 0 && (
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              className="flex flex-wrap justify-center gap-2 mb-2.5"
+            >
+              {attachedFiles.map((file, i) => (
+                <motion.div
+                  key={`${file.name}-${i}`}
+                  variants={staggerItem}
+                  layout
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-2 border border-border rounded-lg text-xs text-text-secondary max-w-[240px] hover:border-border-hover hover:shadow-sm transition-snappy"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-accent shrink-0"><path d="M7 1H3a1 1 0 00-1 1v8a1 1 0 001 1h6a1 1 0 001-1V4L7 1z" stroke="currentColor" strokeWidth="1" /></svg>
+                  <span className="truncate flex-1">{file.name}</span>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => removeAttached(i)}
+                    className="p-0.5 rounded hover:bg-surface-3 text-text-muted hover:text-danger transition-snappy"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 2.5l5 5m0-5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
+                  </motion.button>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        <div className={`composer-shell flex flex-nowrap items-end min-h-12 min-w-0 bg-surface-1 rounded-2xl border ${isDragging ? 'border-accent' : 'border-border'}`}
+        <motion.div
+          layout
+          className={`composer-shell flex flex-nowrap items-end min-h-12 min-w-0 bg-surface-1 rounded-2xl border ${isDragging ? 'border-accent shadow-lg scale-[1.01]' : 'border-border'}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          animate={isDragging ? { scale: 1.01 } : { scale: 1 }}
+          transition={snappySpring}
         >
           <textarea
             ref={textareaRef}
@@ -487,14 +550,24 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
 
           <div className="flex flex-nowrap items-center justify-end gap-0.5 pr-2 pl-1 h-12 shrink-0">
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} accept=".txt,.js,.ts,.tsx,.jsx,.py,.rs,.go,.java,.c,.cpp,.h,.css,.html,.json,.yaml,.yml,.md,.sh,.zsh,.bash,.sql,.xml,.toml,.cfg,.ini,.env,.log,.csv" />
-            <button onClick={() => fileInputRef.current?.click()} className="h-7 w-7 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-2 transition-smooth" title="Attach files">
+            <motion.button
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.92 }}
+              onClick={() => fileInputRef.current?.click()}
+              className="h-7 w-7 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-2 transition-snappy"
+              title="Attach files"
+            >
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M13 7l-5 5a3 3 0 01-4.24-4.24l5-5A2 2 0 0111 4.5l-5 5a1 1 0 01-1.42-1.42l5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.92 }}
               onClick={toggleVoice}
-              className={`h-7 w-7 flex items-center justify-center rounded-lg transition-smooth ${
+              animate={listening ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+              transition={listening ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.12 }}
+              className={`h-7 w-7 flex items-center justify-center rounded-lg transition-snappy ${
                 listening
-                  ? 'bg-danger/15 text-danger'
+                  ? 'bg-danger/15 text-danger shadow-sm ring-1 ring-danger/20'
                   : 'text-text-muted hover:text-text-primary hover:bg-surface-2'
               }`}
               title={listening ? 'Stop listening' : canVoice ? 'Voice input' : 'Voice input is unavailable'}
@@ -505,34 +578,62 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
                 <rect x="6" y="2" width="4" height="7" rx="2" stroke="currentColor" strokeWidth="1.3" />
                 <path d="M4 8a4 4 0 008 0M8 12v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
               </svg>
-            </button>
+            </motion.button>
 
-            <button onClick={toggleAutoApprove} className={`h-7 px-2 text-[11px] rounded-lg transition-smooth inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${autoApprove ? 'text-success' : 'text-text-muted hover:text-text-primary hover:bg-surface-2'}`} title="Auto-approve tool execution">
-              Auto {autoApprove && <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-            </button>
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={toggleAutoApprove}
+              className={`h-7 px-2 text-[11px] rounded-lg transition-snappy inline-flex items-center gap-1 shrink-0 whitespace-nowrap ${autoApprove ? 'bg-success/15 text-success border border-success/20' : 'text-text-muted hover:text-text-primary hover:bg-surface-2 border border-transparent'}`}
+              title="Auto-approve tool execution"
+            >
+              Auto {autoApprove && <motion.svg initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} transition={snappySpring} width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></motion.svg>}
+            </motion.button>
 
-            {isStreaming && (
-              <button
-                onClick={onStop}
-                className="h-7 w-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-smooth"
-                aria-label="Stop"
-                title="Stop generation (Esc)"
-              >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5" /></svg>
-              </button>
-            )}
+            <AnimatePresence>
+              {isStreaming && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8, x: 6 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.8, x: 6 }}
+                  transition={snappySpring}
+                  whileHover={{ scale: 1.06 }}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={onStop}
+                  className="h-7 w-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-snappy"
+                  aria-label="Stop"
+                  title="Stop generation (Esc)"
+                >
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5" /></svg>
+                </motion.button>
+              )}
+            </AnimatePresence>
 
-            <button
+            <motion.button
               onClick={handleSend}
               disabled={!canSend}
-              className="h-7 w-7 flex items-center justify-center rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-25 disabled:cursor-not-allowed transition-smooth text-accent-ink"
+              whileHover={canSend ? { scale: 1.06, y: -1 } : {}}
+              whileTap={canSend ? { scale: 0.94 } : {}}
+              animate={canSend ? { scale: 1 } : { scale: 0.98, opacity: 0.45 }}
+              transition={snappySpring}
+              className="h-7 w-7 flex items-center justify-center rounded-lg bg-accent hover:bg-accent-hover disabled:cursor-not-allowed transition-snappy text-accent-ink shadow-sm hover:shadow-md"
               aria-label={isStreaming ? 'Queue' : 'Send'}
               title={isStreaming ? 'Queue next message' : 'Send'}
             >
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 7l8-4v8L3 7z" fill="currentColor" /></svg>
-            </button>
+              <motion.svg
+                width="13"
+                height="13"
+                viewBox="0 0 14 14"
+                fill="none"
+                animate={canSend ? { x: [0, 0] } : { x: 0 }}
+                whileHover={canSend ? { x: 1 } : {}}
+                transition={{ duration: 0.12 }}
+              >
+                <path d="M3 7l8-4v8L3 7z" fill="currentColor" />
+              </motion.svg>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
 
         <div className="flex items-center justify-center mt-2 h-5 text-[11px] leading-5 text-text-muted overflow-hidden">
           {isDragging ? (

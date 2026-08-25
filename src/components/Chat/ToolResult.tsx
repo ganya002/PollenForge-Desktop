@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ToolCall, useStore } from '../../store/store'
 import { toolPath } from '../../lib/qol'
 import { fileName, lineDeltaFromTool } from '../../lib/agentActivity'
 import { currentWorkspace } from '../../lib/workspace'
 import { openWorkspaceFile } from '../../lib/workspaceFiles'
 import { isSafeBrowserUrl } from '../../lib/browserTargets'
+import { easeSnappy, snappySpring } from '../../lib/motion'
 
 interface Props { toolCall: ToolCall }
 
@@ -154,100 +156,177 @@ export default function ToolResult({ toolCall }: Props) {
   }
 
   return (
-    <div className={`group relative rounded-lg overflow-hidden animate-fade-in ${
-      isError ? 'border border-red-500/20 bg-surface-1' : isRunning ? 'bg-surface-1/80' : ''
-    }`}>
-      <div className="w-full flex items-center gap-2 pl-0.5 pr-1 py-1 hover:bg-surface-2/50 rounded-lg transition-smooth">
-        <button
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 4, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 2, scale: 0.985 }}
+      transition={snappySpring}
+      className={`group relative rounded-lg overflow-hidden ${
+        isError ? 'border border-red-500/20 bg-surface-1' : isRunning ? 'bg-surface-1/80 border border-amber-500/15' : 'border border-transparent'
+      }`}
+    >
+      {isRunning && <div className="tool-running-bar" />}
+      <div className="w-full flex items-center gap-2 pl-0.5 pr-1 py-1 hover:bg-surface-2/50 rounded-lg transition-snappy">
+        <motion.button
           onClick={() => setExpanded(!expanded)}
           className="flex items-center gap-2 min-w-0 flex-1 text-left"
+          whileTap={{ scale: 0.98 }}
+          transition={{ duration: 0.08, ease: easeSnappy }}
         >
-          <span className="w-4 h-4 flex items-center justify-center shrink-0"><StatusIcon status={toolCall.status} running={isRunning} /></span>
+          <motion.span
+            className="w-4 h-4 flex items-center justify-center shrink-0"
+            animate={isRunning ? { rotate: 360 } : { rotate: 0 }}
+            transition={isRunning ? { duration: 0.9, repeat: Infinity, ease: 'linear' } : { duration: 0.16, ease: easeSnappy }}
+          >
+            <StatusIcon status={toolCall.status} running={isRunning} />
+          </motion.span>
           <span className="text-[13px] text-text-secondary">{label}</span>
           {preview && !path && (
-            <span className="text-[12px] text-text-muted font-mono truncate max-w-[320px] hidden sm:inline">{preview}</span>
+            <span className="text-[12px] text-text-muted font-mono truncate max-w-[320px] hidden sm:inline opacity-80 group-hover:opacity-100 transition-snappy">{preview}</span>
           )}
-        </button>
+        </motion.button>
         {preview && !!path && (
           <button
             type="button"
             onClick={() => void openWorkspaceFile(path, { root: currentWorkspace() })}
-            className="text-[12px] text-text-muted font-mono truncate max-w-[280px] hidden sm:inline hover:text-text-primary"
+            className="text-[12px] text-text-muted font-mono truncate max-w-[280px] hidden sm:inline hover:text-text-primary transition-snappy"
             title="Open file"
           >
             {fileName(path) || preview}
           </button>
         )}
-        {(delta.added > 0 || delta.removed > 0) && (
-          <span className="text-[11px] tabular-nums shrink-0 inline-flex items-center gap-1.5">
-            {delta.added > 0 && <span className="text-emerald-400">+{delta.added}</span>}
-            {delta.removed > 0 && <span className="text-red-400">-{delta.removed}</span>}
-          </span>
+        <AnimatePresence>
+          {(delta.added > 0 || delta.removed > 0) && (
+            <motion.span
+              initial={{ opacity: 0, scale: 0.9, x: 6 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={snappySpring}
+              className="text-[11px] tabular-nums shrink-0 inline-flex items-center gap-1.5"
+            >
+              {delta.added > 0 && <span className="text-emerald-400">+{delta.added}</span>}
+              {delta.removed > 0 && <span className="text-red-400">-{delta.removed}</span>}
+            </motion.span>
+          )}
+        </AnimatePresence>
+        {duration && (
+          <span className={`text-[10px] tabular-nums transition-snappy ${isRunning ? 'text-amber-400' : 'text-text-muted'}`}>{duration}</span>
         )}
-        {duration && isRunning && <span className="text-[10px] text-text-muted tabular-nums">{duration}</span>}
         {(isRunning || isError || toolCall.status === 'approval_needed') && (
-          <span className={`text-[10px] shrink-0 ${isError ? 'text-red-400' : isRunning ? 'text-amber-400' : 'text-violet-400'}`}>{status.label}</span>
+          <motion.span
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`text-[10px] shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${isError ? 'bg-red-500/15 text-red-400' : isRunning ? 'bg-amber-500/15 text-amber-400 animate-pulse' : 'bg-violet-500/15 text-violet-400'}`}
+          >
+            {status.label}
+          </motion.span>
         )}
+        <motion.span
+          animate={{ rotate: shouldExpand ? 180 : 0 }}
+          transition={{ duration: 0.16, ease: easeSnappy }}
+          className="text-text-muted ml-0.5"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </motion.span>
       </div>
 
-      {shouldExpand && (
-        <div className="border-t border-border bg-surface-1">
-          <div className="px-3 py-2">
-            <div className="text-[10px] font-medium tracking-wider uppercase text-text-muted mb-1 flex items-center justify-between">
-              <span>{toolCall.name === 'run_command' ? 'Command' : 'Arguments'}</span>
-              <button onClick={handleCopy} className="text-[10px] normal-case tracking-normal font-mono px-1.5 py-0.5 rounded hover:bg-surface-3 text-text-muted hover:text-text-primary transition-smooth">
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-            <pre className="text-xs font-mono bg-surface-2 border border-border rounded-md px-2.5 py-2 overflow-x-auto whitespace-pre-wrap break-words text-text-secondary max-h-40 overflow-y-auto">
-              {toolCall.name === 'run_command' ? (toolCall.args as any).command : displayArgs(toolCall)}
-            </pre>
-          </div>
-
-          {(toolCall.result || isRunning) && (
-            <div className="px-3 pb-3">
-              <div className="text-[10px] font-medium tracking-wider uppercase text-text-muted mb-1">Output</div>
-              {imageUrl && !isError ? (
-                <img
-                  src={imageUrl}
-                  alt={String((toolCall.args as { prompt?: string }).prompt || 'Generated image')}
-                  className="max-w-full rounded-md border border-border cursor-pointer"
-                  style={{ maxHeight: 360 }}
-                  onClick={() => openUrl(imageUrl)}
-                />
-              ) : searchResults && !isError ? (
-                <div className="space-y-2">
-                  {searchAnswer && (
-                    <p className="text-xs text-text-secondary whitespace-pre-wrap break-words">{searchAnswer.slice(0, 2000)}</p>
-                  )}
-                  {searchResults.length === 0 && !searchAnswer && (
-                    <div className="text-xs text-text-muted">No results</div>
-                  )}
-                  {searchResults.map((item, i) => (
-                    <button
-                      key={`${item.url || i}`}
-                      type="button"
-                      onClick={() => item.url && openUrl(item.url)}
-                      className="block w-full text-left rounded-md border border-border bg-surface-2 px-2.5 py-2 hover:bg-surface-3 transition-smooth"
-                    >
-                      <div className="text-xs text-accent truncate">{item.title || item.url}</div>
-                      {item.url && <div className="text-[10px] text-text-muted truncate">{item.url}</div>}
-                      {item.snippet && <div className="text-[11px] text-text-secondary mt-0.5 line-clamp-2">{item.snippet}</div>}
-                    </button>
-                  ))}
+      <AnimatePresence initial={false}>
+        {shouldExpand && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: easeSnappy }}
+            className="overflow-hidden border-t border-border bg-surface-1/90 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16, delay: 0.06, ease: easeSnappy }}
+            >
+              <div className="px-3 py-2">
+                <div className="text-[10px] font-medium tracking-wider uppercase text-text-muted mb-1 flex items-center justify-between">
+                  <span>{toolCall.name === 'run_command' ? 'Command' : 'Arguments'}</span>
+                  <motion.button
+                    onClick={handleCopy}
+                    whileTap={{ scale: 0.96 }}
+                    className="text-[10px] normal-case tracking-normal font-mono px-1.5 py-0.5 rounded hover:bg-surface-3 text-text-muted hover:text-text-primary transition-snappy"
+                  >
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={copied ? 'copied' : 'copy'}
+                        initial={{ opacity: 0, y: 2 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -2 }}
+                        transition={{ duration: 0.12 }}
+                      >
+                        {copied ? 'Copied ✓' : 'Copy'}
+                      </motion.span>
+                    </AnimatePresence>
+                  </motion.button>
                 </div>
-              ) : (
-                <pre className={`text-xs font-mono border border-border rounded-md px-2.5 py-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words ${isError ? 'bg-surface-2 text-danger' : 'bg-surface-2 text-text-secondary'}`}>
-                  {isRunning && !output ? 'Running…' : output || '(no output)'}
+                <pre className="text-xs font-mono bg-surface-2 border border-border rounded-md px-2.5 py-2 overflow-x-auto whitespace-pre-wrap break-words text-text-secondary max-h-40 overflow-y-auto">
+                  {toolCall.name === 'run_command' ? (toolCall.args as any).command : displayArgs(toolCall)}
                 </pre>
+              </div>
+
+              {(toolCall.result || isRunning) && (
+                <div className="px-3 pb-3">
+                  <div className="text-[10px] font-medium tracking-wider uppercase text-text-muted mb-1 flex items-center gap-1.5">
+                    Output
+                    {isRunning && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse-dot" />}
+                  </div>
+                  {imageUrl && !isError ? (
+                    <motion.img
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={snappySpring}
+                      src={imageUrl}
+                      alt={String((toolCall.args as { prompt?: string }).prompt || 'Generated image')}
+                      className="max-w-full rounded-md border border-border cursor-pointer hover:border-border-hover transition-snappy"
+                      style={{ maxHeight: 360 }}
+                      onClick={() => openUrl(imageUrl)}
+                    />
+                  ) : searchResults && !isError ? (
+                    <div className="space-y-2">
+                      {searchAnswer && (
+                        <p className="text-xs text-text-secondary whitespace-pre-wrap break-words animate-insight">{searchAnswer.slice(0, 2000)}</p>
+                      )}
+                      {searchResults.length === 0 && !searchAnswer && (
+                        <div className="text-xs text-text-muted">No results</div>
+                      )}
+                      {searchResults.map((item, i) => (
+                        <motion.button
+                          key={`${item.url || i}`}
+                          type="button"
+                          onClick={() => item.url && openUrl(item.url)}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.03, ...snappySpring }}
+                          className="block w-full text-left rounded-md border border-border bg-surface-2 px-2.5 py-2 hover:bg-surface-3 hover:border-border-hover hover:translate-y-[-1px] transition-snappy text-left"
+                        >
+                          <div className="text-xs text-accent truncate">{item.title || item.url}</div>
+                          {item.url && <div className="text-[10px] text-text-muted truncate">{item.url}</div>}
+                          {item.snippet && <div className="text-[11px] text-text-secondary mt-0.5 line-clamp-2">{item.snippet}</div>}
+                        </motion.button>
+                      ))}
+                    </div>
+                  ) : (
+                    <pre className={`text-xs font-mono border rounded-md px-2.5 py-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words transition-snappy ${isError ? 'bg-red-500/5 border-red-500/20 text-danger' : 'bg-surface-2 border-border text-text-secondary'}`}>
+                      {isRunning && !output ? <span className="shimmer-text">Running…</span> : output || '(no output)'}
+                    </pre>
+                  )}
+                  {(toolCall.result as any)?.truncated && (
+                    <div className="text-[10px] text-amber-400/80 mt-1 flex items-center gap-1"><span>⚠</span> Output truncated. Use get_task_logs or read_file for full output.</div>
+                  )}
+                </div>
               )}
-              {(toolCall.result as any)?.truncated && (
-                <div className="text-[10px] text-text-muted mt-1">Output truncated. Use get_task_logs or read_file for full output.</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   )
 }

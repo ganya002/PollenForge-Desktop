@@ -25,18 +25,37 @@ import {
 
 if (process.platform === 'win32') {
   app.disableHardwareAcceleration();
-  app.setAppUserModelId('com.nexum.desktop');
+  app.setAppUserModelId('com.nexum.desktop.beta');
   for (const [flag, value] of windowsChromiumSwitches()) {
     if (value === undefined) app.commandLine.appendSwitch(flag);
     else app.commandLine.appendSwitch(flag, value);
   }
 }
 
+// Brand as Nexum Beta (dev mode otherwise shows "Electron" in the menu bar)
+app.setName('Nexum Beta');
+
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let backendManager: BackendManager | null = null;
 let projectWatcher: fs.FSWatcher | null = null;
 let projectWatchTimer: ReturnType<typeof setTimeout> | null = null;
+const allowedProjectDirs = new Set<string>();
+
+function isPathAllowed(targetPath: string, configDir: string): boolean {
+  try {
+    const resolved = path.resolve(targetPath);
+    const configResolved = path.resolve(configDir);
+    if (resolved === configResolved || resolved.startsWith(configResolved + path.sep)) return true;
+    for (const dir of allowedProjectDirs) {
+      const allowedResolved = path.resolve(dir);
+      if (resolved === allowedResolved || resolved.startsWith(allowedResolved + path.sep)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 const WATCH_SKIP = new Set(['.git', 'node_modules', '__pycache__', '.venv', 'venv', 'dist-electron', '.next', 'dist']);
 
@@ -185,15 +204,13 @@ function createWindow(): void {
 function createTray(): void {
   const iconPath = path.join(__dirname, '../assets/tray-icon.png');
 
-  let trayIcon: Electron.NativeImage;
-  if (fs.existsSync(iconPath)) {
-    trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
-  } else {
-    trayIcon = nativeImage.createEmpty();
+  // No icon asset → skip the tray entirely (an empty menu-bar item is worse)
+  if (!fs.existsSync(iconPath)) {
+    return;
   }
-
+  const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
   tray = new Tray(trayIcon);
-  tray.setToolTip('Nexum');
+  tray.setToolTip('Nexum Beta');
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -274,14 +291,18 @@ function setupIpcHandlers(): void {
       properties: ['openDirectory'],
     });
     if (result.canceled || !result.filePaths[0]) return { ok: false };
-    return { ok: true, path: result.filePaths[0] };
+    const picked = result.filePaths[0];
+    try {
+      allowedProjectDirs.add(path.resolve(picked));
+    } catch {}
+    return { ok: true, path: picked };
   });
 
   ipcMain.handle('app:notify-done', async (_event, payload?: { title?: string; body?: string }) => {
     if (mainWindow?.isFocused() && mainWindow.isVisible()) {
       return { ok: true, skipped: true };
     }
-    const title = String(payload?.title || 'Nexum');
+    const title = String(payload?.title || 'Nexum Beta');
     const body = String(payload?.body || 'Agent finished').slice(0, 180);
     try {
       if (process.platform === 'darwin') {
@@ -363,12 +384,15 @@ function setupIpcHandlers(): void {
     return true;
   });
 
-  // Files
+  // Files — scoped to userData + allowed project dirs (T7)
   ipcMain.handle('files:read', async (_event, filePath: string) => {
     try {
       const resolvedPath = path.isAbsolute(filePath)
         ? filePath
         : path.join(configDir, filePath);
+      if (!isPathAllowed(resolvedPath, configDir)) {
+        return { success: false, error: 'Path not allowed' };
+      }
       const content = fs.readFileSync(resolvedPath, 'utf-8');
       return { success: true, content };
     } catch (err: any) {
@@ -381,6 +405,9 @@ function setupIpcHandlers(): void {
       const resolvedPath = path.isAbsolute(filePath)
         ? filePath
         : path.join(configDir, filePath);
+      if (!isPathAllowed(resolvedPath, configDir)) {
+        return { success: false, error: 'Path not allowed' };
+      }
       const dir = path.dirname(resolvedPath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -397,6 +424,9 @@ function setupIpcHandlers(): void {
       const resolvedPath = path.isAbsolute(dirPath)
         ? dirPath
         : path.join(configDir, dirPath);
+      if (!isPathAllowed(resolvedPath, configDir)) {
+        return { success: false, error: 'Path not allowed' };
+      }
       const entries = fs.readdirSync(resolvedPath, { withFileTypes: true });
       const items = entries.map((entry) => ({
         name: entry.name,
@@ -413,6 +443,9 @@ function setupIpcHandlers(): void {
     closeProjectWatcher();
     const dir = typeof dirPath === 'string' ? dirPath.trim() : '';
     if (!dir) return { ok: true };
+    try {
+      allowedProjectDirs.add(path.resolve(dir));
+    } catch {}
     try {
       projectWatcher = fs.watch(dir, { persistent: true, recursive: true }, (_evt, filename) => {
         if (ignoreWatchPath(filename ? String(filename) : '')) return;
@@ -444,7 +477,8 @@ function setupIpcHandlers(): void {
   ipcMain.handle('config:save', async (_event, body: unknown) => {
     try {
       fs.mkdirSync(configDir, { recursive: true });
-      fs.writeFileSync(configFilePath, JSON.stringify(body, null, 2), 'utf-8');
+      fs.writeFileSync(configFilePath, JSON.stringify(body, null, 2), { encoding: 'utf-8', mode: 0o600 });
+      try { fs.chmodSync(configFilePath, 0o600); } catch {}
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message };
@@ -459,7 +493,8 @@ function setupIpcHandlers(): void {
         config = JSON.parse(data);
       }
       config[key] = value;
-      fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), 'utf-8');
+      fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), { encoding: 'utf-8', mode: 0o600 });
+      try { fs.chmodSync(configFilePath, 0o600); } catch {}
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message };

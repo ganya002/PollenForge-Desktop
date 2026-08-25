@@ -6,6 +6,7 @@ import FileTree from './FileTree'
 import ModelPicker from './ModelPicker'
 import WorktreeIndicator from './WorktreeIndicator'
 import TaskPanel from './TaskPanel'
+import { snappySpring, smoothSpring, easeSnappy } from '../../lib/motion'
 
 interface SidebarProps {
   onSettings?: () => void
@@ -75,10 +76,10 @@ export default function Sidebar({ onSettings, overlayTitlebar = true }: SidebarP
       {sidebarOpen && (
         <motion.aside
           ref={asideRef}
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -8 }}
-          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0, x: -12, scale: 0.985 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={{ opacity: 0, x: -10, scale: 0.985 }}
+          transition={smoothSpring}
           style={{ width }}
           className="h-full bg-surface-1 border-r border-border flex flex-col overflow-hidden shrink-0 relative"
         >
@@ -106,7 +107,7 @@ export default function Sidebar({ onSettings, overlayTitlebar = true }: SidebarP
               </div>
             )}
           </div>
-          <div
+          <motion.div
             onPointerDown={(e) => {
               e.preventDefault()
               ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
@@ -117,9 +118,16 @@ export default function Sidebar({ onSettings, overlayTitlebar = true }: SidebarP
             }`}
             style={{ touchAction: 'none' }}
             aria-label="Resize sidebar"
+            whileHover={{ width: 6 }}
+            transition={{ duration: 0.12, ease: easeSnappy }}
           >
             <div className="absolute inset-y-0 right-0 w-px bg-border" />
-          </div>
+            <motion.div
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-8 bg-white/20 rounded-full"
+              animate={{ opacity: isDragging ? 1 : 0, scaleY: isDragging ? 1.2 : 1 }}
+              transition={{ duration: 0.12 }}
+            />
+          </motion.div>
         </motion.aside>
       )}
     </AnimatePresence>

@@ -32,11 +32,24 @@ export async function backendToken(): Promise<string> {
   return cachedToken || ''
 }
 
-/** fetch() wrapper that attaches X-Nexum-Token (+JSON content-type for bodies). */
+/** fetch() wrapper that attaches X-Nexum-Token (+JSON content-type for bodies).
+ *  On 401 (e.g. backend restarted mid-session and rotated the token) the cached
+ *  token is dropped and the request retried once with a fresh one. */
 export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
   const token = await backendToken()
   const headers = new Headers(init.headers || {})
   if (token) headers.set('X-Nexum-Token', token)
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
-  return fetch(input, { ...init, headers })
+  const res = await fetch(input, { ...init, headers })
+  if (res.status === 401 && token) {
+    cachedToken = null
+    const fresh = await backendToken()
+    if (fresh && fresh !== token) {
+      const retryHeaders = new Headers(init.headers || {})
+      retryHeaders.set('X-Nexum-Token', fresh)
+      if (init.body && !retryHeaders.has('Content-Type')) retryHeaders.set('Content-Type', 'application/json')
+      return fetch(input, { ...init, headers: retryHeaders })
+    }
+  }
+  return res
 }

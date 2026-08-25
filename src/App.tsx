@@ -24,6 +24,7 @@ import { writeWorkspaceFile } from './lib/workspace'
 import FilePanel from './components/Files/FilePanel'
 import BrowserPanel from './components/Browser/BrowserPanel'
 import BrickPongHost from './components/BrickPong'
+import SwarmBoard from './components/Chat/SwarmBoard'
 
 export default function App() {
   const toggleSidebar = useStore((s) => s.toggleSidebar)

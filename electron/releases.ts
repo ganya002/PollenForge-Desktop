@@ -1,4 +1,5 @@
 import { app, net, shell } from 'electron';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
@@ -212,6 +213,82 @@ function writeDownload(
   });
 }
 
+async function verifyChecksum(destPath: string, assetName: string, releases: AppRelease[]): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    // Find SHA256SUMS asset in any release (prefer same tag, fallback to latest)
+    const all = releases;
+    // First try same tag's SHA256SUMS
+    let sumsAsset: ReleaseAsset | null = null;
+    let sumsTag: string | null = null;
+    // Need raw GithubReleaseJson to locate SHA256SUMS — refetch with asset list
+    // Instead, search already-fetched listReleases for asset matching pattern
+    // listReleases already filtered blockmap/yml but we need original payload — so re-fetch raw
+    const res = await net.fetch(RELEASES_URL, {
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': USER_AGENT, 'X-GitHub-Api-Version': '2022-11-28' },
+    });
+    if (res.ok) {
+      const payload = (await res.json()) as GithubReleaseJson[];
+      for (const rel of payload) {
+        if (rel.tag_name === all.find((r) => r.asset?.name === assetName)?.tag) {
+          const found = (rel.assets || []).find((a) => a.name.toLowerCase().includes('sha256sums'));
+          if (found) {
+            sumsAsset = { name: found.name, browser_download_url: found.browser_download_url, size: found.size };
+            sumsTag = rel.tag_name;
+            break;
+          }
+        }
+      }
+      if (!sumsAsset) {
+        for (const rel of payload) {
+          const found = (rel.assets || []).find((a) => a.name.toLowerCase().includes('sha256sums'));
+          if (found) {
+            sumsAsset = { name: found.name, browser_download_url: found.browser_download_url, size: found.size };
+            sumsTag = rel.tag_name;
+            break;
+          }
+        }
+      }
+    }
+    if (!sumsAsset) {
+      // No checksum file published yet (older releases) — allow but log
+      console.warn(`No SHA256SUMS asset found for ${assetName} — skipping checksum verification`);
+      return { ok: true };
+    }
+    const tmpSums = path.join(app.getPath('temp'), 'nexum-updates', `SHA256SUMS-${sumsTag || 'latest'}.txt`);
+    await followDownload(sumsAsset.browser_download_url, tmpSums, undefined, 5);
+    const sumsContent = fs.readFileSync(tmpSums, 'utf-8');
+    // Expected format: "<sha256>  <filename>" per line
+    let expected: string | null = null;
+    for (const line of sumsContent.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const parts = trimmed.split(/\s+/);
+      if (parts.length >= 2) {
+        const hash = parts[0].toLowerCase();
+        const fname = parts.slice(1).join(' ').replace(/^\*/, '').trim();
+        if (fname === assetName) {
+          expected = hash;
+          break;
+        }
+      }
+    }
+    if (!expected) {
+      console.warn(`No checksum entry for ${assetName} in ${sumsAsset.name} — skipping`);
+      return { ok: true };
+    }
+    const fileBuffer = fs.readFileSync(destPath);
+    const actual = crypto.createHash('sha256').update(fileBuffer).digest('hex').toLowerCase();
+    if (actual !== expected) {
+      try { fs.unlinkSync(destPath); } catch {}
+      return { ok: false, error: `Checksum mismatch for ${assetName}: expected ${expected.slice(0, 8)}…, got ${actual.slice(0, 8)}… — download may be corrupted or tampered.` };
+    }
+    return { ok: true };
+  } catch (err: any) {
+    console.warn('Checksum verification failed (non-fatal):', err?.message || err);
+    return { ok: true };
+  }
+}
+
 export async function installReleaseVersion(
   tag: string,
   onProgress?: (percent: number, transferred: number, total: number) => void,
@@ -228,6 +305,11 @@ export async function installReleaseVersion(
 
     const dest = path.join(app.getPath('temp'), 'nexum-updates', release.asset.name);
     await downloadReleaseAsset(release.asset, dest, onProgress);
+
+    const verified = await verifyChecksum(dest, release.asset.name, releases);
+    if (!(verified as { ok: boolean }).ok) {
+      return { ok: false, error: (verified as { error: string }).error };
+    }
 
     const openError = await shell.openPath(dest);
     if (openError) {

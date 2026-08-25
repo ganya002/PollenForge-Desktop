@@ -1,7 +1,36 @@
 from pathlib import Path
 import json
+import re
 import time
 from app_paths import skills_dir, legacy_skills_dir
+
+_ID_RE = re.compile(r"^[A-Za-z0-9_\-]{1,64}$")
+
+
+def _sanitize_id(raw: str) -> str:
+    # Normalize: lower, replace spaces/hyphens, strip illegal chars
+    s = (raw or "").strip().lower()
+    s = s.replace(" ", "_").replace("-", "_")
+    # Replace any remaining illegal chars with _
+    s = re.sub(r"[^a-z0-9_]", "_", s)
+    # Collapse runs, trim underscores
+    s = re.sub(r"_+", "_", s).strip("_")
+    # Truncate to valid length
+    s = s[:64]
+    return s or "skill"
+
+
+def _safe_path(base: Path, name: str) -> Path:
+    # Validate after sanitization and enforce containment
+    sid = _sanitize_id(name)
+    if not _ID_RE.fullmatch(sid):
+        raise ValueError("invalid skill id")
+    p = (base / f"{sid}.json").resolve()
+    try:
+        p.relative_to(base.resolve())
+    except ValueError:
+        raise ValueError("path escape")
+    return p
 
 SKILLS_DIR = skills_dir()
 _LEGACY_SKILLS = legacy_skills_dir()
@@ -78,7 +107,9 @@ def _save_skill(name: str, description: str, steps_json: str, tags: str) -> dict
     try:
         _ensure_dirs()
         steps = json.loads(steps_json) if isinstance(steps_json, str) else steps_json
-        skill_id = name.lower().replace(" ", "_").replace("-", "_")
+        skill_id = _sanitize_id(name)
+        if not _ID_RE.fullmatch(skill_id):
+            return {"error": "invalid skill name"}
         
         skill = {
             "id": skill_id,
@@ -90,12 +121,15 @@ def _save_skill(name: str, description: str, steps_json: str, tags: str) -> dict
             "updated_at": time.time()
         }
         
-        path = SKILLS_DIR / "skills" / f"{skill_id}.json"
+        path = _safe_path(SKILLS_DIR / "skills", skill_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(skill, indent=2))
         
         return {"success": True, "id": skill_id, "path": str(path)}
     except json.JSONDecodeError as e:
         return {"error": f"Invalid steps JSON: {e}"}
+    except ValueError as e:
+        return {"error": str(e)}
     except Exception as e:
         return {"error": str(e)}
 
@@ -132,25 +166,28 @@ def _get_skill(name: str) -> dict:
     
     try:
         _ensure_dirs()
-        skill_id = name.lower().replace(" ", "_").replace("-", "_")
-        path = SKILLS_DIR / "skills" / f"{skill_id}.json"
-        if not path.exists():
-            legacy = _LEGACY_SKILLS / "skills" / f"{skill_id}.json"
+        skill_id = _sanitize_id(name)
+        # Try direct sanitized path first
+        try:
+            path = _safe_path(SKILLS_DIR / "skills", skill_id)
+            if path.exists():
+                return json.loads(path.read_text())
+            legacy = _safe_path(_LEGACY_SKILLS / "skills", skill_id)
             if legacy.exists():
-                path = legacy
+                return json.loads(legacy.read_text())
+        except ValueError:
+            pass
         
-        if not path.exists():
-            # Try fuzzy match
-            for f in _skill_files():
+        # Fallback fuzzy match (still safe: we only return existing files from _skill_files)
+        for f in _skill_files():
+            try:
                 skill = json.loads(f.read_text())
-                if name.lower() in skill.get("name", "").lower():
-                    path = f
-                    break
+            except Exception:
+                continue
+            if name.lower() in skill.get("name", "").lower() or skill_id == skill.get("id", ""):
+                return skill
         
-        if not path.exists():
-            return {"error": f"Skill '{name}' not found"}
-        
-        return json.loads(path.read_text())
+        return {"error": f"Skill '{name}' not found"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -161,14 +198,16 @@ def _delete_skill(name: str) -> dict:
     
     try:
         _ensure_dirs()
-        skill_id = name.lower().replace(" ", "_").replace("-", "_")
-        path = SKILLS_DIR / "skills" / f"{skill_id}.json"
+        skill_id = _sanitize_id(name)
+        path = _safe_path(SKILLS_DIR / "skills", skill_id)
         
         if path.exists():
             path.unlink()
             return {"success": True, "deleted": name}
         
         return {"error": f"Skill '{name}' not found"}
+    except ValueError as e:
+        return {"error": str(e)}
     except Exception as e:
         return {"error": str(e)}
 
@@ -186,10 +225,16 @@ def _teach_convention(name: str, rule: str, example: str) -> dict:
             "created_at": time.time()
         }
         
-        path = SKILLS_DIR / "conventions" / f"{name.lower().replace(' ', '_')}.json"
+        conv_id = _sanitize_id(name)
+        if not _ID_RE.fullmatch(conv_id):
+            return {"error": "invalid convention name"}
+        path = _safe_path(SKILLS_DIR / "conventions", conv_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(convention, indent=2))
         
         return {"success": True, "message": f"Convention '{name}' saved"}
+    except ValueError as e:
+        return {"error": str(e)}
     except Exception as e:
         return {"error": str(e)}
 
