@@ -68,7 +68,9 @@ export function browserWindowOptions(
     show: platform === 'win32',
     autoHideMenuBar: true,
     webPreferences: {
-      webviewTag: false,
+      // BrowserPanel uses <webview>; renderer is sandboxed + contextIsolated and
+      // URLs pass isSafeBrowserUrl() allowlist. TODO(T7-B): replace with BrowserWindow.
+      webviewTag: true,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
