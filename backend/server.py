@@ -20,7 +20,18 @@ from openai_tools import prefer_native_tool_calls, to_openai_tools
 from agents_md import load_agents_md, agents_prompt_section
 from runtime import runtime_var
 from auth_token import resolve_auth_token
-from agent_loop import EXPLORE_TOOLS, KEEP_GOING_NUDGE, last_user_text, should_keep_going
+from agent_loop import (
+    EXPLORE_TOOLS,
+    KEEP_GOING_NUDGE,
+    MAX_REPEAT_NUDGES,
+    MAX_TOOLS_PER_TURN,
+    call_key,
+    filter_tool_calls,
+    last_user_text,
+    remember_result,
+    repeat_nudge_text,
+    should_keep_going,
+)
 from tools.memory import forget_memory, list_memories, memory_prompt_section, remember, save_memories
 
 # --- Auth (T1) -----------------------------------------------------------------
@@ -720,10 +731,11 @@ YOU MUST OUTPUT THIS EXACT FORMAT. NOT ```json. NOT ```python. ONLY ```tool.
 6. NEVER describe what you would do — OUTPUT TOOL BLOCKS AND DO IT
 7. You can output MULTIPLE ```tool blocks in one response
 8. After tools execute, results come back. If task isn't done → KEEP GOING with MORE tool blocks
-9. If a tool fails → analyze error and try to fix it with another tool
+9. If a tool fails → read the error and try a DIFFERENT approach. NEVER call the same tool with the same arguments again.
 10. NEVER stop mid-task — complete ALL steps
 11. Use absolute paths: /Users/gabbo/...
-12. For complex tasks → break into steps, use a tool for EACH step
+12. For CREATE/BUILD/MAKE/FIX tasks: look once, then write_file/edit_file. Do not keep listing or re-reading the same paths.
+13. Batch independent reads/searches in ONE response so work finishes faster.
 
 ## REMEMBER: Output ```tool blocks, not text descriptions!
 
@@ -735,9 +747,8 @@ Loop:
 3. If task complete → final summary
 4. If task NOT complete → MORE tool blocks, repeat
 
-Go through MANY iterations. Don't stop after one tool call. Keep going until fully complete.
-
-If a tool fails, debug it. Try different approaches. Don't give up.
+Don't stop after one tool call. Keep going until fully complete.
+If a tool fails, change the approach. Repeating the same call wastes time.
 
 ## Examples
 
@@ -805,12 +816,14 @@ START OUTPUTTING TOOL BLOCKS NOW."""
     full_response = ""
     tool_results_all = []
     start_time = time.time()
-    max_iterations = 24
+    max_iterations = 32
     iteration = 0
     total_tools_executed = 0
     total_tokens = 0
-    seen_tool_hashes: dict[str, int] = {}
+    failed_tool_keys: dict[str, str] = {}
+    run_tool_counts: dict[str, int] = {}
     consecutive_no_progress = 0
+    repeat_nudges = 0
     last_visible = ""
     last_tool_names: list[str] = []
     user_text = last_user_text(data.get("messages") or messages)
@@ -844,6 +857,93 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 "cancelled": True,
             },
         })
+
+    tool_emit_lock = asyncio.Lock()
+
+    async def emit_tool(payload: dict) -> None:
+        async with tool_emit_lock:
+            await websocket.send_json(payload)
+
+    async def execute_one_call(tc: dict) -> dict | None:
+        nonlocal total_tools_executed
+        if cancel.is_set():
+            return None
+        tool_name = tc.get("name", "")
+        original_args = dict(tc.get("args", {}))
+        tool_args = dict(original_args)
+        was_truncated = tool_args.pop("_truncated", False)
+        if workspace:
+            tool_args = apply_workspace(tool_name, tool_args, workspace)
+        if ask_mode and tool_name == "generate_image":
+            tool_args.pop("save_path", None)
+        if ask_mode and tool_name in {
+            "write_file", "edit_file", "run_command", "close_app",
+            "git_commit", "git_add", "git_push", "git_checkout",
+            "run_build", "start_background_task", "delete_file",
+        }:
+            result = {"success": False, "error": "Ask mode: writes and shell are blocked. Switch to Agent to change files."}
+            await emit_tool({"type": "tool_result", "tool": tool_name, "result": result})
+            return {"tool": tool_name, "args": original_args, "result": result}
+        is_dangerous = tool_name in DANGEROUS_TOOLS
+
+        if is_dangerous and not auto_approve:
+            request_id = str(uuid.uuid4())
+            tool_call_id = str(uuid.uuid4())
+            await emit_tool({
+                "type": "approval_needed",
+                "tool": tool_name,
+                "args": tool_args,
+                "request_id": request_id,
+                "tool_call_id": tool_call_id,
+            })
+            queue = approval_queues.get(conn_id)
+            approved = False
+            if queue:
+                try:
+                    get_task = asyncio.create_task(queue.get())
+                    cancel_task = asyncio.create_task(cancel.wait())
+                    done, pending = await asyncio.wait(
+                        {get_task, cancel_task},
+                        timeout=120,
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    for task in pending:
+                        task.cancel()
+                    if cancel.is_set():
+                        return None
+                    if get_task in done:
+                        msg = get_task.result()
+                        if msg.get("request_id") == request_id:
+                            approved = msg.get("approved", False)
+                except asyncio.TimeoutError:
+                    pass
+            if not approved:
+                result = {"success": False, "error": "Tool execution denied by user"}
+                await emit_tool({"type": "tool_result", "tool": tool_name, "result": result})
+                return {"tool": tool_name, "args": original_args, "result": result}
+
+        await emit_tool({"type": "tool_start", "tool": tool_name, "args": tool_args})
+        result = await execute_tool(tool_name, tool_args)
+        total_tools_executed += 1
+
+        summary = ""
+        if "stdout" in result:
+            summary = result["stdout"].strip()
+            if result.get("stderr"):
+                summary += "\n[stderr]: " + result["stderr"].strip()
+            if result.get("exit_code", 0) != 0:
+                summary += f"\n[exit code: {result['exit_code']}]"
+        elif result.get("error"):
+            summary = f"Error: {result['error']}"
+        elif result.get("content"):
+            summary = result["content"][:2000]
+        else:
+            summary = json.dumps(result, indent=2)[:2000]
+        if was_truncated:
+            summary += "\n[WARNING: Tool call was truncated (max tokens). File was written partially ({} bytes). Please verify the file is complete and append/fix the missing part using edit_file or write_file.]".format(len(tool_args.get("content", "")))
+        result["_summary"] = summary
+        await emit_tool({"type": "tool_result", "tool": tool_name, "result": result})
+        return {"tool": tool_name, "args": original_args, "result": result}
 
     try:
         while iteration < max_iterations:
@@ -897,125 +997,69 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 last_visible = cleaned
             await websocket.send_json({"type": "content_set", "content": cleaned})
 
-            # Circuit breaker: detect repeating same tool+args (infinite loop)
-            deduped_calls = []
-            for tc in tool_calls:
-                h = f"{tc.get('name')}:{json.dumps(tc.get('args', {}), sort_keys=True)[:300]}"
-                seen_tool_hashes[h] = seen_tool_hashes.get(h, 0) + 1
-                if seen_tool_hashes[h] > 3:
-                    await websocket.send_json({"type": "token", "content": f"\n\n[Stopped repeating tool {tc.get('name')} — same args 3×.]\n"})
-                    continue
-                deduped_calls.append(tc)
-            if not deduped_calls:
-                await websocket.send_json({"type": "token", "content": "\n\n[Agent loop stopped: repeating tools. Please refine the request.]\n"})
-                break
-            tool_calls = deduped_calls
-            # Also stop if too many tools in one go
-            if len(tool_calls) > 8:
-                tool_calls = tool_calls[:8]
-                await websocket.send_json({"type": "token", "content": "\n[Too many tool calls at once, truncated to 8]\n"})
+            to_run, skipped = filter_tool_calls(tool_calls, failed_tool_keys, run_tool_counts)
+            if skipped:
+                await websocket.send_json({
+                    "type": "token",
+                    "content": "\n[Skipped a repeated tool call — changing approach.]\n",
+                })
+            if not to_run:
+                repeat_nudges += 1
+                if repeat_nudges > MAX_REPEAT_NUDGES:
+                    await websocket.send_json({
+                        "type": "token",
+                        "content": "\n\n[Stopped: the same tools kept failing. Try a more specific request.]\n",
+                    })
+                    break
+                messages.append({"role": "assistant", "content": current_response or cleaned})
+                messages.append({"role": "user", "content": repeat_nudge_text(skipped)})
+                await websocket.send_json({"type": "content_set", "content": last_visible})
+                continue
+
+            if len(to_run) > MAX_TOOLS_PER_TURN:
+                to_run = to_run[:MAX_TOOLS_PER_TURN]
+            tool_calls = to_run
             last_tool_names = [tc.get("name", "") for tc in tool_calls]
             if any(name not in EXPLORE_TOOLS for name in last_tool_names):
                 consecutive_no_progress = 0
 
-            for tc in tool_calls:
+            explore_calls = [tc for tc in tool_calls if tc.get("name") in EXPLORE_TOOLS]
+            mutate_calls = [tc for tc in tool_calls if tc.get("name") not in EXPLORE_TOOLS]
+            ran: list[dict] = []
+            if explore_calls:
+                gathered = await asyncio.gather(
+                    *[execute_one_call(tc) for tc in explore_calls],
+                    return_exceptions=True,
+                )
                 if cancel.is_set():
                     await send_cancelled()
                     return
-                tool_name = tc.get("name", "")
-                tool_args = dict(tc.get("args", {}))
-                was_truncated = tool_args.pop("_truncated", False)
-                if workspace:
-                    tool_args = apply_workspace(tool_name, tool_args, workspace)
-                if ask_mode and tool_name == "generate_image":
-                    tool_args.pop("save_path", None)
-                if ask_mode and tool_name in {
-                    "write_file", "edit_file", "run_command", "close_app",
-                    "git_commit", "git_add", "git_push", "git_checkout",
-                    "run_build", "start_background_task", "delete_file",
-                }:
-                    await websocket.send_json({
-                        "type": "tool_result",
-                        "tool": tool_name,
-                        "result": {"success": False, "error": "Ask mode: writes and shell are blocked. Switch to Agent to change files."},
+                for item in gathered:
+                    if isinstance(item, dict):
+                        ran.append(item)
+            for tc in mutate_calls:
+                if cancel.is_set():
+                    await send_cancelled()
+                    return
+                item = await execute_one_call(tc)
+                if item:
+                    ran.append(item)
+
+            for tr in ran:
+                remember_result(
+                    call_key(tr["tool"], tr["args"]),
+                    tr.get("result"),
+                    failed_tool_keys,
+                    run_tool_counts,
+                )
+                tool_results_all.append(tr)
+            if skipped:
+                for item in skipped:
+                    tool_results_all.append({
+                        "tool": item["name"],
+                        "args": {},
+                        "result": {"_summary": f"Skipped repeat: {item.get('reason')}"},
                     })
-                    continue
-                is_dangerous = tool_name in DANGEROUS_TOOLS
-
-                if is_dangerous and not auto_approve:
-                    request_id = str(uuid.uuid4())
-                    tool_call_id = str(uuid.uuid4())
-                    await websocket.send_json({
-                        "type": "approval_needed",
-                        "tool": tool_name,
-                        "args": tool_args,
-                        "request_id": request_id,
-                        "tool_call_id": tool_call_id
-                    })
-
-                    queue = approval_queues.get(conn_id)
-                    if queue:
-                        approved = False
-                        try:
-                            get_task = asyncio.create_task(queue.get())
-                            cancel_task = asyncio.create_task(cancel.wait())
-                            done, pending = await asyncio.wait(
-                                {get_task, cancel_task},
-                                timeout=120,
-                                return_when=asyncio.FIRST_COMPLETED,
-                            )
-                            for task in pending:
-                                task.cancel()
-                            if cancel.is_set():
-                                await send_cancelled()
-                                return
-                            if get_task in done:
-                                msg = get_task.result()
-                                if msg.get("request_id") == request_id:
-                                    approved = msg.get("approved", False)
-                        except asyncio.TimeoutError:
-                            pass
-
-                        if not approved:
-                            await websocket.send_json({
-                                "type": "tool_result",
-                                "tool": tool_name,
-                                "result": {"success": False, "error": "Tool execution denied by user"}
-                            })
-                            continue
-
-                await websocket.send_json({
-                    "type": "tool_start",
-                    "tool": tool_name,
-                    "args": tool_args
-                })
-                result = await execute_tool(tool_name, tool_args)
-                total_tools_executed += 1
-
-                summary = ""
-                if "stdout" in result:
-                    summary = result["stdout"].strip()
-                    if result.get("stderr"):
-                        summary += "\n[stderr]: " + result["stderr"].strip()
-                    if result.get("exit_code", 0) != 0:
-                        summary += f"\n[exit code: {result['exit_code']}]"
-                elif result.get("error"):
-                    summary = f"Error: {result['error']}"
-                elif result.get("content"):
-                    summary = result["content"][:2000]
-                else:
-                    summary = json.dumps(result, indent=2)[:2000]
-
-                if was_truncated:
-                    summary += "\n[WARNING: Tool call was truncated (max tokens). File was written partially ({} bytes). Please verify the file is complete and append/fix the missing part using edit_file or write_file.]".format(len(tool_args.get("content", "")))
-
-                result["_summary"] = summary
-                tool_results_all.append({"tool": tool_name, "args": tool_args, "result": result})
-                await websocket.send_json({
-                    "type": "tool_result",
-                    "tool": tool_name,
-                    "result": result
-                })
 
             messages.append({"role": "assistant", "content": current_response})
             for tr in tool_results_all:
