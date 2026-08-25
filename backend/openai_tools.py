@@ -250,6 +250,18 @@ async def iter_openai_chat_sse(response: httpx.Response) -> AsyncGenerator[str |
         yield {"type": "native_tool_calls", "calls": calls}
 
 
+SPEED_KEYS = ("reasoning_effort", "verbosity")
+
+
+def _drop_speed_params(payload: dict) -> bool:
+    changed = False
+    for key in SPEED_KEYS:
+        if key in payload:
+            payload.pop(key, None)
+            changed = True
+    return changed
+
+
 async def stream_openai_chat(
     url: str,
     headers: dict,
@@ -258,25 +270,25 @@ async def stream_openai_chat(
 ) -> AsyncGenerator[str | dict, None]:
     send_payload = dict(payload)
     async with httpx.AsyncClient(timeout=120.0) as client:
-        async with client.stream("POST", url, json=send_payload, headers=headers) as response:
-            if response.status_code != 200:
+        last_error = None
+        for attempt in range(3):
+            async with client.stream("POST", url, json=send_payload, headers=headers) as response:
+                if response.status_code == 200:
+                    async for item in iter_openai_chat_sse(response):
+                        yield item
+                    return
                 body = await response.aread()
+                last_error = _error_message(response.status_code, body, error_prefix)
+                if attempt >= 2:
+                    break
+                if response.status_code in (400, 422) and _drop_speed_params(send_payload):
+                    continue
                 if send_payload.get("tools") and _tools_rejected(response.status_code, body):
                     send_payload.pop("tools", None)
                     send_payload.pop("tool_choice", None)
-                else:
-                    raise Exception(_error_message(response.status_code, body, error_prefix))
-            else:
-                async for item in iter_openai_chat_sse(response):
-                    yield item
-                return
-
-        async with client.stream("POST", url, json=send_payload, headers=headers) as retry:
-            if retry.status_code != 200:
-                body = await retry.aread()
-                raise Exception(_error_message(retry.status_code, body, error_prefix))
-            async for item in iter_openai_chat_sse(retry):
-                yield item
+                    continue
+                break
+        raise Exception(last_error)
 
 
 def attach_openai_tools(payload: dict, params: dict) -> dict:
@@ -284,4 +296,10 @@ def attach_openai_tools(payload: dict, params: dict) -> dict:
     if tools:
         payload["tools"] = tools
         payload.setdefault("tool_choice", "auto")
+    effort = params.get("reasoning_effort")
+    if effort:
+        payload["reasoning_effort"] = effort
+    verbosity = params.get("verbosity")
+    if verbosity:
+        payload["verbosity"] = verbosity
     return payload

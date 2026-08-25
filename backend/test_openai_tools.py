@@ -108,5 +108,18 @@ class ReasoningAndJsonFallbackTests(unittest.TestCase):
         )
 
 
+class AttachToolsTests(unittest.TestCase):
+    def test_attaches_low_reasoning(self):
+        from openai_tools import attach_openai_tools
+        payload = attach_openai_tools(
+            {"model": "gpt-5.6-sol"},
+            {"openai_tools": [{"type": "function", "function": {"name": "list_dir"}}], "reasoning_effort": "low", "verbosity": "low"},
+        )
+        self.assertEqual(payload["reasoning_effort"], "low")
+        self.assertEqual(payload["verbosity"], "low")
+        self.assertEqual(payload["tool_choice"], "auto")
+        self.assertTrue(payload["tools"])
+
+
 if __name__ == "__main__":
     unittest.main()

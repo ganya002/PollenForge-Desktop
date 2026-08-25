@@ -1,5 +1,6 @@
 import json
 import re
+import time
 
 EXPLORE_TOOLS = {
     "read_file",
@@ -28,10 +29,21 @@ BUILD_RE = re.compile(
 )
 
 KEEP_GOING_NUDGE = (
-    "The user's task is not done. Do not re-read the same files. "
-    "Output write_file / edit_file / run_command now and make the change. "
-    "If the last approach failed, use different arguments or a different tool."
+    "Stop narrating. Do not plan in prose. Your first character must start a ```tool block. "
+    "Do not re-read the same files. Call write_file / edit_file / run_command now. "
+    "If the last approach failed, change the arguments or pick a different tool."
 )
+
+WRITE_TOOLS = {"write_file", "edit_file", "delete_file"}
+RUN_TOOLS = {
+    "run_command",
+    "run_tests",
+    "run_build",
+    "run_linter",
+    "run_typecheck",
+    "start_background_task",
+}
+MAX_ITERATIONS = 24
 
 REPEAT_NUDGE = (
     "Those exact tool calls already ran or already failed. Do not repeat them. "
@@ -108,6 +120,83 @@ def remember_result(key: str, result: dict | None, failed_keys: dict[str, str], 
         failed_keys[key] = summary or "failed"
         return
     run_counts[key] = run_counts.get(key, 0) + 1
+
+
+def tool_path_from_args(args: dict | None) -> str:
+    if not isinstance(args, dict):
+        return ""
+    for key in ("path", "file", "cwd"):
+        val = args.get(key)
+        if val:
+            text = str(val).replace("\\", "/")
+            return text.rsplit("/", 1)[-1][:120]
+    url = args.get("url")
+    if url:
+        return str(url)[:80]
+    return ""
+
+
+def tool_phase(name: str) -> str:
+    if name in WRITE_TOOLS:
+        return "writing"
+    if name in RUN_TOOLS:
+        return "running"
+    if name in EXPLORE_TOOLS:
+        return "reading"
+    return "working"
+
+
+def progress_percent(
+    iteration: int,
+    max_iterations: int,
+    tools_executed: int,
+    mutate_count: int = 0,
+) -> int:
+    cap = max(max_iterations, 1)
+    raw = (
+        6
+        + (max(iteration, 0) / cap) * 48
+        + min(28, max(tools_executed, 0) * 3)
+        + min(28, max(mutate_count, 0) * 8)
+    )
+    hi = 96 if iteration < cap else 98
+    return int(max(3, min(hi, raw)))
+
+
+def progress_payload(
+    *,
+    iteration: int,
+    max_iterations: int,
+    tools_executed: int,
+    start_time: float,
+    phase: str = "thinking",
+    current_tool: str = "",
+    current_path: str = "",
+    mutate_count: int = 0,
+) -> dict:
+    elapsed_ms = int(max(0.0, (time.time() - start_time) * 1000))
+    remaining_turns = max(0, max_iterations - iteration)
+    avg_ms = elapsed_ms / max(iteration, 1)
+    likely_left = remaining_turns
+    if mutate_count > 0:
+        likely_left = min(remaining_turns, max(1, 3))
+    elif tools_executed > 0:
+        likely_left = min(remaining_turns, max(2, 6))
+    eta_ms = int(avg_ms * likely_left) if iteration > 0 else 0
+    return {
+        "type": "progress",
+        "iteration": iteration,
+        "max_iterations": max_iterations,
+        "tools_executed": tools_executed,
+        "percent": progress_percent(iteration, max_iterations, tools_executed, mutate_count),
+        "remaining_turns": remaining_turns,
+        "elapsed_ms": elapsed_ms,
+        "eta_ms": eta_ms,
+        "phase": phase,
+        "current_tool": current_tool,
+        "current_path": current_path,
+        "mutate_count": mutate_count,
+    }
 
 
 def should_keep_going(

@@ -4,6 +4,20 @@ import { backendToken } from '../lib/api'
 
 type SwarmWorkerSeed = { id: string; role: string; task: string }
 
+export type ProgressEvent = {
+  iteration: number
+  maxIterations: number
+  toolsExecuted: number
+  percent?: number
+  remainingTurns?: number
+  elapsedMs?: number
+  etaMs?: number
+  phase?: string
+  currentTool?: string
+  currentPath?: string
+  mutateCount?: number
+}
+
 type WSMessage =
   | { type: 'token'; content: string }
   | { type: 'reasoning'; content: string }
@@ -11,7 +25,20 @@ type WSMessage =
   | { type: 'tool_start'; tool: string; args: Record<string, unknown>; request_id?: string }
   | { type: 'tool_result'; tool: string; result: unknown }
   | { type: 'approval_needed'; tool: string; args: Record<string, unknown>; request_id: string; tool_call_id: string }
-  | { type: 'progress'; iteration: number; max_iterations: number; tools_executed: number }
+  | {
+      type: 'progress'
+      iteration: number
+      max_iterations: number
+      tools_executed: number
+      percent?: number
+      remaining_turns?: number
+      elapsed_ms?: number
+      eta_ms?: number
+      phase?: string
+      current_tool?: string
+      current_path?: string
+      mutate_count?: number
+    }
   | { type: 'done'; stats: unknown }
   | { type: 'error'; message: string }
   | { type: 'pong' }
@@ -28,7 +55,7 @@ interface UseWebSocketOptions {
   onToolStart?: (tool: string, args: Record<string, unknown>) => void
   onToolResult?: (tool: string, result: unknown) => void
   onApprovalNeeded?: (tool: string, args: Record<string, unknown>, requestId: string, toolCallId: string) => void
-  onProgress?: (iteration: number, maxIterations: number, toolsExecuted: number) => void
+  onProgress?: (progress: ProgressEvent) => void
   onDone?: (stats: unknown) => void
   onError?: (message: string) => void
   onSwarmStart?: (goal: string, workers: SwarmWorkerSeed[]) => void
@@ -98,7 +125,19 @@ export function useWebSocket(options: UseWebSocketOptions) {
               case 'tool_start': opts.onToolStart?.(msg.tool, msg.args); break
               case 'tool_result': opts.onToolResult?.(msg.tool, msg.result); break
               case 'approval_needed': opts.onApprovalNeeded?.(msg.tool, msg.args, msg.request_id, msg.tool_call_id); break
-              case 'progress': opts.onProgress?.(msg.iteration, msg.max_iterations, msg.tools_executed); break
+              case 'progress': opts.onProgress?.({
+                iteration: msg.iteration,
+                maxIterations: msg.max_iterations,
+                toolsExecuted: msg.tools_executed,
+                percent: msg.percent,
+                remainingTurns: msg.remaining_turns,
+                elapsedMs: msg.elapsed_ms,
+                etaMs: msg.eta_ms,
+                phase: msg.phase,
+                currentTool: msg.current_tool,
+                currentPath: msg.current_path,
+                mutateCount: msg.mutate_count,
+              }); break
               case 'done': opts.onDone?.(msg.stats); setStreaming(false); break
               case 'error': opts.onError?.(msg.message); setStreaming(false); break
               case 'pong': break

@@ -171,6 +171,21 @@ export interface SwarmState {
   active: boolean
 }
 
+export interface RunProgress {
+  iteration: number
+  maxIterations: number
+  toolsExecuted: number
+  percent: number
+  remainingTurns: number
+  elapsedMs: number
+  etaMs: number
+  phase: string
+  currentTool?: string
+  currentPath?: string
+  mutateCount?: number
+  startedAt: number
+}
+
 interface AppState {
   messages: Message[]
   currentModel: string
@@ -200,6 +215,7 @@ interface AppState {
   browserTick: number
   toasts: ToastItem[]
   agentStep: string | null
+  runProgress: RunProgress | null
   undoWrite: UndoWrite | null
   chatFind: string
   checkpoints: Checkpoint[]
@@ -245,6 +261,7 @@ interface AppState {
   pushToast: (toast: Omit<ToastItem, 'id'> & { id?: string }) => void
   dismissToast: (id: string) => void
   setAgentStep: (step: string | null) => void
+  setRunProgress: (progress: Omit<RunProgress, 'startedAt'> | RunProgress | null) => void
   setUndoWrite: (undo: UndoWrite | null) => void
   setChatFind: (query: string) => void
   addCheckpoint: (label?: string) => void
@@ -302,6 +319,7 @@ export const useStore = create<AppState>((set, get) => ({
   browserTick: 0,
   toasts: [],
   agentStep: null,
+  runProgress: null,
   undoWrite: null,
   chatFind: '',
   checkpoints: [],
@@ -342,7 +360,9 @@ export const useStore = create<AppState>((set, get) => ({
       return { ...m, toolCalls: m.toolCalls.map(tc => tc.id === toolCallId ? { ...tc, ...updates } : tc) }
     })
   })),
-  setStreaming: (v) => set({ isStreaming: v }),
+  setStreaming: (v) => set(v
+    ? { isStreaming: true }
+    : { isStreaming: false, runProgress: null, agentStep: null }),
   setModel: (model, provider) => set({ currentModel: model, currentProvider: provider }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toggleBrowser: () => set((s) => ({ browserOpen: !s.browserOpen, browserFullscreen: s.browserOpen ? false : s.browserFullscreen })),
@@ -356,10 +376,10 @@ export const useStore = create<AppState>((set, get) => ({
   setSessions: (sessions) => set({ sessions }),
   setConfig: (config) => set({ config }),
   setFileTree: (tree) => set({ fileTree: tree }),
-  clearMessages: () => set({ messages: [], checkpoints: [], undoWrite: null, agentStep: null, swarm: null }),
+  clearMessages: () => set({ messages: [], checkpoints: [], undoWrite: null, agentStep: null, runProgress: null, swarm: null }),
   setCurrentSessionId: (id) => {
     rememberSessionId(id)
-    set({ currentSessionId: id, checkpoints: [], undoWrite: null, swarm: null })
+    set({ currentSessionId: id, checkpoints: [], undoWrite: null, swarm: null, runProgress: null })
   },
   loadSessionMessages: (msgs) => set({
     messages: msgs.map((m, i) => ({
@@ -418,6 +438,15 @@ export const useStore = create<AppState>((set, get) => ({
   })),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   setAgentStep: (agentStep) => set({ agentStep }),
+  setRunProgress: (progress) => set((s) => {
+    if (!progress) return { runProgress: null }
+    return {
+      runProgress: {
+        ...progress,
+        startedAt: s.runProgress?.startedAt || Date.now(),
+      },
+    }
+  }),
   setUndoWrite: (undoWrite) => set({ undoWrite }),
   setChatFind: (chatFind) => set({ chatFind }),
   addCheckpoint: (label) => set((s) => {
@@ -433,7 +462,7 @@ export const useStore = create<AppState>((set, get) => ({
   restoreCheckpoint: (id) => set((s) => {
     const hit = s.checkpoints.find((c) => c.id === id)
     if (!hit) return s
-    return { messages: hit.messages.map((m) => ({ ...m })), agentStep: null }
+    return { messages: hit.messages.map((m) => ({ ...m })), agentStep: null, runProgress: null }
   }),
   setShowArchived: (showArchived) => set({ showArchived }),
   startSwarm: (payload) => set((s) => {

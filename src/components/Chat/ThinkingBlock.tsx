@@ -2,6 +2,7 @@ import { useState } from 'react'
 import MarkdownRenderer from './MarkdownRenderer'
 import { useStore, type ToolCall } from '../../store/store'
 import { summarizeAgentActivity } from '../../lib/agentActivity'
+import RunProgressBar from './RunProgressBar'
 
 interface Props {
   reasoning: string
@@ -21,14 +22,17 @@ function LineDelta({ added, removed }: { added: number; removed: number }) {
 
 export default function ThinkingBlock({ reasoning, active, toolCalls }: Props) {
   const swarm = useStore((s) => s.swarm)
+  const progress = useStore((s) => s.runProgress)
   const [open, setOpen] = useState(false)
   const text = reasoning.trim()
   const activity = summarizeAgentActivity({ toolCalls, swarm: active ? swarm : null, streaming: active })
   if (!active && !text) return null
 
-  const label = activity.headline || (active ? 'Thinking' : 'Thought')
+  const percent = active && progress ? `${progress.percent}%` : ''
+  const label = percent
+    ? `${activity.headline || 'Working'} · ${percent}`
+    : activity.headline || (active ? 'Thinking' : 'Thought')
   const showLive = active && activity.hasWork
-  const showCurrent = showLive && activity.current && activity.current !== label && !label.endsWith(activity.current)
 
   return (
     <div className="mb-3">
@@ -51,6 +55,7 @@ export default function ThinkingBlock({ reasoning, active, toolCalls }: Props) {
         <span className={`truncate ${active ? 'thinking-shimmer' : ''}`}>{label}</span>
         {!active && <LineDelta added={activity.added} removed={activity.removed} />}
       </button>
+      {active && <RunProgressBar toolCalls={toolCalls} />}
       {showLive && (
         <div className="mt-0.5 ml-[18px] space-y-0.5 text-[13px] text-text-muted leading-relaxed">
           {activity.summary && <div>{activity.summary}</div>}
@@ -60,7 +65,6 @@ export default function ThinkingBlock({ reasoning, active, toolCalls }: Props) {
               <LineDelta added={activity.added} removed={activity.removed} />
             </div>
           )}
-          {showCurrent && <div>{activity.current}</div>}
         </div>
       )}
       {open && text ? (

@@ -23,14 +23,18 @@ from auth_token import resolve_auth_token
 from agent_loop import (
     EXPLORE_TOOLS,
     KEEP_GOING_NUDGE,
+    MAX_ITERATIONS,
     MAX_REPEAT_NUDGES,
     MAX_TOOLS_PER_TURN,
     call_key,
     filter_tool_calls,
     last_user_text,
+    progress_payload,
     remember_result,
     repeat_nudge_text,
     should_keep_going,
+    tool_path_from_args,
+    tool_phase,
 )
 from tools.memory import forget_memory, list_memories, memory_prompt_section, remember, save_memories
 
@@ -657,6 +661,8 @@ run_command runs here unless you set cwd. Prefer this folder over any other work
 CRITICAL: You MUST use tools to fulfill requests. NEVER respond with just text. You HAVE the tools — USE THEM.
 If AGENTS.md was loaded above, follow it first — especially for releases, packaging, and how users install the app.
 
+SPEED: Think as little as possible. Do not write "let me", plans, or recaps. Your first output MUST be tool calls. Look at files once, then write_file/edit_file. Speak at most one short sentence after the work is done.
+
 Prefer native function calling when the API supports it. If native tools are unavailable, YOUR RESPONSE MUST CONTAIN ```tool CODE BLOCKS. If you don't call tools, you are failing your user.
 
 ## Tool Format
@@ -805,20 +811,27 @@ START OUTPUTTING TOOL BLOCKS NOW."""
     if not messages or messages[0].get("role") != "system":
         messages.insert(0, {"role": "system", "content": system_prompt})
 
+    try:
+        temperature = min(float(config.get("temperature", 0.3) or 0.3), 0.3)
+    except (TypeError, ValueError):
+        temperature = 0.3
     params = {
-        "temperature": config.get("temperature", 0.4),
+        "temperature": temperature,
         "max_tokens": config.get("max_tokens", 32768),
         "api_key": _effective_api_key(data.get("api_key"), provider_name, config),
         "base_url": provider_cfg.get("base_url"),
         "openai_tools": to_openai_tools(tools),
+        "reasoning_effort": "low",
+        "verbosity": "low",
     }
 
     full_response = ""
     tool_results_all = []
     start_time = time.time()
-    max_iterations = 32
+    max_iterations = MAX_ITERATIONS
     iteration = 0
     total_tools_executed = 0
+    mutate_count = 0
     total_tokens = 0
     failed_tool_keys: dict[str, str] = {}
     run_tool_counts: dict[str, int] = {}
@@ -864,8 +877,21 @@ START OUTPUTTING TOOL BLOCKS NOW."""
         async with tool_emit_lock:
             await websocket.send_json(payload)
 
+    async def emit_progress(phase: str = "thinking", current_tool: str = "", current_path: str = "") -> None:
+        async with tool_emit_lock:
+            await websocket.send_json(progress_payload(
+                iteration=iteration,
+                max_iterations=max_iterations,
+                tools_executed=total_tools_executed,
+                start_time=start_time,
+                phase=phase,
+                current_tool=current_tool,
+                current_path=current_path,
+                mutate_count=mutate_count,
+            ))
+
     async def execute_one_call(tc: dict) -> dict | None:
-        nonlocal total_tools_executed
+        nonlocal total_tools_executed, mutate_count
         if cancel.is_set():
             return None
         tool_name = tc.get("name", "")
@@ -923,8 +949,11 @@ START OUTPUTTING TOOL BLOCKS NOW."""
                 return {"tool": tool_name, "args": original_args, "result": result}
 
         await emit_tool({"type": "tool_start", "tool": tool_name, "args": tool_args})
+        await emit_progress(tool_phase(tool_name), tool_name, tool_path_from_args(tool_args))
         result = await execute_tool(tool_name, tool_args)
         total_tools_executed += 1
+        if tool_name not in EXPLORE_TOOLS:
+            mutate_count += 1
 
         summary = ""
         if "stdout" in result:
@@ -943,6 +972,7 @@ START OUTPUTTING TOOL BLOCKS NOW."""
             summary += "\n[WARNING: Tool call was truncated (max tokens). File was written partially ({} bytes). Please verify the file is complete and append/fix the missing part using edit_file or write_file.]".format(len(tool_args.get("content", "")))
         result["_summary"] = summary
         await emit_tool({"type": "tool_result", "tool": tool_name, "result": result})
+        await emit_progress(tool_phase(tool_name), tool_name, tool_path_from_args(tool_args))
         return {"tool": tool_name, "args": original_args, "result": result}
 
     try:
@@ -955,12 +985,7 @@ START OUTPUTTING TOOL BLOCKS NOW."""
             current_response = ""
             native_calls: list[dict] = []
 
-            await websocket.send_json({
-                "type": "progress",
-                "iteration": iteration,
-                "max_iterations": max_iterations,
-                "tools_executed": total_tools_executed
-            })
+            await emit_progress("thinking")
 
             async for item in provider.chat_stream(messages, model, params):
                 if cancel.is_set():

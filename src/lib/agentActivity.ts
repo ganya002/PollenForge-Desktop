@@ -218,3 +218,45 @@ export function summarizeAgentActivity(input: {
     hasWork,
   }
 }
+
+export function formatDuration(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000))
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  const rem = s % 60
+  return rem ? `${m}m ${rem}s` : `${m}m`
+}
+
+export function formatEta(ms: number): string {
+  if (ms <= 0) return ''
+  if (ms < 1500) return 'a few seconds left'
+  return `~${formatDuration(ms)} left`
+}
+
+export function phaseLabel(phase: string): string {
+  if (phase === 'writing') return 'Writing files'
+  if (phase === 'reading') return 'Reading files'
+  if (phase === 'running') return 'Running commands'
+  if (phase === 'working') return 'Working'
+  if (phase === 'starting') return 'Starting'
+  return 'Thinking'
+}
+
+export function runProgressCaption(input: {
+  iteration: number
+  maxIterations: number
+  toolsExecuted: number
+  remainingTurns: number
+  elapsedMs: number
+  etaMs: number
+}): string {
+  const parts = [
+    `Turn ${Math.max(input.iteration, 1)} of ${input.maxIterations}`,
+    `${input.toolsExecuted} ${input.toolsExecuted === 1 ? 'tool' : 'tools'}`,
+    `${input.remainingTurns} left`,
+    formatDuration(input.elapsedMs),
+  ]
+  const eta = formatEta(input.etaMs)
+  if (eta) parts.push(eta)
+  return parts.join(' · ')
+}

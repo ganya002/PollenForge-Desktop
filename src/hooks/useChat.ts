@@ -12,7 +12,7 @@ import { shouldRefreshFileTree } from '../lib/fileTreeSync'
 import { sanitizeAssistantContent } from '../lib/sanitizeAssistantContent'
 import { mergeReasoning, splitThinkTags } from '../lib/thinking'
 import { swarmWorkersFromArgs } from '../lib/swarm'
-import { useWebSocket } from './useWebSocket'
+import { useWebSocket, type ProgressEvent } from './useWebSocket'
 
 function genId(): string {
   return Math.random().toString(36).slice(2, 11) + Math.random().toString(36).slice(2, 6)
@@ -180,6 +180,23 @@ export function useChat() {
       scrollToBottom()
     }, [scrollToBottom]),
 
+    onProgress: useCallback((progress: ProgressEvent) => {
+      const percent = Math.max(3, Math.min(96, Math.round(progress.percent ?? (progress.iteration / Math.max(progress.maxIterations, 1)) * 90)))
+      useStore.getState().setRunProgress({
+        iteration: progress.iteration,
+        maxIterations: progress.maxIterations,
+        toolsExecuted: progress.toolsExecuted,
+        percent,
+        remainingTurns: progress.remainingTurns ?? Math.max(0, progress.maxIterations - progress.iteration),
+        elapsedMs: progress.elapsedMs ?? 0,
+        etaMs: progress.etaMs ?? 0,
+        phase: progress.phase || 'thinking',
+        currentTool: progress.currentTool,
+        currentPath: progress.currentPath,
+        mutateCount: progress.mutateCount,
+      })
+    }, []),
+
     onApprovalNeeded: useCallback((tool: string, args: Record<string, unknown>, requestId: string, toolCallId: string) => {
       const state = useStore.getState()
       if (state.config.auto_approve) {
@@ -335,6 +352,16 @@ export function useChat() {
     const assistantMsg: Message = { id: genId(), role: 'assistant', content: '', timestamp: Date.now(), toolCalls: [] }
     state.addMessage(assistantMsg)
     state.setStreaming(true)
+    state.setRunProgress({
+      iteration: 0,
+      maxIterations: 24,
+      toolsExecuted: 0,
+      percent: 4,
+      remainingTurns: 24,
+      elapsedMs: 0,
+      etaMs: 0,
+      phase: 'starting',
+    })
 
     const allMessages = useStore.getState().messages
       .filter(m => m.role !== 'system')

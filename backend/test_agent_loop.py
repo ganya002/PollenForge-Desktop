@@ -114,5 +114,36 @@ class RepeatFilterTests(unittest.TestCase):
         self.assertIn("Do not repeat", text)
 
 
+class ProgressTests(unittest.TestCase):
+    def test_percent_moves_with_tools_and_writes(self):
+        from agent_loop import progress_percent, tool_path_from_args, tool_phase
+        start = progress_percent(1, 24, 0, 0)
+        later = progress_percent(4, 24, 8, 3)
+        self.assertGreaterEqual(start, 3)
+        self.assertLess(start, later)
+        self.assertLessEqual(later, 96)
+        self.assertEqual(tool_phase("write_file"), "writing")
+        self.assertEqual(tool_phase("read_file"), "reading")
+        self.assertEqual(tool_path_from_args({"path": "/tmp/game/index.html"}), "index.html")
+
+    def test_payload_includes_remaining_and_eta(self):
+        from agent_loop import progress_payload
+        payload = progress_payload(
+            iteration=3,
+            max_iterations=24,
+            tools_executed=5,
+            start_time=__import__("time").time() - 9,
+            phase="writing",
+            current_tool="write_file",
+            current_path="index.html",
+            mutate_count=2,
+        )
+        self.assertEqual(payload["type"], "progress")
+        self.assertEqual(payload["remaining_turns"], 21)
+        self.assertEqual(payload["current_path"], "index.html")
+        self.assertGreaterEqual(payload["percent"], 3)
+        self.assertGreaterEqual(payload["eta_ms"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

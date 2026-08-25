@@ -3,7 +3,11 @@ import { test } from 'node:test'
 import type { ToolCall } from '../store/store.ts'
 import {
   countDiffLines,
+  formatDuration,
+  formatEta,
   lineDeltaFromTool,
+  phaseLabel,
+  runProgressCaption,
   summarizeAgentActivity,
   toolActionLabel,
 } from './agentActivity.ts'
@@ -101,4 +105,21 @@ test('swarm workers feed the live headline and line counts', () => {
   assert.equal(activity.added, 40)
   assert.equal(activity.removed, 6)
   assert.match(activity.detail, /Editing 1 file/)
+})
+
+test('run progress caption shows turn, tools, remaining, and ETA', () => {
+  assert.equal(
+    runProgressCaption({
+      iteration: 4,
+      maxIterations: 24,
+      toolsExecuted: 11,
+      remainingTurns: 20,
+      elapsedMs: 12000,
+      etaMs: 40000,
+    }),
+    'Turn 4 of 24 · 11 tools · 20 left · 12s · ~40s left',
+  )
+  assert.equal(formatDuration(90000), '1m 30s')
+  assert.equal(formatEta(800), 'a few seconds left')
+  assert.equal(phaseLabel('writing'), 'Writing files')
 })
