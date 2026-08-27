@@ -62,6 +62,8 @@ export interface Config {
   free_models_only?: boolean
   model_list?: 'popular' | 'all' | 'free'
   theme?: ThemeId
+  glassOpacity?: number
+  glassRefraction?: import('../lib/qol').GlassRefraction
   agent_mode?: AgentMode
 }
 
@@ -301,6 +303,8 @@ export const useStore = create<AppState>((set, get) => ({
     model_list: 'popular',
     free_models_only: false,
     theme: 'dark',
+    glassOpacity: 55,
+    glassRefraction: 'subtle' as const,
     agent_mode: 'agent',
   },
   fileTree: [],

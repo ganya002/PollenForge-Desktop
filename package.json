@@ -1,6 +1,6 @@
 {
-  "name": "nexum",
-  "version": "1.3.0",
+  "name": "nexum-beta",
+  "version": "1.3.0-beta.5",
   "description": "Nexum Beta — Desktop AI coding assistant with multi-provider support",
   "main": "dist-electron/electron/main.js",
   "author": "Nexum",
@@ -44,8 +44,8 @@
     "wait-on": "^8.0.1"
   },
   "build": {
-    "appId": "com.nexum.desktop",
-    "productName": "Nexum",
+    "appId": "com.nexum.desktop.beta",
+    "productName": "Nexum Beta",
     "publish": [
       {
         "provider": "github",

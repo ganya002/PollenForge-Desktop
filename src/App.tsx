@@ -18,7 +18,7 @@ import UpdateBadge from './components/UpdateBadge'
 import ToastHost from './components/ToastHost'
 import { useAvailableUpdate } from './hooks/useAvailableUpdate'
 import { mergeFetchedConfig, persistConfig, refreshProviderModels } from './lib/appConfig'
-import { applyTheme, normalizeTheme } from './lib/qol'
+import { applyGlassOpacity, applyGlassRefraction, applyTheme, normalizeGlassOpacity, normalizeGlassRefraction, normalizeTheme } from './lib/qol'
 import { restoreLastSession, flushCurrentSession } from './lib/sessions'
 import { writeWorkspaceFile } from './lib/workspace'
 import FilePanel from './components/Files/FilePanel'
@@ -44,6 +44,8 @@ export default function App() {
   const wsConnected = useStore((s) => s.wsConnected)
   const agentMode = useStore((s) => s.config.agent_mode) || 'agent'
   const theme = useStore((s) => s.config.theme)
+  const glassOpacity = useStore((s) => s.config.glassOpacity)
+  const glassRefraction = useStore((s) => s.config.glassRefraction)
   const undoWrite = useStore((s) => s.undoWrite)
   const checkpoints = useStore((s) => s.checkpoints)
   const chatFind = useStore((s) => s.chatFind)
@@ -52,8 +54,12 @@ export default function App() {
   useEffect(() => {
     try {
       applyTheme(normalizeTheme(localStorage.getItem('nx-theme') || theme))
+      applyGlassOpacity(normalizeGlassOpacity(localStorage.getItem('nx-glass-opacity') ?? glassOpacity))
+      applyGlassRefraction(normalizeGlassRefraction(localStorage.getItem('nx-glass-refraction') || glassRefraction))
     } catch {
       applyTheme(normalizeTheme(theme))
+      applyGlassOpacity(normalizeGlassOpacity(glassOpacity))
+      applyGlassRefraction(normalizeGlassRefraction(glassRefraction))
     }
   }, [])
 
@@ -65,7 +71,23 @@ export default function App() {
     } catch {
       /* ignore */
     }
+    // Tell main process to toggle vibrancy for native glass
+    try {
+      window.api?.app?.setVibrancy?.(next === 'glass' ? 'sidebar' : null)
+    } catch {}
   }, [theme])
+
+  useEffect(() => {
+    const v = normalizeGlassOpacity(glassOpacity)
+    applyGlassOpacity(v)
+    try { localStorage.setItem('nx-glass-opacity', String(v)) } catch {}
+  }, [glassOpacity])
+
+  useEffect(() => {
+    const m = normalizeGlassRefraction(glassRefraction)
+    applyGlassRefraction(m)
+    try { localStorage.setItem('nx-glass-refraction', m) } catch {}
+  }, [glassRefraction])
 
   const handleNewChat = useCallback(() => {
     flushCurrentSession()

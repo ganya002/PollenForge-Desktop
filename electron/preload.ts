@@ -143,6 +143,9 @@ contextBridge.exposeInMainWorld('api', {
     notifyDone: (payload?: { title?: string; body?: string }): Promise<{ ok: boolean; skipped?: boolean; error?: string }> => {
       return ipcRenderer.invoke('app:notify-done', payload);
     },
+    setVibrancy: (mode: string | null): Promise<{ ok: boolean; error?: string }> => {
+      return ipcRenderer.invoke('app:set-vibrancy', mode);
+    },
     platform: process.platform,
     nativeFrame: process.platform === 'win32',
   },

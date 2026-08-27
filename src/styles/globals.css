@@ -63,6 +63,277 @@
   --border-hover: #3d4b59;
 }
 
+[data-theme="glass"] {
+  /* Liquid Glass — Tahoe / Golden Gate inspired — Apple native */
+  --glass-opacity: 0.52;
+  --glass-blur: 32px;
+  --glass-blur-subtle: 24px;
+  --glass-blur-dramatic: 44px;
+  --glass-saturation: 185%;
+  --glass-brightness: 1.08;
+
+  /* Translucent surfaces — more transparent for true desktop blur */
+  --surface-0: rgba(16, 16, 18, calc(var(--glass-opacity, 0.52) * 0.78));
+  --surface-1: rgba(24, 24, 26, calc(var(--glass-opacity, 0.52) * 0.88));
+  --surface-2: rgba(38, 38, 42, calc(var(--glass-opacity, 0.52) * 0.82));
+  --surface-3: rgba(52, 52, 56, calc(var(--glass-opacity, 0.52) * 0.78));
+
+  --text-primary: #f2f2f7;
+  --text-secondary: #c7c7cc;
+  --text-muted: #98989d;
+
+  --accent: #f2f2f7;
+  --accent-hover: #ffffff;
+  --accent-ink: #0e0e0e;
+  --accent-muted: rgba(255,255,255,0.07);
+
+  --border: rgba(255,255,255,0.06);
+  --border-hover: rgba(255,255,255,0.11);
+
+  --success: #7ecf8a;
+  --warning: #e8b86a;
+  --danger: #e07a74;
+
+  /* Glass-specific — refined for Apple polish */
+  --glass-border: rgba(255,255,255,0.08);
+  --glass-border-strong: rgba(255,255,255,0.13);
+  --glass-highlight: rgba(255,255,255,0.11);
+  --glass-highlight-strong: rgba(255,255,255,0.16);
+  --glass-shadow: 0 8px 32px rgba(0,0,0,0.32), 0 0.5px 0 rgba(255,255,255,0.05) inset, 0 -0.5px 0 rgba(0,0,0,0.15) inset;
+  --glass-shadow-strong: 0 16px 48px rgba(0,0,0,0.38), 0 0.5px 0 rgba(255,255,255,0.07) inset;
+}
+
+[data-theme="glass"][data-glass-refraction="subtle"] {
+  --glass-blur: var(--glass-blur-subtle);
+}
+
+[data-theme="glass"][data-glass-refraction="dramatic"] {
+  --glass-blur: var(--glass-blur-dramatic);
+  --glass-saturation: 200%;
+  --glass-brightness: 1.10;
+}
+
+/* Glass window — transparent so vibrancy shows through */
+[data-theme="glass"] html,
+[data-theme="glass"] body,
+[data-theme="glass"] #root {
+  background: transparent !important;
+}
+
+[data-theme="glass"] #root {
+  position: relative;
+  isolation: isolate;
+}
+
+[data-theme="glass"] #root::before {
+  content: '';
+  position: fixed;
+  inset: -40%;
+  background:
+    radial-gradient(ellipse 70% 60% at 20% 30%, rgba(110,130,255,0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 80% 75%, rgba(255,110,160,0.05) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(120,200,255,0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: -1;
+  animation: glass-drift 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes glass-drift {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(1.2%, 0.8%) scale(1.015) rotate(0.3deg); }
+  66% { transform: translate(-0.8%, 1.2%) scale(0.985) rotate(-0.2deg); }
+}
+
+/* Ensure root still has a fallback for non-macOS (no vibrancy) */
+@supports not (-webkit-backdrop-filter: blur(1px)) {
+  [data-theme="glass"] {
+    --surface-0: rgba(18,18,20,0.88);
+    --surface-1: rgba(26,26,28,0.84);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   Liquid Glass — Apple Tahoe / Golden Gate
+   Real translucency + light refraction + specular highlights
+   ────────────────────────────────────────────────────────── */
+[data-theme="glass"] {
+  /* Promote to own layer for smooth blur */
+  --glass-transition: backdrop-filter var(--duration-slow) var(--ease-smooth),
+    background-color var(--duration-slow) var(--ease-smooth),
+    border-color var(--duration-slow) var(--ease-smooth),
+    box-shadow var(--duration-slow) var(--ease-smooth);
+}
+
+/* Premium glass — only key containers get blur (for 60-120fps) */
+[data-theme="glass"] aside,
+[data-theme="glass"] .composer-shell,
+[data-theme="glass"] .fixed.inset-0 > div[class*="bg-surface"],
+[data-theme="glass"] .fixed.inset-0 > div[class*="rounded"] {
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  border-color: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow);
+  will-change: backdrop-filter, transform;
+  transform: translateZ(0);
+  contain: paint;
+}
+
+/* Other surfaces: translucent only, no blur — keeps it light for the GPU */
+[data-theme="glass"] .bg-surface-0,
+[data-theme="glass"] .bg-surface-2,
+[data-theme="glass"] .bg-surface-3 {
+  background-color: var(--surface-1) !important;
+  border-color: var(--glass-border) !important;
+}
+
+/* Liquid refraction — Siri-inspired: soft, diffused, no harsh diagonal */
+[data-theme="glass"] .bg-surface-1::before,
+[data-theme="glass"] aside::before,
+[data-theme="glass"] .composer-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* Siri orb bottom glow: soft radial at bottom edge, barely there */
+  background: radial-gradient(
+    120% 90% at 50% 100%,
+    rgba(180, 180, 255, 0.06) 0%,
+    rgba(255, 180, 200, 0.03) 28%,
+    rgba(255, 255, 255, 0.04) 42%,
+    transparent 62%
+  );
+  opacity: 0.50;
+  pointer-events: none;
+  border-radius: inherit;
+  mix-blend-mode: overlay;
+  transition: opacity var(--duration-slow) var(--ease-smooth);
+}
+
+[data-theme="glass"][data-glass-refraction="dramatic"] .bg-surface-1::before,
+[data-theme="glass"][data-glass-refraction="dramatic"] aside::before,
+[data-theme="glass"][data-glass-refraction="dramatic"] .composer-shell::before {
+  opacity: 0.78;
+  background: radial-gradient(
+    140% 85% at 50% 100%,
+    rgba(120, 160, 255, 0.08) 0%,
+    rgba(180, 120, 255, 0.06) 18%,
+    rgba(255, 140, 180, 0.05) 34%,
+    rgba(255, 220, 120, 0.04) 48%,
+    rgba(255, 255, 255, 0.06) 58%,
+    transparent 72%
+  );
+  /* No displacement filter — Siri uses soft color, not warping */
+}
+
+[data-theme="glass"][data-glass-refraction="subtle"] .bg-surface-1::before,
+[data-theme="glass"][data-glass-refraction="subtle"] aside::before,
+[data-theme="glass"][data-glass-refraction="subtle"] .composer-shell::before {
+  /* Subtle = no filter, just soft glow */
+  filter: none;
+}
+
+/* Specular edge highlight — top + left */
+[data-theme="glass"] .bg-surface-1::after,
+[data-theme="glass"] aside::after,
+[data-theme="glass"] .composer-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.10) 0%,
+    rgba(255,255,255,0.03) 12%,
+    transparent 32%
+  );
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+[data-theme="glass"][data-glass-refraction="dramatic"] .bg-surface-1::after,
+[data-theme="glass"][data-glass-refraction="dramatic"] aside::after,
+[data-theme="glass"][data-glass-refraction="dramatic"] .composer-shell::after {
+  opacity: 1;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.18) 0%,
+    rgba(255,255,255,0.06) 10%,
+    transparent 28%
+  );
+}
+
+/* ──────────────────────────────────────────────────────────
+   Glass — premium Apple motion, crisp not bouncy
+   ────────────────────────────────────────────────────────── */
+[data-theme="glass"] {
+  --glass-bubble: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-theme="glass"] button:active {
+  transform: scale(0.97) !important;
+}
+
+[data-theme="glass"] .siri-bubble {
+  /* Removed — breathing on input was distracting */
+  animation: none;
+}
+
+/* Glass slider — native macOS style */
+.glass-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.06) 0%,
+    rgba(255,255,255,0.14) var(--glass-slider-fill, 50%),
+    rgba(255,255,255,0.06) var(--glass-slider-fill, 50%),
+    rgba(255,255,255,0.06) 100%
+  );
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: height 0.15s var(--ease-snappy);
+}
+
+.glass-slider:hover {
+  height: 6px;
+}
+
+.glass-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(255,255,255,0.18);
+  box-shadow:
+    0 1px 3px rgba(0,0,0,0.2),
+    0 0 0 1px rgba(255,255,255,0.08) inset,
+    0 1px 0 rgba(255,255,255,0.9) inset;
+  backdrop-filter: blur(12px) saturate(160%);
+  cursor: grab;
+  transition: transform 0.15s var(--ease-snappy), box-shadow 0.15s var(--ease-snappy);
+}
+
+.glass-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.15);
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.25),
+    0 0 0 4px rgba(255,255,255,0.12);
+}
+
+.glass-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(255,255,255,0.18);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  cursor: grab;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

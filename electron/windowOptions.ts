@@ -67,6 +67,10 @@ export function browserWindowOptions(
     backgroundColor: BACKGROUND,
     show: platform === 'win32',
     autoHideMenuBar: true,
+    transparent: platform === 'darwin',
+    // Native vibrancy for liquid glass — CSS will be opaque for non-glass themes,
+    // so this is harmless when not in glass mode, but gives real desktop blur for glass.
+    ...(platform === 'darwin' ? { vibrancy: 'sidebar' as const, visualEffectState: 'active' as const } : {}),
     webPreferences: {
       // BrowserPanel uses <webview>; renderer is sandboxed + contextIsolated and
       // URLs pass isSafeBrowserUrl() allowlist. TODO(T7-B): replace with BrowserWindow.
@@ -85,6 +89,11 @@ export function browserWindowOptions(
       frame: false,
       titleBarStyle: 'hiddenInset',
       trafficLightPosition: { x: 12, y: 12 },
+      // Keep vibrancy even when hidden — App.tsx will toggle it via setVibrancy
+      backgroundColor: '#00000000',
+      transparent: true,
+      vibrancy: 'sidebar' as const,
+      visualEffectState: 'active' as const,
     };
   }
 

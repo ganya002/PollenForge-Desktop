@@ -371,6 +371,22 @@ function setupIpcHandlers(): void {
     return mainWindow?.isMaximized() ?? false;
   });
 
+  ipcMain.handle('app:set-vibrancy', async (_event, mode: string | null) => {
+    if (process.platform !== 'darwin' || !mainWindow) return { ok: false };
+    try {
+      const vibrancy = mode === 'sidebar' ? 'sidebar' : null;
+      // @ts-ignore — vibrancy is macOS-only and not in the generic type
+      mainWindow.setVibrancy(vibrancy as any);
+      // Keep transparent background for glass, opaque for others
+      try {
+        mainWindow.setBackgroundColor(vibrancy ? '#00000000' : '#111111');
+      } catch {}
+      return { ok: true };
+    } catch (err: any) {
+      return { ok: false, error: err?.message || String(err) };
+    }
+  });
+
   ipcMain.handle('app:pick-directory', async () => {
     const win = mainWindow;
     if (!win) return { ok: false };

@@ -12,5 +12,22 @@
       <div style="padding:48px;font-size:16px">Starting Nexum…</div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Liquid Glass refraction filters -->
+    <svg width="0" height="0" style="position:absolute;overflow:hidden;pointer-events:none" aria-hidden="true">
+      <defs>
+        <filter id="glass-refraction-subtle" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.009" numOctaves="1" seed="12" result="turbulence" />
+          <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="1.2" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+        </filter>
+        <filter id="glass-refraction-dramatic" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" seed="7" result="turbulence" />
+          <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="6" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+          <feGaussianBlur in="displaced" stdDeviation="0.3" result="soft" />
+          <feComponentTransfer in="soft" result="final">
+            <feFuncA type="discrete" tableValues="1 1" />
+          </feComponentTransfer>
+        </filter>
+      </defs>
+    </svg>
   </body>
 </html>

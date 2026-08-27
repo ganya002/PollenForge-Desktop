@@ -13,7 +13,7 @@ import {
 } from '../../lib/appConfig'
 import { marketplaceSearch, installPlugin, uninstallPlugin, installedPluginIds } from '../../lib/plugins'
 import { isFreeModel, resolveModelList, type ModelListMode } from '../../lib/modelFilter'
-import { applyTheme, THEME_IDS, type ThemeId } from '../../lib/qol'
+import { applyGlassOpacity, applyGlassRefraction, applyTheme, THEME_IDS, type ThemeId, type GlassRefraction } from '../../lib/qol'
 import { openBrickPong } from '../../lib/brickPong'
 
 export type SettingsTab = 'providers' | 'plugins' | 'general' | 'memory' | 'updates' | 'about'
@@ -355,11 +355,17 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
               {activeTab === 'general' && (
                 <div className="h-full overflow-y-auto p-4 space-y-4">
                   <div className="bg-surface-2 rounded-lg p-4">
-                    <div className="text-xs font-medium text-text-primary">Theme</div>
-                    <div className="text-[10px] text-text-muted mt-0.5 mb-3">Dark is default. Light and Slate change the whole window.</div>
-                    <div className="flex gap-1">
+                    <div className="text-xs font-medium text-text-primary flex items-center gap-1.5">
+                      Theme
+                      {(config.theme || 'dark') === 'glass' && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 text-text-secondary border border-white/10">Liquid Glass</span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-text-muted mt-0.5 mb-3">Glass is translucent — drag the slider to taste. Best on macOS.</div>
+                    <div className="flex gap-1 flex-wrap">
                       {THEME_IDS.map((id) => {
                         const on = (config.theme || 'dark') === id
+                        const isGlass = id === 'glass'
                         return (
                           <button
                             key={id}
@@ -369,18 +375,126 @@ export default function SettingsModal({ open, onClose, initialTab = 'providers' 
                               setConfig(next)
                               persistConfig(next)
                               applyTheme(id)
+                              if (id === 'glass') {
+                                applyGlassOpacity(next.glassOpacity ?? 55)
+                                applyGlassRefraction((next.glassRefraction as GlassRefraction) || 'subtle')
+                                try { window.api?.app?.setVibrancy?.('sidebar') } catch {}
+                              } else {
+                                try { window.api?.app?.setVibrancy?.(null) } catch {}
+                              }
                             }}
-                            className={`h-8 px-3 text-[12px] rounded-md border capitalize transition-smooth ${
+                            className={`h-8 px-3 text-[12px] rounded-md border capitalize transition-smooth relative overflow-hidden ${
                               on
-                                ? 'bg-surface-3 text-text-primary border-border'
-                                : 'bg-surface-1 text-text-muted border-border hover:text-text-primary'
+                                ? isGlass
+                                  ? 'bg-white/12 text-text-primary border-white/18 shadow-[0_2px_12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-[12px]'
+                                  : 'bg-surface-3 text-text-primary border-border'
+                                : 'bg-surface-1 text-text-muted border-border hover:text-text-primary hover:border-border-hover'
                             }`}
+                            style={
+                              isGlass && on
+                                ? { backdropFilter: 'blur(12px) saturate(160%)', WebkitBackdropFilter: 'blur(12px) saturate(160%)' }
+                                : undefined
+                            }
                           >
-                            {id}
+                            {isGlass ? '✦ Glass' : id}
+                            {isGlass && on && (
+                              <span className="absolute inset-0 pointer-events-none opacity-40" style={{ background: 'linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.08) 32%, transparent 45%)' }} />
+                            )}
                           </button>
                         )
                       })}
                     </div>
+
+                    {(config.theme || 'dark') === 'glass' && (
+                      <div className="mt-4 space-y-4 animate-fade-in">
+                        {/* Glass preview — Siri-inspired pill + cards */}
+                        <div className="relative h-[88px] rounded-xl overflow-hidden border border-white/[0.07] bg-[rgba(0,0,0,0.22)] backdrop-blur-[16px]">
+                          <div className="absolute inset-0 opacity-60" style={{ background: 'radial-gradient(120% 90% at 50% 100%, rgba(120,160,255,0.14) 0%, rgba(180,120,255,0.10) 18%, rgba(255,160,190,0.08) 32%, transparent 62%)' }} />
+                          <div className="absolute inset-0 p-3 flex flex-col gap-2.5 justify-center">
+                            {/* Siri pill */}
+                            <div className="h-9 rounded-full bg-[rgba(28,28,30,0.72)] border border-white/[0.08] backdrop-blur-[24px] shadow-[0_8px_24px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.08)] flex items-center px-4 gap-2">
+                              <span className="w-2 h-6 rounded-full bg-white/90 shadow-[0_0_12px_rgba(255,255,255,0.6)]" />
+                              <span className="text-[12px] text-white/75 tracking-wide">Search or Ask</span>
+                              <span className="ml-auto w-4 h-4 rounded-full border border-white/15 flex items-center justify-center text-[10px] text-white/50">◯</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <div className="flex-1 h-7 rounded-full bg-white/[0.06] border border-white/[0.06] backdrop-blur-[12px] flex items-center justify-center text-[10px] text-white/55">Applications</div>
+                              <div className="flex-1 h-7 rounded-full bg-white/[0.04] border border-white/[0.05] backdrop-blur-[12px] flex items-center justify-center text-[10px] text-white/40">Files</div>
+                            </div>
+                          </div>
+                          <div className="absolute bottom-1.5 left-3 text-[10px] text-white/45 tracking-wide">Siri glass — move the window to see desktop blur</div>
+                        </div>
+
+                        {/* Refraction toggle */}
+                        <div>
+                          <div className="text-[11px] font-medium text-text-primary mb-1.5">Light refraction</div>
+                          <div className="flex gap-1 p-1 rounded-lg bg-surface-1 border border-border w-fit">
+                            {(['subtle', 'dramatic'] as const).map((m) => {
+                              const on = (config.glassRefraction || 'subtle') === m
+                              return (
+                                <button
+                                  key={m}
+                                  onClick={() => {
+                                    const cfg = useStore.getState().config
+                                    const next = { ...cfg, glassRefraction: m as GlassRefraction }
+                                    setConfig(next)
+                                    persistConfig(next)
+                                    applyGlassRefraction(m)
+                                  }}
+                                  className={`h-7 px-3 text-[11px] rounded-md capitalize transition-smooth border ${
+                                    on
+                                      ? 'bg-surface-3 text-text-primary border-border shadow-sm'
+                                      : 'bg-transparent text-text-muted border-transparent hover:text-text-primary'
+                                  }`}
+                                >
+                                  {m === 'subtle' ? 'Subtle — Apple' : 'Dramatic — Prism'}
+                                </button>
+                              )
+                            })}
+                          </div>
+                          <div className="text-[10px] text-text-muted mt-1">
+                            {(config.glassRefraction || 'subtle') === 'subtle'
+                              ? 'Clean dark glass — soft highlight, no color. The Tahoe default.'
+                              : 'Siri orb glow — soft rainbow at the bottom edge, like the new Siri.'}
+                          </div>
+                        </div>
+
+                        {/* Glass slider */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="text-[11px] font-medium text-text-primary">Glass transparency</div>
+                            <div className="text-[10px] font-mono text-text-muted tabular-nums">{config.glassOpacity ?? 55}%</div>
+                          </div>
+                          <input
+                            type="range"
+                            min={20}
+                            max={85}
+                            step={1}
+                            value={config.glassOpacity ?? 55}
+                            onInput={(e) => {
+                              const v = parseInt((e.target as HTMLInputElement).value, 10)
+                              applyGlassOpacity(v)
+                              // Don't persist on every drag tick — just visual
+                              ;(e.target as HTMLInputElement).style.setProperty('--glass-slider-fill', `${((v - 20) / 65) * 100}%`)
+                            }}
+                            onChange={(e) => {
+                              const v = parseInt(e.target.value, 10)
+                              const cfg = useStore.getState().config
+                              const next = { ...cfg, glassOpacity: v }
+                              setConfig(next)
+                              persistConfig(next)
+                              applyGlassOpacity(v)
+                            }}
+                            className="glass-slider w-full"
+                            style={{ ['--glass-slider-fill' as any]: `${(((config.glassOpacity ?? 55) - 20) / 65) * 100}%` }}
+                          />
+                          <div className="flex justify-between text-[10px] text-text-muted mt-1">
+                            <span>More transparent</span>
+                            <span>More solid</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-surface-2 rounded-lg p-4">

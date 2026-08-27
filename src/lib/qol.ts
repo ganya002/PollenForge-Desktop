@@ -1,15 +1,38 @@
-export type ThemeId = 'dark' | 'light' | 'slate'
+export type ThemeId = 'dark' | 'light' | 'slate' | 'glass'
 export type AgentMode = 'ask' | 'agent'
+export type GlassRefraction = 'subtle' | 'dramatic'
 
-export const THEME_IDS: ThemeId[] = ['dark', 'light', 'slate']
+export const THEME_IDS: ThemeId[] = ['dark', 'light', 'slate', 'glass']
 
 export function normalizeTheme(raw: unknown): ThemeId {
   return THEME_IDS.includes(raw as ThemeId) ? (raw as ThemeId) : 'dark'
 }
 
+export function normalizeGlassOpacity(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : parseFloat(String(raw))
+  if (!Number.isFinite(n)) return 55
+  return Math.min(85, Math.max(20, Math.round(n)))
+}
+
+export function normalizeGlassRefraction(raw: unknown): GlassRefraction {
+  return raw === 'dramatic' ? 'dramatic' : 'subtle'
+}
+
 export function applyTheme(theme: ThemeId): void {
   if (typeof document === 'undefined') return
   document.documentElement.dataset.theme = theme
+}
+
+export function applyGlassOpacity(opacity: number): void {
+  if (typeof document === 'undefined') return
+  const v = normalizeGlassOpacity(opacity)
+  document.documentElement.style.setProperty('--glass-opacity', String(v / 100))
+  document.documentElement.style.setProperty('--glass-opacity-percent', `${v}%`)
+}
+
+export function applyGlassRefraction(mode: GlassRefraction): void {
+  if (typeof document === 'undefined') return
+  document.documentElement.dataset.glassRefraction = normalizeGlassRefraction(mode)
 }
 
 export function normalizeAgentMode(raw: unknown): AgentMode {
