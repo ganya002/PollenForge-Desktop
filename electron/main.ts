@@ -35,6 +35,64 @@ if (process.platform === 'win32') {
 // Brand as Nexum Beta (dev mode otherwise shows "Electron" in the menu bar)
 app.setName('Nexum Beta');
 
+// --- Crash proofing ------------------------------------------------------------
+// A single instance owns port 8765; a second launch just focuses the window.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+}
+
+function crashLog(line: string): void {
+  try {
+    fs.appendFileSync(
+      path.join(app.getPath('userData'), 'startup.log'),
+      `${new Date().toISOString()} ${line}\n`
+    );
+  } catch {
+    console.error(line);
+  }
+}
+
+// Never let a main-process JS error kill the app silently — log and continue.
+process.on('uncaughtException', (err) => {
+  crashLog(`uncaughtException ${err?.stack || err}`);
+});
+process.on('unhandledRejection', (reason) => {
+  crashLog(`unhandledRejection ${String(reason)}`);
+});
+
+let rendererCrashReloads = 0;
+let gpuCrashCount = 0;
+
+function recreateMainWindow(): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.close();
+    mainWindow = null;
+  }
+  createWindow();
+}
+
+// Warn when the Intel build runs under Rosetta on Apple Silicon — that combo
+// is slower and crash-prone (EXC_BREAKPOINT under translation on new macOS).
+function warnIfRosetta(): void {
+  try {
+    const under = (app as unknown as { runningUnderARM64Translation?: boolean | (() => boolean | undefined) }).runningUnderARM64Translation;
+    const translated = typeof under === 'function' ? under.call(app) : under;
+    if (!translated) return;
+    setTimeout(() => {
+      dialog.showMessageBox({
+        type: 'warning',
+        title: 'Wrong build for this Mac',
+        message: 'Nexum Beta is running the Intel build under Rosetta',
+        detail: 'This build is slower and can crash on Apple Silicon. Download the "Mac-arm64" DMG from Releases and install it over this one. Your chats and settings are kept.',
+        buttons: ['OK'],
+      }).catch(() => {});
+    }, 2500);
+  } catch {
+    /* older Electron or non-mac — ignore */
+  }
+}
+
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let backendManager: BackendManager | null = null;
@@ -162,6 +220,7 @@ function createWindow(): void {
 
   mainWindow.webContents.on('did-finish-load', () => {
     log('did-finish-load');
+    rendererCrashReloads = 0;
   });
 
   mainWindow.once('ready-to-show', () => {
@@ -173,6 +232,20 @@ function createWindow(): void {
 
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
     log(`render-process-gone ${JSON.stringify(details)}`);
+    // Auto-recover instead of leaving a white/frozen window.
+    if (details.reason === 'clean-exit') return;
+    if (rendererCrashReloads < 2) {
+      rendererCrashReloads += 1;
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          log(`auto-reload after renderer crash (#${rendererCrashReloads})`);
+          mainWindow.webContents.reload();
+        }
+      }, 800);
+    } else {
+      recreateMainWindow();
+      rendererCrashReloads = 0;
+    }
   });
 
   mainWindow.on('maximize', () => {
@@ -577,6 +650,17 @@ async function startBackend(): Promise<void> {
   }
 }
 
+app.on('second-instance', () => {
+  const win = BrowserWindow.getAllWindows()[0] || mainWindow;
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  } else {
+    createWindow();
+  }
+});
+
 app.whenReady().then(async () => {
   setupIpcHandlers();
   setupUpdater(() => mainWindow);
@@ -593,8 +677,19 @@ app.whenReady().then(async () => {
     } catch {
       console.error('child-process-gone', details);
     }
+    if (details.type === 'GPU' || details.name === 'GPU') {
+      gpuCrashCount += 1;
+      if (gpuCrashCount >= 2 && process.platform !== 'win32') {
+        crashLog('GPU process crashed twice — disabling hardware acceleration and recreating window');
+        app.disableHardwareAcceleration();
+      }
+      if (gpuCrashCount <= 3) {
+        setTimeout(() => recreateMainWindow(), 700);
+      }
+    }
   });
 
+  warnIfRosetta();
   checkForUpdatesOnStartup();
 });
 

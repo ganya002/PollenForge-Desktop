@@ -86,7 +86,7 @@ function displayArgs(tc: ToolCall): string {
   return JSON.stringify(args, null, 2)
 }
 
-function getOutput(tc: ToolCall): { text: string; isError: boolean; truncated?: boolean } {
+function getOutput(tc: ToolCall): { text: string; isError: boolean; exitCode?: number; truncated?: boolean } {
   const r: any = tc.result
   if (!r) return { text: '', isError: false }
   if (r.error) return { text: String(r.error), isError: true }
@@ -94,7 +94,9 @@ function getOutput(tc: ToolCall): { text: string; isError: boolean; truncated?: 
   if (r.stdout !== undefined) {
     const out = (r.stdout || '') + (r.stderr ? `\n${r.stderr}` : '')
     const code = r.exit_code !== undefined ? `\n— exit ${r.exit_code}${r.duration_ms ? ` in ${r.duration_ms}ms` : ''}` : ''
-    return { text: (out.trim() + code).slice(0, 8000) || '(no output)', isError: r.exit_code !== 0 }
+    // A non-zero exit code is not an app error — the command ran and completed.
+    // The exit code stays visible in the output; the badge stays green "Done".
+    return { text: (out.trim() + code).slice(0, 8000) || '(no output)', isError: false, exitCode: r.exit_code }
   }
   if (r.content !== undefined) return { text: String(r.content).slice(0, 8000), isError: false }
   if (r.diff !== undefined) return { text: String(r.diff).slice(0, 8000) || '(no changes)', isError: false }
@@ -126,7 +128,7 @@ export default function ToolResult({ toolCall }: Props) {
   const preview = getPreview(toolCall)
   const path = toolPath(toolCall.args)
   const delta = lineDeltaFromTool(toolCall.name, toolCall.args, toolCall.result)
-  const { text: output, isError } = getOutput(toolCall)
+  const { text: output, isError, exitCode } = getOutput(toolCall)
 
   const handleCopy = async () => {
     try {
@@ -213,13 +215,18 @@ export default function ToolResult({ toolCall }: Props) {
         {duration && (
           <span className={`text-[10px] tabular-nums transition-snappy ${isRunning ? 'text-amber-400' : 'text-text-muted'}`}>{duration}</span>
         )}
-        {(isRunning || isError || toolCall.status === 'approval_needed') && (
+        {(isRunning || isError || toolCall.status === 'approval_needed' || (toolCall.status === 'done' && exitCode !== undefined && exitCode !== 0)) && (
           <motion.span
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`text-[10px] shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${isError ? 'bg-red-500/15 text-red-400' : isRunning ? 'bg-amber-500/15 text-amber-400 animate-pulse' : 'bg-violet-500/15 text-violet-400'}`}
+            className={`text-[10px] shrink-0 px-1.5 py-0.5 rounded-full font-medium ${
+              isError ? 'bg-red-500/15 text-red-400'
+              : isRunning ? 'bg-amber-500/15 text-amber-400 animate-pulse'
+              : toolCall.status === 'approval_needed' ? 'bg-violet-500/15 text-violet-400'
+              : 'bg-emerald-500/15 text-emerald-400'
+            }`}
           >
-            {status.label}
+            {toolCall.status === 'done' && !isError ? 'Done' : status.label}
           </motion.span>
         )}
         <motion.span
@@ -314,7 +321,7 @@ export default function ToolResult({ toolCall }: Props) {
                       ))}
                     </div>
                   ) : (
-                    <pre className={`text-xs font-mono border rounded-md px-2.5 py-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words transition-snappy ${isError ? 'bg-red-500/5 border-red-500/20 text-danger' : 'bg-surface-2 border-border text-text-secondary'}`}>
+                    <pre className={`text-xs font-mono border rounded-md px-2.5 py-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words transition-snappy ${isError ? 'bg-red-500/5 border-red-500/20 text-danger' : exitCode !== undefined && exitCode !== 0 ? 'bg-amber-500/5 border-amber-500/20 text-text-secondary' : 'bg-surface-2 border-border text-text-secondary'}`}>
                       {isRunning && !output ? <span className="shimmer-text">Running…</span> : output || '(no output)'}
                     </pre>
                   )}

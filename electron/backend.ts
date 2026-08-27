@@ -15,6 +15,7 @@ export class BackendManager {
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
   private startupTimeout: ReturnType<typeof setTimeout> | null = null;
   private isStarting = false;
+  private restartAttempts = 0;
   public readonly port: number;
 
   readonly authToken: string;
@@ -450,6 +451,7 @@ export class BackendManager {
           PORT: String(this.port),
           NEXUM_USER_DATA: app.getPath('userData'),
           NEXUM_AUTH_TOKEN: this.authToken,
+          PYTHONFAULTHANDLER: '1',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
       });
@@ -481,6 +483,7 @@ export class BackendManager {
 
       await this.waitForHealth(90_000);
       this.startHealthPolling();
+      this.restartAttempts = 0;
       this.isStarting = false;
     } catch (err) {
       this.isStarting = false;
@@ -588,11 +591,17 @@ export class BackendManager {
       this.process = null;
     }
 
-    console.log('Attempting to restart backend in 3 seconds...');
+    if (this.restartAttempts >= 5) {
+      console.error('Backend restart capped after 5 attempts — waiting for app reload to retry');
+      return;
+    }
+    this.restartAttempts += 1;
+    const delay = Math.min(48000, 3000 * Math.pow(2, this.restartAttempts - 1));
+    console.log(`Attempting to restart backend in ${delay}ms (attempt ${this.restartAttempts}/5)...`);
     setTimeout(() => {
       this.start().catch((err) => {
         console.error('Failed to restart backend:', err);
       });
-    }, 3000);
+    }, delay);
   }
 }
