@@ -52,7 +52,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
   const [showFileMention, setShowFileMention] = useState(false)
   const [fileMentionQuery, setFileMentionQuery] = useState('')
   const [cursorPos, setCursorPos] = useState(0)
-  const [attachedFiles, setAttachedFiles] = useState<{ name: string; content: string; dataUrl?: string }[]>([])
+  const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string; content: string; dataUrl?: string }[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [pluginNotice, setPluginNotice] = useState('')
   const autoApprove = useStore((s) => s.config.auto_approve)
@@ -255,27 +255,29 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
         useStore.getState().pushToast({ kind: 'error', text: `${file.name} is too large (max 6MB per image).` })
         return
       }
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       setAttachedFiles(prev => {
-        if (prev.filter(f => f.dataUrl).length >= MAX_IMAGES) {
+        if (prev.filter(f => f.dataUrl !== undefined).length >= MAX_IMAGES) {
           useStore.getState().pushToast({ kind: 'error', text: `Max ${MAX_IMAGES} images per message.` })
           return prev
         }
         const reader = new FileReader()
         reader.onload = (ev) => {
           const dataUrl = ev.target?.result as string
-          setAttachedFiles(cur => cur.map(f => f.name === file.name && !f.dataUrl ? { ...f, dataUrl } : f))
+          setAttachedFiles(cur => cur.map(f => f.id === id ? { ...f, dataUrl } : f))
         }
         reader.readAsDataURL(file)
-        return [...prev, { name: file.name || 'image.png', content: '', dataUrl: '' }]
+        return [...prev, { id, name: file.name || 'image.png', content: '', dataUrl: '' }]
       })
       return
     }
     if (file.size > MAX_ATTACH_SIZE) {
       // For large files, just send name + truncated preview
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const reader = new FileReader()
       reader.onload = (ev) => {
         const content = (ev.target?.result as string).slice(0, 15000)
-        setAttachedFiles(prev => [...prev, { name: file.name, content: `[Large file ${file.size} bytes, preview]:\n${content}` }])
+        setAttachedFiles(prev => [...prev, { id, name: file.name, content: `[Large file ${file.size} bytes, preview]:\n${content}` }])
       }
       reader.readAsText(file.slice(0, 50000))
       return
@@ -284,13 +286,15 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
     const isText = file.type.startsWith('text/') || /\.(txt|js|ts|tsx|jsx|py|json|md|css|html|yaml|yml|toml|xml|sh|zsh|bash|sql|cfg|ini|env|log|csv|rs|go|java|c|cpp|h)$/.test(file.name)
     if (!isText) {
       // Unknown binary type — send name + size so the model can decide next steps
-      setAttachedFiles(prev => [...prev, { name: file.name, content: `[Binary file: ${file.name} — ${file.type || 'unknown type'}, ${file.size} bytes]` }])
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      setAttachedFiles(prev => [...prev, { id, name: file.name, content: `[Binary file: ${file.name} — ${file.type || 'unknown type'}, ${file.size} bytes]` }])
       return
     }
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const reader = new FileReader()
     reader.onload = (ev) => {
       const content = ev.target?.result as string
-      setAttachedFiles(prev => [...prev, { name: file.name, content: content.slice(0, 15000) }])
+      setAttachedFiles(prev => [...prev, { id, name: file.name, content: content.slice(0, 15000) }])
     }
     reader.onerror = () => {}
     reader.readAsText(file)
@@ -306,19 +310,20 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items
     if (!items) return
+    let handled = false
     for (const item of items) {
       if (item.type.startsWith('image/')) {
         const file = item.getAsFile()
         if (file) {
-          e.preventDefault()
+          if (!handled) e.preventDefault()
+          handled = true
           processFile(new File([file], file.name || 'pasted-image.png', { type: file.type }))
         }
-        break
       }
     }
   }, [])
 
-  const removeAttached = (idx: number) => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))
+  const removeAttached = (id: string) => setAttachedFiles(prev => prev.filter(f => f.id !== id))
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true) }
   const handleDragLeave = () => setIsDragging(false)
@@ -529,9 +534,9 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
               exit="hidden"
               className="flex flex-wrap justify-center gap-2 mb-2.5"
             >
-              {attachedFiles.map((file, i) => (
+              {attachedFiles.map((file) => (
                 <motion.div
-                  key={`${file.name}-${i}`}
+                  key={file.id}
                   variants={staggerItem}
                   layout
                   className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-2 border border-border rounded-lg text-xs text-text-secondary max-w-[240px] hover:border-border-hover hover:shadow-sm transition-snappy"
@@ -549,7 +554,7 @@ export default function InputBar({ onSend, onStop, onCompact, isStreaming }: Pro
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => removeAttached(i)}
+                    onClick={() => removeAttached(file.id)}
                     className="p-0.5 rounded hover:bg-surface-3 text-text-muted hover:text-danger transition-snappy"
                   >
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 2.5l5 5m0-5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>

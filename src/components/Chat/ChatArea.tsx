@@ -41,7 +41,7 @@ function WelcomeScreen() {
             <path d="M4 10l12 6m0 0l12-6m-12 6v12" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
           </svg>
         </motion.div>
-        <h1 className="text-[26px] font-semibold tracking-tight text-text-primary mb-1.5">Nexum Beta</h1>
+        <h1 className="text-[26px] font-semibold tracking-tight text-text-primary mb-1.5">Nexum</h1>
         <p className="text-text-muted text-[13px] leading-relaxed mb-6 max-w-sm mx-auto">
           Local coding assistant. Read, write, and run things on this machine.
         </p>

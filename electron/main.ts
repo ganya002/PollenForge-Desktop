@@ -25,15 +25,15 @@ import {
 
 if (process.platform === 'win32') {
   app.disableHardwareAcceleration();
-  app.setAppUserModelId('com.nexum.desktop.beta');
+  app.setAppUserModelId('com.nexum.desktop');
   for (const [flag, value] of windowsChromiumSwitches()) {
     if (value === undefined) app.commandLine.appendSwitch(flag);
     else app.commandLine.appendSwitch(flag, value);
   }
 }
 
-// Brand as Nexum Beta (dev mode otherwise shows "Electron" in the menu bar)
-app.setName('Nexum Beta');
+// Brand as Nexum (dev mode otherwise shows "Electron" in the menu bar)
+app.setName('Nexum');
 
 // --- Crash proofing ------------------------------------------------------------
 // A single instance owns port 8765; a second launch just focuses the window.
@@ -83,7 +83,7 @@ function warnIfRosetta(): void {
       dialog.showMessageBox({
         type: 'warning',
         title: 'Wrong build for this Mac',
-        message: 'Nexum Beta is running the Intel build under Rosetta',
+        message: 'Nexum is running the Intel build under Rosetta',
         detail: 'This build is slower and can crash on Apple Silicon. Download the "Mac-arm64" DMG from Releases and install it over this one. Your chats and settings are kept.',
         buttons: ['OK'],
       }).catch(() => {});
@@ -102,11 +102,26 @@ const allowedProjectDirs = new Set<string>();
 
 function isPathAllowed(targetPath: string, configDir: string): boolean {
   try {
-    const resolved = path.resolve(targetPath);
-    const configResolved = path.resolve(configDir);
+    // Use realpath where possible to block symlink escape (e.g. /proj/link -> /etc)
+    const tryReal = (p: string): string => {
+      try {
+        return fs.realpathSync(p);
+      } catch {
+        // File doesn't exist yet (write) — resolve its parent
+        try {
+          const parent = path.dirname(p);
+          const realParent = fs.realpathSync(parent);
+          return path.join(realParent, path.basename(p));
+        } catch {
+          return path.resolve(p);
+        }
+      }
+    };
+    const resolved = tryReal(targetPath);
+    const configResolved = tryReal(configDir);
     if (resolved === configResolved || resolved.startsWith(configResolved + path.sep)) return true;
     for (const dir of allowedProjectDirs) {
-      const allowedResolved = path.resolve(dir);
+      const allowedResolved = tryReal(dir);
       if (resolved === allowedResolved || resolved.startsWith(allowedResolved + path.sep)) return true;
     }
     return false;
@@ -283,7 +298,7 @@ function createTray(): void {
   }
   const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
   tray = new Tray(trayIcon);
-  tray.setToolTip('Nexum Beta');
+  tray.setToolTip('Nexum');
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -375,7 +390,7 @@ function setupIpcHandlers(): void {
     if (mainWindow?.isFocused() && mainWindow.isVisible()) {
       return { ok: true, skipped: true };
     }
-    const title = String(payload?.title || 'Nexum Beta');
+    const title = String(payload?.title || 'Nexum');
     const body = String(payload?.body || 'Agent finished').slice(0, 180);
     try {
       if (process.platform === 'darwin') {

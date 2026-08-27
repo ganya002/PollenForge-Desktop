@@ -94,13 +94,25 @@ export default function BrowserPanel() {
     })
   }, [url])
 
+  const [crashed, setCrashed] = useState(false)
+  const crashedRef = useRef(false)
+
   useEffect(() => {
     if (!mounted) return
-    const guest = viewRef.current
+    const guest = viewRef.current as unknown as HTMLElement & {
+      addEventListener: (n: string, h: EventListener) => void
+      removeEventListener: (n: string, h: EventListener) => void
+      reload?: () => void
+      isCrashed?: () => boolean
+    }
     if (!guest) return
-    const onReady = () => setReady(true)
+    const onReady = () => {
+      setReady(true)
+      setCrashed(false)
+      crashedRef.current = false
+    }
     const onNav = () => {
-      const next = guestCurrentUrl(guest)
+      const next = guestCurrentUrl(guest as unknown as GuestLike)
       if (next && next !== 'about:blank' && !urlsLooselyEqual(next, urlRef.current)) {
         setDraft(next)
         setUrl(next)
@@ -108,12 +120,42 @@ export default function BrowserPanel() {
     }
     const start = () => setLoading(true)
     const stop = () => setLoading(false)
+    const onCrash = () => {
+      crashedRef.current = true
+      setCrashed(true)
+      setLoading(false)
+      // Don't let a webview crash take down the whole app
+      try { (guest as unknown as { stop?: () => void })?.stop?.() } catch {}
+    }
+    const onFail = () => setLoading(false)
+    // Prevent popups/new-windows from spawning unhandled guests that can crash
+    const onNewWindow = (e: Event) => {
+      try { e.preventDefault() } catch {}
+      const url = (e as CustomEvent & { url?: string }).url || (e as unknown as { detail?: { url?: string } })?.detail?.url
+      if (url && isSafeBrowserUrl(url)) {
+        setUrl(url)
+      } else if (url) {
+        // External fallback — main process will handle shell.openExternal if needed
+        try { window.open(url, '_blank') } catch {}
+      }
+    }
     guest.addEventListener('dom-ready', onReady)
     guest.addEventListener('did-navigate', onNav)
     guest.addEventListener('did-navigate-in-page', onNav)
     guest.addEventListener('did-start-loading', start)
     guest.addEventListener('did-stop-loading', stop)
     guest.addEventListener('did-finish-load', stop)
+    guest.addEventListener('did-fail-load', onFail as EventListener)
+    // Crash resilience — these events exist on <webview> but not on all GuestLike mocks
+    try {
+      ;(guest as unknown as HTMLElement).addEventListener('crashed', onCrash as EventListener)
+      ;(guest as unknown as HTMLElement).addEventListener('gpu-crashed', onCrash as EventListener)
+      ;(guest as unknown as HTMLElement).addEventListener('plugin-crashed', onCrash as EventListener)
+      ;(guest as unknown as HTMLElement).addEventListener('destroyed', onCrash as EventListener)
+      ;(guest as unknown as HTMLElement).addEventListener('unresponsive', onCrash as EventListener)
+      ;(guest as unknown as HTMLElement).addEventListener('new-window', onNewWindow as EventListener)
+      ;(guest as unknown as HTMLElement).addEventListener('window-open', onNewWindow as EventListener)
+    } catch {}
     return () => {
       guest.removeEventListener('dom-ready', onReady)
       guest.removeEventListener('did-navigate', onNav)
@@ -121,14 +163,36 @@ export default function BrowserPanel() {
       guest.removeEventListener('did-start-loading', start)
       guest.removeEventListener('did-stop-loading', stop)
       guest.removeEventListener('did-finish-load', stop)
+      guest.removeEventListener('did-fail-load', onFail as EventListener)
+      try {
+        ;(guest as unknown as HTMLElement).removeEventListener('crashed', onCrash as EventListener)
+        ;(guest as unknown as HTMLElement).removeEventListener('gpu-crashed', onCrash as EventListener)
+        ;(guest as unknown as HTMLElement).removeEventListener('plugin-crashed', onCrash as EventListener)
+        ;(guest as unknown as HTMLElement).removeEventListener('destroyed', onCrash as EventListener)
+        ;(guest as unknown as HTMLElement).removeEventListener('unresponsive', onCrash as EventListener)
+        ;(guest as unknown as HTMLElement).removeEventListener('new-window', onNewWindow as EventListener)
+        ;(guest as unknown as HTMLElement).removeEventListener('window-open', onNewWindow as EventListener)
+      } catch {}
     }
   }, [mounted, setUrl])
 
   useEffect(() => {
     if (!ready || !url) return
+    if (crashedRef.current) {
+      // Recover from a previous crash before navigating
+      setCrashed(false)
+      crashedRef.current = false
+      try { (viewRef.current as unknown as { reload?: () => void })?.reload?.() } catch {}
+    }
     const force = browserTick !== tickRef.current
     tickRef.current = browserTick
-    navigateGuest(viewRef.current, url, force)
+    // Guard navigateGuest — it can throw if the guest was destroyed
+    try {
+      navigateGuest(viewRef.current, url, force)
+    } catch {
+      setCrashed(true)
+      crashedRef.current = true
+    }
   }, [url, ready, browserTick])
 
   useEffect(() => {
@@ -319,9 +383,33 @@ export default function BrowserPanel() {
           src: 'about:blank',
           partition: 'persist:nexum-preview',
           allowpopups: 'true',
+          // Harden the guest — no Node, restricted permissions
+          // @ts-ignore — webview specific attrs not in React types
+          webpreferences: 'contextIsolation=yes, sandbox=yes, javascript=yes',
           style: { width: '100%', height: '100%', background: '#111' },
         })}
-        {!url && (
+        {crashed && (
+          <div className="absolute inset-0 flex items-center justify-center p-6 bg-surface-0/95 backdrop-blur-sm">
+            <div className="max-w-[20rem] text-center">
+              <div className="text-[13px] text-text-primary mb-1">This page crashed</div>
+              <div className="text-[12px] text-text-muted mb-3">The built-in browser recovered. Your chats are safe — just reload the page.</div>
+              <button
+                onClick={() => {
+                  setCrashed(false)
+                  crashedRef.current = false
+                  try { (viewRef.current as unknown as { reload?: () => void })?.reload?.() } catch {}
+                  if (url) {
+                    try { navigateGuest(viewRef.current, url, true) } catch {}
+                  }
+                }}
+                className="h-7 px-3 rounded-md bg-surface-2 border border-border text-[12px] text-text-primary hover:bg-surface-3"
+              >
+                Reload page
+              </button>
+            </div>
+          </div>
+        )}
+        {!url && !crashed && (
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center bg-surface-0">
             <div>
               <div className="text-[13px] text-text-secondary mb-1">Built-in browser</div>

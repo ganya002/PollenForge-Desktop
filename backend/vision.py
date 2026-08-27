@@ -28,13 +28,21 @@ _TEXT_ONLY_RE = re.compile(
 )
 
 
+MAX_DATA_URL_CHARS = 8_000_000
+
 def parse_data_url(data_url: str) -> tuple[str, bytes] | None:
     """'data:image/png;base64,AAA' → ('image/png', b'...') or None."""
-    m = _DATA_URL_RE.match((data_url or "").strip())
+    raw = (data_url or "").strip()
+    if len(raw) > MAX_DATA_URL_CHARS:
+        return None
+    m = _DATA_URL_RE.match(raw)
     if not m:
         return None
+    b64 = m.group(2)
+    if len(b64) > 7_000_000:
+        return None
     try:
-        return m.group(1), base64.b64decode(m.group(2), validate=False)
+        return m.group(1), base64.b64decode(b64, validate=False)
     except Exception:
         return None
 
@@ -115,14 +123,33 @@ def normalize_messages(messages: list[dict], provider: str, model: str, flavor: 
         if not images:
             out.append(m)
             continue
-        images = [u for u in images if isinstance(u, str) and u.startswith("data:image/")][:MAX_IMAGES_PER_MESSAGE]
+        # Filter to data URLs, cap count, and drop oversized / malformed before decode
+        filtered: list[str] = []
+        for u in images:
+            if not isinstance(u, str) or not u.startswith("data:image/"):
+                dropped += 1
+                continue
+            if len(u) > MAX_DATA_URL_CHARS:
+                dropped += 1
+                continue
+            filtered.append(u)
+        images = filtered[:MAX_IMAGES_PER_MESSAGE]
+        if len(images) < len(filtered):
+            dropped += len(filtered) - len(images)
+        # Drop any that fail to parse or exceed decoded size
+        to_keep: list[str] = []
         for url in images:
             parsed = parse_data_url(url)
             if not parsed or len(parsed[1]) > MAX_IMAGE_BYTES:
                 dropped += 1
-                images = [u for u in images if u != url]
+                continue
+            to_keep.append(url)
+        images = to_keep
         if not isinstance(m.get("content"), str):
-            out.append(m)
+            # If content isn't a string, pass through without images (avoid leaking to provider)
+            if images:
+                dropped += len(images)
+            out.append({k: v for k, v in m.items() if k != "images"})
             continue
         text = m["content"]
         if not vision or not images:

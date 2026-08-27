@@ -9,9 +9,11 @@ export type GuestLike = {
 
 export function isBenignGuestViewError(message: string): boolean {
   const text = message || ''
+  // Only swallow webview-specific aborts — plain ERR_ABORTED from fetch/XHR is not benign
+  const isAborted = /ERR_ABORTED/i.test(text) && /guest|webview/i.test(text)
   return (
     /GUEST_VIEW_MANAGER/i.test(text) ||
-    /ERR_ABORTED/i.test(text) ||
+    isAborted ||
     /WebView must be attached/i.test(text) ||
     /webview is destroyed/i.test(text)
   )

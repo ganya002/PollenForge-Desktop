@@ -66,19 +66,54 @@ export function listSessionSummaries(userData: string): Record<string, unknown>[
   return sessions;
 }
 
+const ID_RE = /^[A-Za-z0-9_\-]{1,64}$/;
+
+function validatedId(id: string): string {
+  const clean = (id || '').trim();
+  if (!ID_RE.test(clean)) throw new Error('invalid session id');
+  return clean;
+}
+
+function sessionFilePath(userData: string, id: string): string {
+  const safeId = validatedId(id);
+  const dir = sessionsDir(userData);
+  const filePath = path.join(dir, `${safeId}.json`);
+  // Containment check — resolve symlinks where possible
+  try {
+    const realDir = fs.realpathSync(dir);
+    const realFile = path.resolve(filePath);
+    // realFile must be inside realDir (or exactly the dir + file)
+    if (realFile !== realDir && !realFile.startsWith(realDir + path.sep)) {
+      throw new Error('path escape');
+    }
+  } catch {
+    // If realpath fails (file doesn't exist yet), fall back to path check
+    const resolved = path.resolve(filePath);
+    const resolvedDir = path.resolve(dir);
+    if (resolved !== resolvedDir && !resolved.startsWith(resolvedDir + path.sep)) {
+      throw new Error('path escape');
+    }
+  }
+  return filePath;
+}
+
 export function loadSessionFile(userData: string, id: string): unknown {
-  const filePath = path.join(sessionsDir(userData), `${id}.json`);
+  const filePath = sessionFilePath(userData, id);
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
 export function saveSessionFile(userData: string, id: string, data: unknown): void {
-  const filePath = path.join(sessionsDir(userData), `${id}.json`);
+  const filePath = sessionFilePath(userData, id);
   atomicWriteFile(filePath, JSON.stringify(data, null, 2));
 }
 
 export function deleteSessionFile(userData: string, id: string): void {
-  const filePath = path.join(sessionsDir(userData), `${id}.json`);
-  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  try {
+    const filePath = sessionFilePath(userData, id);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch {
+    // Invalid id — nothing to delete
+  }
 }
 
 export function legacySessionDirs(home = os.homedir()): string[] {
